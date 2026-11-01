@@ -168,6 +168,10 @@ export interface DcFuseRecord {
   placement:ProtectionPlacement;
   /** Exact physical position relative to the source and destination, NOT power flow. */
   nearComponentId:string|null;
+  /** Proposed safe source-side placement; never confused with the observed location. */
+  recommendedPlacement?:ProtectionPlacement;
+  recommendedNearComponentId?:string|null;
+  relativeElectricalOrder?:string;
   status:'reported'|'proposed'|'unknown';
   confidence:FuseConfidence; documentationUrl:string; notes:string;
 }
