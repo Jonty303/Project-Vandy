@@ -103,7 +103,16 @@ export function AutonomyPage({project,profileId,change}:Props){
         <div className="autonomy-bars">{values.map((v,i)=><div key={i} className={i+1===settings.solarMonth?'current':''}><span title={`${months[i]}: ${Math.round(v)} Wh/day`} style={{height:`${Math.max(3,90*v/peak)}px`}}/><small>{months[i]}</small></div>)}</div></div>}
       <p className="autonomy-note">{solar.source}. Panel Wp and MPPT limits are not a precise hourly clipping model. Generation that cannot be accepted by a full battery is not banked for later days.</p>
     </section>
-    <section className="panel autonomy-results"><div className="panel-head"><h2>Daily energy balance</h2></div>
+    <section className="panel autonomy-results"><div className="panel-head"><h2>Off-grid rating & daily energy balance</h2></div>
+      <div className="autonomy-rating"><small>PRELIMINARY OFF-GRID ASSESSMENT</small><strong>{
+        projection.incomplete||projection.solarWh===null||projection.batteryUsableWh===null
+          ? 'Not yet rated — incomplete input data'
+          : projection.stationaryStatus==='no-average-depletion'
+            ? 'No average-day depletion while stationary'
+            : projection.stationaryDays!==null
+              ? `Approx. ${projection.stationaryDays.toFixed(1)} stationary days to reserve`
+              : 'Unable to calculate endurance'
+      }</strong><p>Based on a repeated average day for the chosen month, not a weather or electrical safety rating.</p></div>
       <div className="autonomy-numbers"><div><small>Daily load demand</small><strong>{wh(projection.dailyDemandWh)}</strong></div><div><small>Solar recharge</small><strong>{wh(projection.solarWh)}</strong></div><div><small>Driving recharge</small><strong>{wh(projection.drivingWh)}</strong></div></div>
       <div className="autonomy-grid">
         <article><h3>Stationary, no driving</h3><strong>{reportDays(projection.stationaryDays,projection.stationaryStatus)}</strong><p>Net battery demand: {wh(projection.stationaryNetWh)}</p></article>
