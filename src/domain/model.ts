@@ -1,5 +1,7 @@
 export type DcVoltage = 12 | 24;
 export type Supply = 'dc' | 'ac-inverter' | 'ac-shore';
+/** Operating scenario for inverter-backed AC outputs: shore means AC pass-through, not battery inversion. */
+export type AcOperatingMode = 'inverter' | 'shore';
 export type Evidence = 'manual' | 'measured' | 'reported' | 'listing' | 'estimated' | 'unknown';
 export type LoadKind = 'standard' | 'led-strip' | 'compressor' | 'multi-state';
 export type ComponentKind =
@@ -64,6 +66,8 @@ export interface SocketAssignment {
 export interface Project {
   schemaVersion: 2; name: string; nominalBatteryVoltage: DcVoltage;
   batteryCapacityAh: number | null; inverterEfficiency: number;
+  /** Optional to preserve existing v2 saved data; default behaviour is inverter. */
+  acOperatingMode?: AcOperatingMode;
   profiles: Profile[]; components: Component[]; circuits: Circuit[]; loads: Load[];
   topologyLinks: TopologyLink[]; protectionDevices: ProtectionDevice[];
   socketAssignments: SocketAssignment[];
