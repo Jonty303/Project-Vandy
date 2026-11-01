@@ -64,3 +64,9 @@ A distinct communications model stores individually available and occupied devic
 The interactive 2D overview has AC, DC and communications layers and operates on **the same saved logical connection model** as equipment editors. Node layouts are cosmetic and may be dragged independently by layer. It is explicitly not a wire-by-wire schematic.
 
 Manual field changes are staged with Reset/Update rather than silently persisting on every keystroke. Incomplete-but-safe data may be saved with warnings; only invalid values or broken structural relationships block Update with explicit causes. Imported v1/v2 records migrate to v3.
+
+
+## Device-first connections and earthing — November 2026
+The future wiring netlist is a single persisted connection graph accessible both from each equipment device and the 2D designer. Device editing is introduced before diagram-endpoint dragging; the diagram must always update from the edited model. Only compatible endpoints may be connected and every change uses the application's Update/Reset workflow. Current and recommended engineering values are emphasised in the UI, with provenance details retained internally rather than surfaced as confidence badges.
+
+Vandy V1 records a Lynx chassis/earth connection to a common equipment-area bonding busbar, with that busbar connected to a main vehicle chassis point. Both 230V consumer units have protective-earth connections to the **rear pillar** chassis point. Individual additional devices that use the front busbar are not yet specified. Separate DC negative, AC PE and chassis-bond types prevent dangerous implicit equivalence; any actual DC negative/chassis or N–PE bond must be recorded and independently validated before it is shown.
