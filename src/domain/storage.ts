@@ -82,6 +82,11 @@ export function validateProject(x: unknown): x is Project {
     !Array.isArray(x.communicationPorts)||!Array.isArray(x.communicationConnections)||
     !Array.isArray(x.monitoringAuthorities)||!Array.isArray(x.auxiliaryAssignments)||!Array.isArray(x.diagramPositions))return false;
   if(x.activeBatteryBankId!==null&&!validString(x.activeBatteryBankId))return false;
+  if('groundingConnections' in x && x.groundingConnections!==undefined){
+    if(!Array.isArray(x.groundingConnections)||!x.groundingConnections.every((g:unknown)=>isRecord(g)&&
+      ['id','fromComponentId','fromTerminalId','toComponentId','toTerminalId'].every(k=>validString(g[k]))&&
+      ['chassis-bond','protective-earth'].includes(String(g.kind))))return false;
+  }
   const unique=(items:{id:string}[])=>new Set(items.map(item=>item.id)).size===items.length;
   if(!x.batteries.every((v:unknown)=>isRecord(v)&&validString(v.id)&&validString(v.name)&&
      validString(v.manufacturer)&&validString(v.model)&&validString(v.chemistry)&&
@@ -160,9 +165,13 @@ function hydrateWiring(p:Project):Project{
   const components=p.components.map(c=>c.id==='battery'&&c.name==='WattCycle LiFePO₄ battery'?
     {...c,name:'WattCycle 280Ah Mini Bluetooth LiFePO₄',model:'280Ah Mini Bluetooth (revision unconfirmed)',
       notes:[c.notes,'Owner identified Mini Bluetooth variant; exact revision still unverified.'].filter(Boolean).join(' ')}:c);
-  for(const id of ['starter-battery','isolator']){
+  for(const id of ['starter-battery','isolator','lynx','cu-shore','cu-sockets','front-earth-busbar','front-chassis-ground','rear-pillar-ground']){
     const c=defaults.components.find(c=>c.id===id);
-    if(c&&!components.some(x=>x.id===id))components.push(structuredClone(c));
+    const existing=components.find(x=>x.id===id);
+    if(c&&!existing)components.push(structuredClone(c));
+    else if(c&&existing&&c.groundingTerminals&&!existing.groundingTerminals){
+      existing.groundingTerminals=structuredClone(c.groundingTerminals);
+    }
   }
   const circuits=p.circuits.map(c=>{
     const starter=defaults.circuits.find(d=>d.id===c.id);
@@ -205,6 +214,7 @@ function hydrateWiring(p:Project):Project{
     l.modes.some(m=>Object.values(m.usage).some(u=>u.minutesPerDay>0)));
   const devices=p.portableCharges??(userHasUSBPlaceholder?[]:structuredClone(vandyPortableCharging));
   return {...p,components,circuits,loads:adaptedLoads,batteries,dcWiring:p.dcWiring??structuredClone(initialWiringPlan),
+    groundingConnections:p.groundingConnections??structuredClone(defaults.groundingConnections??[]),
     portableCharges:devices};
 }
 /** Merge new reference entries without overwriting changed user objects or profiles. */
