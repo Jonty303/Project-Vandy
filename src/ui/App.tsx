@@ -223,7 +223,7 @@ export function App() {
           navigate(id.startsWith('circuit:')?'loads':c?.kind==='battery'?'batteries':project.communicationPorts.some(p=>p.componentId===id)?'connectivity':'equipment');
         }}/>}
         {page==='dc-wiring' && <DcWiringPage project={project} change={patchProject}/>}
-        {page==='portable-charging' && <PortableChargingPage project={project} profileId={activeProfileId} change={patchProject}/>}
+        {page==='portable-charging' && <PortableChargingPage project={project} profileId={activeProfileId} onProfileChange={setProfileId} change={patchProject}/>}
         {page==='batteries' && <BatteriesPage project={project} change={patchProject}/>}
         {page==='connectivity' && <ConnectivityPage project={project} change={patchProject}/>}
         {page==='topology' && <TopologyPage project={project} change={patchProject}/>}
