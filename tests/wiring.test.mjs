@@ -12,7 +12,9 @@ test('main 150A fuse occurs on habitation battery positive before isolator',()=>
   assert.equal(f.ratingA,150);
   assert.equal(f.status,'reported');
   assert.equal(f.confidence,'owner-checked');
-  assert.equal(f.placement,'battery-end');
+  assert.equal(f.placement,'unconfirmed'); // physical proximity not inspected
+  assert.equal(f.recommendedPlacement,'battery-end');
+  assert.match(f.relativeElectricalOrder,/150A fuse → isolator/);
   assert.ok(w.cables.find(c=>c.id==='battery-fuse-isolator').fuseId==='battery-main');
 });
 test('Orion XS input and output fuse values are owner checked 70A but placement is not claimed checked',()=>{
@@ -21,6 +23,7 @@ test('Orion XS input and output fuse values are owner checked 70A but placement 
     const f=w.fuses.find(f=>f.id===id);
     assert.equal(f.ratingA,70);assert.equal(f.confidence,'owner-checked');
     assert.equal(f.placement,'unconfirmed');
+    assert.equal(f.recommendedPlacement,'battery-end');
   }
   assert.equal(w.cables.find(c=>c.id==='orion-ground').status,'unknown');
   assert.equal(w.cables.find(c=>c.id==='orion-battery').toComponentId,'battery');
