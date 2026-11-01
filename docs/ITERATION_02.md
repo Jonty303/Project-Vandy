@@ -30,3 +30,20 @@ No drag-and-drop wiring canvas, verified connection topology, fuse/cable sizing,
 - AC L, N, PE and DC +, −, chassis remain distinguished; mismatched DC-to-AC links are flagged and never automatically converted.
 - Existing v1 project imports preserve edited loads; unknown values remain unknown. Normal and working profiles still calculate.
 - Eight original calculation tests and new topology/migration tests pass.
+
+## Accepted in-iteration refinements (2026-11-01)
+### AC source tracing
+- When a consumer changes to 230V, offer inverter-backed and shore-only supplies and attach it to an appropriate named AC circuit. Derive the upstream source by walking the stored, compatible AC port-group links, not by an independent load/source dropdown.
+- A source is resolvable only if a matching route exists to MultiPlus AC OUT or shore-only supply. Vandy's inverter-backed AC output has two distinct operational scenarios: (1) battery inverter, (2) shore-through-MultiPlus. Do not mistake the shore pass-through supply path for an independent shore-only circuit.
+- Preserve the distinct logical distribution group and physical socket assignment. On missing/ambiguous routes, warn, never auto-certify or fabricate wiring.
+- Expose the derived route, evidence and operating scenario in the consumer editor.
+
+### Charging & autonomy (prototype-only extension requested by owner)
+- Add **Off-grid autonomy** planning page with stationary versus daily-driving estimates, usable battery energy based on configurable starting and minimum SOC, and daily Wh from the existing load calculator in *inverter* mode.
+- Model Orion XS 12/12-50A input-side spare alternator current (not nameplate alternator rating), input limit, output limit, charge voltages, efficiency and active-driving fraction; enforce 700W nominal cap and never infer automatic support for 24V batteries.
+- Solar: use European Commission PVGIS 5.3 `PVcalc` monthly typical production, derived at a selected latitude/longitude or an **illustrative equal-weight UK five-location reference**. Source API explicitly prohibits browser AJAX: Codespaces development proxy must call server-side with rate limiting/cache, never direct CORS AJAX. For commercial deployment require separate hosted backend and usage review.
+- Use PVGIS `peakpower` in **kW**, while users enter Wp. Use monthly `E_m` kWh / month and convert to typical daily Wh by month length. PVGIS grid-tied model is an approximate proxy for MPPT/battery charging, not a guaranteed match; month-to-month averages are not a forecast.
+- Include explicit solar loss, additional shade derating, 100/50 nominal PV limit (700W on 12V), and location/time evidence. Missing/expired data must remain unknown, not invented. An editable manual Wh/day override is allowed, visibly user-sourced.
+- Report daily load Wh, solar Wh, DC-DC Wh, stationary/off-grid net, daily-driving net, and indicative days to minimum SOC, with **no finite number if average energy balance is non-depleting**. Flag partial load ratings as optimistic and do not grant a positive safety/off-grid rating while important loads are unmeasured.
+- Exclude shore charge from off-grid calculations, do not extrapolate instantaneous weather or exact MPPT clipping from monthly PVGIS data, and do not count spare generation beyond battery capacity.
+- Preserve existing JSON schema v2 with optional autonomy configuration, defaults for older imports, and tests for charger limits, unknown solar, provenance, AC paths and two driving/stationary scenarios.
