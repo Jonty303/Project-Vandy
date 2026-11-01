@@ -47,3 +47,11 @@ A campervan electrical design assistant that starts with a reliable load calcula
 - Later safety prompts: carbon monoxide detection and testing, combustion air/exhaust routing, LPG leaks/isolation, correct ventilation, fire and electric shock, cable protection and mechanical damage.
 - No automatic advice that a component or circuit is safe merely because no warning is found.
 - Reassess security, privacy, hosting, licensed third-party assets and commercial terms before publishing paid products or introducing AI accounts.
+
+## Charging and autonomy proof-of-concept — Iteration 02 refinement
+- Vandy's Victron Orion XS 12/12-50A input and output current limits are each independently configurable up to 50A. Published upper continuous output is 700W at representative charge voltage; efficiency up to 98.5% is not a guaranteed operating efficiency. User-entered alternator current means **spare alternator current available at the charger's input** and must not be confused with total vehicle alternator rating.
+- The SmartSolar 100/50 has rated 50A charge output, nominal 700W PV on a 12V battery, and nominal conversion efficiency up to 98%. A preliminary monthly PVGIS power cap uses nominal PV rating; proper hourly clipping, acceptance/taper, shading and thermal derating remain future engineering work.
+- The EU JRC PVGIS 5.3 `PVcalc` endpoint yields historical monthly PV production. The API forbids browser-side AJAX, so a **development-only Node/Vite proxy** translates the request. Production hosting needs an authorised backend and cache; missing API data remains unknown.
+- UK regional baseline is explicitly an equal-weight average of five UK locations and is **not a validated geographical average or a forecast**.
+- The autonomy model simulates nominal usable battery range and a repeated *average* day. It does not verify a safe off-grid duration, model probability of bad weather, charging taper, driving/solar time-of-day, reserve battery health, low-temperature restrictions or electrical safety.
+- Source path to AC consumers is derived from compatible topology links and presented as proposed/reported/verified *claims*. Operating scenario determines estimated battery energy for inverter-fed AC loads.
