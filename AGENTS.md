@@ -2,7 +2,7 @@
 
 ## Scope and authority
 - `DESIGN.md` is the long-term product/architecture source of truth.
-- `docs/ITERATION_02.md` is the **authoritative contract for Iteration 02**. Preserve all Iteration 01 calculations and editor behaviour. Do not expand into physical wiring or compliance checking.
+- `docs/ITERATION_03.md` is the **authoritative contract for Iteration 03**. Preserve the Iteration 01 and 02 design and validated calculations. Do not expand into physical wiring or compliance checking.
 - Work in a feature branch; do not modify or merge `main` without an explicit request.
 - All initial demo equipment and loads are based on Vandy V1. Do not silently promote estimates, owner-reported components or online product matches to manufacturer-verified specifications.
 
@@ -32,3 +32,11 @@
 - The 12/12-50 DC-DC rating does **not** imply 50A available alternator input or 24V output. Alternator usable current is independently limited by estimated spare source current and input/output settings.
 - Monthly PVGIS results are historical typical yields, not forecasts; only server-side PVGIS requests are allowed. The Vite middleware is *development-only*. Preserve explicit source, location, date, loss assumptions and invalidation on configuration change.
 - Do not claim unlimited off-grid runtime for energy-positive averages or a reliable autonomy rating while material loads are unknown.
+
+## Iteration 03 battery and UX rules
+- Save a valid user record even with unknown/null specification fields; only block updates for structural invalidity or impossible values and explain field dependencies. All editable sections need Reset and Update (staged changes, clear confirmation and navigation protection).
+- Independent individual battery records and series/parallel bank membership are the source of truth. Do not silently substitute legacy project-level Ah into an active bank.
+- Self-heating, low-temperature cut-off and manufacturer BMS protection are distinct facts; unknown does not mean false.
+- Bluetooth batteries default to vendor-app-only. Manufacturer-documented protocol support is necessary before suggesting GX management, and documented CAN bus does not imply DVCC support.
+- Treat communication ports as capacity-constrained single slots and SmartShunt AUX as one selectable use. Propose documented cables where suitable, but no unverified connection is marked installed.
+- Distinguish DC/AC power topology, communications topology and cosmetic 2D layout. No direct device control or invented wire runs.
