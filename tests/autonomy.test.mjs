@@ -95,7 +95,7 @@ test('Rating explicitly identifies every active unknown consumer rating and wher
  const a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.title.includes('Starlink') && r.action.includes('Circuits & loads')));
  assert.ok(a.ratingBlockers.some(r=>r.title.includes('Toilet flush')));
- assert.ok(a.ratingBlockers.some(r=>r.title.includes('Floor LED strips')));
+ assert.equal(a.ratingBlockers.some(r=>r.title.includes('Floor LED strips')),false); // length supplied; provisional W/m is noted separately
  assert.ok(a.ratingBlockers.some(r=>r.id==='solar-missing'));
  assert.equal(a.ratingBlockers.some(r=>r.id==='battery-capacity'),false);
  assert.equal(a.solarMonthName,'June');
