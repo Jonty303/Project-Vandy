@@ -108,3 +108,19 @@ test('wire plan writes remain serializable and migrate without resetting adjuste
  assert.equal(imported.dcWiring.cables[0].lengthM,2.7);
  assert.equal(imported.dcWiring.fuses.find(f=>f.id==='blue-sea-1').ratingA,7.5);
 });
+
+test('Orion sizing respects manufacturer terminal limit and different AWG vs mm2 alternatives',()=>{
+  const run=structuredClone(initialWiringPlan.cables.find(c=>c.id==='starter-orion'));
+  let rec=sizeCable(run);
+  assert.equal(rec.mm2,16);
+  assert.equal(rec.awg.awg,'6');
+  assert.equal(rec.awg.actualMm2,13.3);
+  run.lengthM=7;
+  rec=sizeCable(run);
+  assert.equal(rec.mm2,null);
+  assert.equal(rec.awg.awg,'4');
+  assert.match(rec.note,/terminal/);
+  run.lengthM=12;
+  rec=sizeCable(run);
+  assert.equal(rec.awg,null);
+});
