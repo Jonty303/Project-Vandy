@@ -78,7 +78,7 @@ export function validateProject(x: unknown): x is Project {
   if(!validateV2Core(x)||!isRecord(x)||x.schemaVersion!==3)return false;
   if(!Array.isArray(x.batteries)||!Array.isArray(x.batteryBanks)||
     !Array.isArray(x.communicationPorts)||!Array.isArray(x.communicationConnections)||
-    !Array.isArray(x.monitoringAuthorities)||!Array.isArray(x.diagramPositions))return false;
+    !Array.isArray(x.monitoringAuthorities)||!Array.isArray(x.auxiliaryAssignments)||!Array.isArray(x.diagramPositions))return false;
   if(x.activeBatteryBankId!==null&&!validString(x.activeBatteryBankId))return false;
   const unique=(items:{id:string}[])=>new Set(items.map(item=>item.id)).size===items.length;
   if(!x.batteries.every((v:unknown)=>isRecord(v)&&validString(v.id)&&validString(v.name)&&
@@ -106,6 +106,10 @@ export function validateProject(x: unknown): x is Project {
   if(!unique(x.communicationConnections as {id:string}[]))return false;
   if(!x.monitoringAuthorities.every((v:unknown)=>isRecord(v)&&validString(v.metric)&&
     validString(v.componentId)&&validString(v.method)&&validString(v.evidence)&&validString(v.notes)))return false;
+  if(!x.auxiliaryAssignments.every((v:unknown)=>isRecord(v)&&validString(v.portId)&&
+    ['starter-voltage','battery-temperature','midpoint'].includes(String(v.purpose))&&
+    (v.targetComponentId===null||validString(v.targetComponentId))&&validString(v.accessory)&&
+    ['proposed','reported','verified'].includes(String(v.status))&&validString(v.notes)))return false;
   if(!x.diagramPositions.every((v:unknown)=>isRecord(v)&&validString(v.componentId)&&
     validNumber(v.x)&&validNumber(v.y)))return false;
   return true;
@@ -146,7 +150,7 @@ export function migrateProject(x: unknown): Project | null {
       activeBatteryBankId:'habitation-bank',
       communicationPorts:vandy.communicationPorts.filter(p=>componentIds.has(p.componentId)),
       communicationConnections:[],monitoringAuthorities:vandy.monitoringAuthorities.filter(a=>componentIds.has(a.componentId)),
-      diagramPositions:[]};
+      auxiliaryAssignments:[],diagramPositions:[]};
   }
   if(!isLegacyProject(x)) return null;
   const old=x as ProjectV1;
