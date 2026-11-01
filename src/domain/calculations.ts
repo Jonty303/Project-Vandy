@@ -1,4 +1,5 @@
 import type { Circuit, Load, ModeUsage, OperatingMode, Project } from './model.ts';
+import { resolveLogicalSupply } from './supply.ts';
 
 export interface LoadResult {
   loadId: string; name: string; circuitId: string; deliveredWh: number;
@@ -59,12 +60,12 @@ export function calculateLoad(load: Load, circuit: Circuit, project: Project, pr
     issues.push(`${circuit.voltage}V circuit needs a verified converter from the ${project.nominalBatteryVoltage}V battery`);
     missing = true; batteryWh = 0;
   }
-  if (circuit.supply === 'ac-inverter') {
+  if (circuit.supply === 'ac-inverter' && (project.acOperatingMode ?? 'inverter') === 'inverter') {
     if (!Number.isFinite(project.inverterEfficiency) || project.inverterEfficiency <= 0 || project.inverterEfficiency > 1) {
       issues.push('Invalid inverter efficiency'); missing = true; batteryWh = 0;
     } else batteryWh = deliveredWh / project.inverterEfficiency;
   }
-  if (circuit.supply === 'ac-shore') batteryWh = 0;
+  if (circuit.supply === 'ac-shore' || (circuit.supply === 'ac-inverter' && project.acOperatingMode === 'shore')) batteryWh = 0;
   return { loadId: load.id, name: load.name, circuitId: circuit.id, deliveredWh, batteryWh, peakWatts, incomplete: missing, issues };
 }
 
@@ -87,6 +88,13 @@ export function calculateProject(project: Project, profileId: string): ProjectRe
   for (const load of project.loads) if (!allLoads.has(load.id)) warnings.push(`Unassigned load: ${load.name}`);
   if (!project.profiles.some(p => p.id === profileId)) warnings.push('Selected usage profile does not exist');
   const batteryWh = circuitResults.reduce((n, c) => n + c.batteryWh, 0);
+  for (const load of project.loads) {
+    const c=project.circuits.find(c=>c.id===load.circuitId);
+    if(c?.supply !== 'dc') {
+      for(const issue of resolveLogicalSupply(project,load).issues) warnings.push(`${load.name}: ${issue}`);
+    }
+  }
+  if ((project.acOperatingMode ?? 'inverter') === 'shore') warnings.push('Shore-power scenario assumes shore available and MultiPlus pass-through; battery charging, charger overhead and AC transfer are not simulated.');
   const incompleteLoads = circuitResults.flatMap(c => c.loads.filter(l => l.incomplete).map(l => l.name));
   if (incompleteLoads.length) warnings.push('Totals are partial: some powered loads have missing ratings or conversion details');
   warnings.push('Worst-case connected watts is a sum of load maxima, not a verified simultaneous demand or fuse-sizing calculation.');
