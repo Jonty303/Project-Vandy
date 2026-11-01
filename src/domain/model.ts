@@ -215,6 +215,12 @@ export interface DcCableRun {
   fuseId:string|null;
   status:'reported'|'proposed'|'unknown'; notes:string;
 }
+/** Each AC conductor is independently recorded. Logical L/N/PE links do not create these runs. */
+export interface AcConductorRun {
+  id:string; fromComponentId:string; fromTerminalId:string;
+  toComponentId:string; toTerminalId:string;
+  conductor:'L'|'N'|'PE'; status:LinkStatus; notes:string;
+}
 export interface DcWiringPlan {
   fuses:DcFuseRecord[];
   cables:DcCableRun[];
@@ -250,6 +256,8 @@ export interface Project {
   communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
   /** Explicit owner-entered earth/chassis bonds; optional for older saved v3 projects. */
   groundingConnections?:GroundingConnection[];
+  /** Optional per-conductor AC wiring; separate from logical topology and earth/chassis bonds. */
+  acConductors?:AcConductorRun[];
   monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
   /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
   dcWiring?:DcWiringPlan;
