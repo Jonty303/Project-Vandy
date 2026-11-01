@@ -163,7 +163,7 @@ function provisionalIssues(project:Project,profileId:string,cfg:AutonomySettings
     action:'Measure or refine the fridge duty cycle in Circuits & loads.'
   });
   reasons.push({
-    id:'solar-method',category:'solar',title:cfg.solarManualWhPerDay===null?'Solar uses historical monthly averages':'Solar uses a user-entered daily estimate',
+    id:'solar-method',category:'solar',title:cfg.solarManualWhPerDay!==null?'Solar uses a user-entered daily estimate':cfg.solarClimatology?'Solar uses historical monthly averages':'Solar estimate awaits user-supplied data',
     detail:`${solarSource} for ${monthNames[cfg.solarMonth-1]??'selected month'}. Not a weather forecast or guaranteed battery charge.`,
     action:'Adjust the month and losses; confirm the installed panel, orientation, shade and MPPT behaviour.'
   });
