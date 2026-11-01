@@ -93,3 +93,20 @@
 .autonomy-rating small{display:block;letter-spacing:1.1px;font-weight:700;font-size:10px;color:#7cd5ca}
 .autonomy-rating strong{display:block;margin:9px 0;color:#d5fbf0;font-family:Outfit,system-ui;font-size:21px}
 .autonomy-rating p{font-size:11px;color:#a6c5cc}
+
+/* Explainable rating diagnostics: every missing input and provisional assumption is visible. */
+.autonomy-diagnostic-panel,.autonomy-provisional{margin:16px 0;padding:16px;border-radius:10px;background:#102535;border:1px solid #53626b}
+.autonomy-diagnostic-panel{border-color:#88623f;background:#30291f}
+.autonomy-diagnostic-panel h3,.autonomy-provisional h3{font-size:15px;display:flex;align-items:center;gap:9px;margin:0 0 7px;color:#ebd5b8}
+.autonomy-provisional h3{color:#b6e6e2}
+.autonomy-diagnostic-panel>p,.autonomy-provisional>p{font-size:12px;color:#c9bba7;line-height:1.55}
+.autonomy-provisional>p{color:#9fc1c9}
+.autonomy-diagnostic-panel ul,.autonomy-provisional ul{list-style:none;margin:13px 0 0;padding:0;display:grid;gap:9px}
+.autonomy-diagnostic-panel li,.autonomy-provisional li{border-top:1px solid #62503d;padding:11px 0 2px;display:grid;gap:5px}
+.autonomy-provisional li{border-top-color:#305361}
+.autonomy-diagnostic-panel li strong,.autonomy-provisional li strong{font-size:12px;color:#ffe2bb}
+.autonomy-provisional li strong{color:#cbece8}
+.autonomy-diagnostic-panel li span,.autonomy-provisional li span{font-size:11px;color:#c8b6a5;line-height:1.5}
+.autonomy-provisional li span{color:#a3c2c9}
+.autonomy-diagnostic-panel li small,.autonomy-provisional li small{font-size:11px;color:#f0c791;line-height:1.45}
+.autonomy-provisional li small{color:#7de0d4}
