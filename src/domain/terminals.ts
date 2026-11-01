@@ -47,11 +47,12 @@ export function defaultTerminals(component:Component):PhysicalTerminal[]{
     case 'remote-six':
       positive('input-positive','Controller supply (+)','input');
       negative('input-negative','Controller supply (−)','input');
-      // A controller channel may switch either conductor; do not invent its polarity.
+      // Output switching topology and polarity are unconfirmed.
+      for(let n=1;n<=6;n++)add('remote-'+n,'Channel '+n+' switched contact — polarity unknown','switch-contact','output');
       break;
     case 'votronic-1':case 'votronic-2':
-      positive('input-positive','Switch input (+) — terminal provisional','input');
-      positive('output-positive','Switched output (+) — terminal provisional','output');break;
+      add('input-contact','Switch input contact — polarity unknown','switch-contact','input');
+      add('output-contact','Switch output contact — polarity unknown','switch-contact','output');break;
     default:
       if(component.voltage===12||component.voltage===24||component.voltage==='12/24'){
         if(component.kind!=='bonding-busbar'&&component.kind!=='ground-point'){
