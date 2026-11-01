@@ -15,6 +15,7 @@ import { DcWiringPage } from './DcWiring.tsx';
 import { PortableChargingPage } from './PortableCharging.tsx';
 import { DeviceConnections } from './DeviceConnections.tsx';
 import { validateGrounding } from '../domain/grounding.ts';
+import { validateTerminals } from '../domain/terminals.ts';
 import { portableChargingIssues } from '../domain/portableCharging.ts';
 import { validateWiring, effectiveWiring } from '../domain/dcWiring.ts';
 import { validateProject } from '../domain/storage.ts';
@@ -67,6 +68,7 @@ export function App() {
     ...project.batteryBanks.flatMap(b=>summarizeBank(project,b).diagnostics.filter(d=>d.level==='blocker').map(d=>`${b.name||'Unnamed bank'} — ${d.message}`)),
     ...validateCommunicationDraft(project).map(d=>d.message),
     ...validateGrounding(project).map(message=>'Earth & chassis — '+message),
+    ...validateTerminals(project).map(message=>'Terminals & switches — '+message),
     ...portableChargingIssues(project),
     ...validateWiring(effectiveWiring(project)).filter(i=>i.severity==='blocker').map(d=>`DC wiring — ${d.message}`),
     ...(!validateProject(project)?['Project data is structurally invalid. Check field values and referenced components before updating.']:[])
@@ -194,6 +196,33 @@ export function App() {
               <Field label="Distribution attachment (not verified)"><select value={circuit.sourceComponentId??''} onChange={e=>patchCircuit(circuit.id,{sourceComponentId:e.target.value||undefined,sourceOutputId:undefined})}><option value="">Unassigned / infer from topology</option>{project.components.filter(c=>circuit.supply==='dc'?!!c.outputs?.length:!!c.ports?.some(p=>p.system==='ac'&&p.direction==='output')).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
               {circuit.sourceComponentId && <Field label="Output channel"><select value={circuit.sourceOutputId??''} onChange={e=>patchCircuit(circuit.id,{sourceOutputId:e.target.value||undefined})}><option value="">Unassigned</option>{project.components.find(c=>c.id===circuit.sourceComponentId)?.outputs?.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></Field>}
               </div><Field label="Notes"><textarea rows={2} value={circuit.notes??''} onChange={e=>patchCircuit(circuit.id,{notes:e.target.value})}/></Field>
+              <div className="circuit-switches">
+                <strong>Switches controlling this circuit</strong>
+                <p>A switch or controller channel is assigned to the circuit, not to each individual light or appliance. Assignment is informational until wiring is confirmed.</p>
+                {(circuit.switchAssignments??[]).map(a=>{
+                  const device=project.components.find(c=>c.id===a.componentId);
+                  const channel=device?.outputs?.find(o=>o.id===a.outputId);
+                  return <div className="circuit-switch-row" key={a.id}>
+                    <span>{device?.name??'Missing switch'}{channel?' — '+channel.label:''}</span>
+                    <button className="button small" onClick={()=>patchCircuit(circuit.id,{switchAssignments:(circuit.switchAssignments??[]).filter(x=>x.id!==a.id)})}>Remove</button>
+                  </div>;
+                })}
+                <label className="field"><span>Add physical switch or controller channel</span>
+                  <select value="" onChange={e=>{
+                    if(!e.target.value)return;
+                    const [componentId,outputId]=JSON.parse(e.target.value) as [string,string|null];
+                    const old=circuit.switchAssignments??[];
+                    if(!old.some(a=>a.componentId===componentId&&(a.outputId??null)===outputId))
+                      patchCircuit(circuit.id,{switchAssignments:[...old,{id:makeId(),componentId,...(outputId?{outputId}:{})}]});
+                  }}>
+                    <option value="">Choose an installed switch…</option>
+                    {project.components.filter(c=>(c.kind==='switch'&&c.id!=='isolator')||c.kind==='controller')
+                      .flatMap(c=>c.outputs?.length?c.outputs.map(o=>({value:JSON.stringify([c.id,o.id]),label:c.name+' — '+o.label})):
+                        [{value:JSON.stringify([c.id,null]),label:c.name}])
+                      .map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
+              </div>
               <div className="subtle-hint"><ShieldAlert size={16}/> Output assignments are labels for future diagrams; they do not validate fuses, switching or wiring.</div>
             </section>
             <section className="panel"><div className="panel-head"><div><div className="overline">CONNECTED CONSUMERS</div><h2>{circuit.name} loads</h2></div><button className="button small" onClick={addLoad}><Plus size={16}/> Add consumer</button></div><div className="load-list">{project.loads.filter(l=>l.circuitId===circuit.id).length===0&&<Empty>No consumers assigned to this circuit yet.</Empty>}{project.loads.filter(l=>l.circuitId===circuit.id).map(l=><button key={l.id} onClick={()=>setSelectedLoad(l.id)} className={`load-row ${selectedLoad===l.id?'active':''}`}><span><strong>{l.name}</strong><small>{l.kind.replace('-',' ')} · {l.modes.length} operating mode{l.modes.length!==1?'s':''}</small></span><span>{l.modes.some(m=>m.watts===null) && l.kind!=='led-strip'?<Tag tone="warn">Unrated</Tag>:<Tag tone="accent">Defined</Tag>}</span></button>)}</div></section>
