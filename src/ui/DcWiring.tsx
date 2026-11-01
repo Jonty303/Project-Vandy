@@ -85,12 +85,13 @@ export function DcWiringPage({project,change}:Props){
         <label>Protective fuse<div className="computed-size">{linkedFuse?`${linkedFuse.ratingA??'?'}A · ${linkedFuse.placement}`:'None recorded — check required'}</div></label>
        </div>
        <p className="cable-notes">{c.notes}</p>
+       <p className="cable-notes"><strong>Sizing basis:</strong> {result.note}</p>
        {c.lengthEvidence==='assumed'&&<p className="field-warning"><AlertTriangle size={14}/> 1m planning assumption, not measured.</p>}
        {c.designCurrentA===null&&<p className="field-warning"><AlertTriangle size={14}/> Load current is unknown. The indicated wire size uses the proposed fuse rating as a conservative sizing envelope, not a measured device demand. You may save this incomplete circuit.</p>}
        {issues.filter(i=>i.id===c.id&&i.severity==='blocker').map((i,index)=><p className="field-blocker" key={index}><AlertTriangle size={14}/>{i.message}</p>)}
       </div>;
     })}</div>
-    <p className="autonomy-note">AWG is the smallest standard American gauge with area not smaller than the selected metric cross-section. <strong>AWG6 is 13.3mm², not exactly 16mm²</strong>, though Victron explicitly accepts both 16mm² and AWG6 for the Orion XS under 5m. These are different standards, not direct equalities.</p>
+    <p className="autonomy-note">Generic conversions round up to the smallest AWG with an area no less than the metric nominal. <strong>Exception:</strong> Victron explicitly approves either 16mm² or AWG6 (13.3mm²) for the Orion XS under 5m; AWG4 (21.2mm²) is specified for 5–10m. These are approved alternatives, not equivalent cross-sectional areas, and the Orion XS terminal maximum is AWG4.</p>
   </section>
   <section className="panel"><div className="panel-head"><h2>Outstanding verification</h2></div>
    <p className="autonomy-note">There are {blockers.length} structural blockers and {issues.filter(i=>i.severity==='incomplete').length} incomplete records. Missing specifications can be saved; impossible cable lengths, negative current or fuses over Blue Sea's 30A/circuit limit cannot.</p>
