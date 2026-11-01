@@ -3,12 +3,13 @@ import type { PointerEvent } from 'react';
 import { ZoomIn, ZoomOut, Maximize2, Network, Move, Cable, AlertTriangle } from 'lucide-react';
 import type { Component, Project } from '../domain/model.ts';
 import { recommendConnections } from '../domain/connectivity.ts';
+import { effectiveWiring } from '../domain/dcWiring.ts';
 
 type Layer='ac'|'dc'|'communications';
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void;onOpenDevice?:(id:string)=>void};
 type Point={x:number;y:number};
 type Edge={id:string;from:string;to:string;status:'proposed'|'reported'|'verified';description:string};
-const WIDTH=1420,HEIGHT=810,NW=205,NH=82;
+const WIDTH=1730,HEIGHT=1050,NW=205,NH=82;
 const clamp=(v:number,lo:number,hi:number)=>Math.min(hi,Math.max(lo,v));
 function group(c:Component,layer:Layer):number{
   if(layer==='communications')return c.id==='cerbo'?2:c.kind==='battery'?0:1;
@@ -18,7 +19,8 @@ function group(c:Component,layer:Layer):number{
   return 3;
 }
 function defaultPosition(c:Component,layer:Layer,groupIndex:number):Point{
-  return {x:35+group(c,layer)*335,y:52+groupIndex*118};
+  if(layer==='dc'&&c.id.startsWith('circuit:'))return {x:1240+(groupIndex%2)*240,y:45+Math.floor(groupIndex/2)*150};
+  return {x:35+group(c,layer)*385,y:52+groupIndex*130};
 }
 function networkData(project:Project,layer:Layer){
   const components=project.components.filter(c=>
@@ -26,6 +28,11 @@ function networkData(project:Project,layer:Layer){
     layer==='dc'?c.voltage===12||c.voltage===24||c.voltage==='12/24'||c.kind==='solar'||c.kind==='battery':
     project.communicationPorts.some(p=>p.componentId===c.id)
   );
+  const wiring=effectiveWiring(project);
+  if(layer==='dc')for(const c of project.circuits.filter(c=>wiring.cables.some(w=>w.toCircuitId===c.id))){
+    components.push({id:'circuit:'+c.id,name:c.name,kind:'appliance',voltage:c.voltage===230?'230':c.voltage,
+      evidence:'estimated',notes:'Virtual circuit destination from the provisional Blue Sea wiring schedule. Physical routing and connected individual appliances have not been confirmed.'});
+  }
   const ids=new Set(components.map(c=>c.id));
   const edges:Edge[]=layer==='communications'?
     project.communicationConnections.flatMap(link=>{
@@ -42,6 +49,21 @@ function networkData(project:Project,layer:Layer){
       return [{id:link.id,from:link.fromComponentId,to:link.toComponentId,status:link.status,
         description:`${link.fromPortId} → ${link.toPortId} (${link.status})`}];
     });
+  if(layer==='dc'){
+    const pairs=new Set(wiring.cables.filter(c=>c.toComponentId||c.toCircuitId).map(c=>c.fromComponentId+'~'+(c.toComponentId??('circuit:'+c.toCircuitId))));
+    for(let index=edges.length-1;index>=0;index--){
+      if(pairs.has(edges[index].from+'~'+edges[index].to))edges.splice(index,1);
+    }
+    for(const c of wiring.cables){
+      const dest=c.toComponentId??(c.toCircuitId?'circuit:'+c.toCircuitId:undefined);
+      if(!dest||!ids.has(c.fromComponentId)||!ids.has(dest)||c.status==='unknown')continue;
+      // Draw positive and negative paths separately, including the confirmed shunt return.
+      if(c.polarity==='negative'&&c.toCircuitId)continue;
+      const fuse=wiring.fuses.find(f=>f.id===c.fuseId);
+      edges.push({id:c.id,from:c.fromComponentId,to:dest,status:c.status==='reported'?'reported':'proposed',
+        description:`${c.name} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
+    }
+  }
   const count=new Map<number,number>();
   const positions=new Map<string,Point>();
   for(const c of components){
@@ -131,7 +153,7 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
               <rect x="11" y="11" width="7" height="7" rx="2" fill={connected?'#6fdfc6':'#87919a'}/>
               <text x="26" y="21" className="overview-label">{c.name.length>25?c.name.slice(0,23)+'…':c.name}</text>
               <text x="14" y="46" className="overview-detail">{c.kind.replaceAll('-',' ')} · {c.model??'model unconfirmed'}</text>
-              <text x="14" y="67" className="overview-detail">{connected?'Relationship recorded':'No saved connection in this layer'}</text>
+              <text x="14" y="67" className="overview-detail">{connected?'Relationship recorded':'No recorded link in this layer'}</text>
               <title>{c.name} — selectable and movable for layout only</title>
             </g>;
           })}
@@ -153,6 +175,6 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
         <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} saved links</span><span>{activeCount} marked verified</span></div>
       </aside>
     </div>
-    <p className="autonomy-note">Diagram placements are cosmetic and saved with the project only after you press Update. Sources and equipment may appear without lines until compatible relationships have been recorded in the topology or connectivity editors.</p>
+    <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC edges now use the individually recorded cable plan, including its 1m assumptions and fuse-position evidence. These edges do not certify wiring, conductor sizing or installation.</p>
   </div>;
 }
