@@ -44,7 +44,7 @@ export function summarizeBank(project:Project,bank:BatteryBank):BankSummary{
   const diagnostics:Diagnostic[]=[];
   if(!bank.name.trim())diagnostics.push({field:'name',level:'blocker',message:'Bank name is required.'});
   if(bank.strings.length===0||bank.strings.some(s=>s.length===0))
-    diagnostics.push({field:'strings',level:'blocker',message:'A bank requires at least one nonempty series string.'});
+    diagnostics.push({field:'strings',level:'incomplete',message:'This bank has no complete series strings yet. You may save it, but nominal capacity and autonomy remain unknown.'});
   const used=new Set<string>();
   const lengths=new Set(bank.strings.map(s=>s.length));
   if(lengths.size>1)diagnostics.push({field:'strings',level:'blocker',message:'Parallel strings must have matching series counts.'});
@@ -53,7 +53,8 @@ export function summarizeBank(project:Project,bank:BatteryBank):BankSummary{
       if(used.has(id))diagnostics.push({field:'strings',level:'blocker',message:`Battery ${id} is used more than once in this bank.`});
       used.add(id);
       const found=project.batteries.find(b=>b.id===id);
-      if(!found)diagnostics.push({field:'strings',level:'blocker',message:`Bank references missing battery ${id}.`});
+      if(!found)diagnostics.push({field:'strings',level:id===''?'incomplete':'blocker',
+        message:id===''?'A series position is unassigned; this draft bank can be saved but not rated.':`Bank references missing battery ${id}.`});
       return found;
     });
     const volts=batteries.every(b=>b&&positive(b.nominalVoltageV))?batteries.reduce((n,b)=>n+b!.nominalVoltageV!,0):null;
