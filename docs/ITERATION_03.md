@@ -103,3 +103,35 @@ This extends the same Iteration 03 branch and is a **test-data schedule**, not a
 - Verification: `tests/portableCharging.test.mjs` tests energy, duplicate prevention, battery/source losses, incomplete data, user-edited settings, JSON migration and profile handling.
 
 - **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
+
+## Connection-editor and earth/ground busbar design refinement (2026-11-01)
+
+### Product terminology
+- Eliminate *confidence*, *confidence score*, *confidence classification* and similar provenance ratings from the user-facing equipment/connection editors. Do not erase underlying evidence needed for calculations, safety, documentation or migration.
+- For genuinely configurable parameters, show **Current setting** and **Recommended setting**, with a blank/Unknown current value when the user has not recorded one. Never rebrand a provisional placeholder as an installed/current measurement or a generic proposal as a manufacturer recommendation.
+- Avoid unnecessary proposed/reported/verified badges in primary UI. Keep an explicit installed-versus-planned distinction in data and technical details where it materially changes engineering meaning.
+
+### Device-first connections, one model
+- Every equipment detail page, including the 2D inspector, must provide a **Connections** panel. It lists named **physical terminals/ports**, their type, destinations and connected destination terminal. Allow Add / Change / Disconnect on the device; stage changes under existing Update / Reset behaviour.
+- A change made on a device updates the single project connection graph; the 2D overview and the other device's connections immediately read from this same *draft* graph, and persist together on Update. No independent diagram-only connections.
+- Current Iteration 03 diagram can rearrange devices but **does not edit connections**. A later diagram tool will create/reconnect/remove links from terminal handles with the same validation and storage as the device editor. Dragging a device body must remain layout-only.
+- Distinguish DC power conductors, AC power conductors, PE, chassis/bonding and communication ports. Never guess which physical terminal a coarse logical group represents. Preserve the existing logical topology and cable plan during migration; upgrade only links with unambiguous endpoints.
+- Disallow incompatible connections and duplicate occupation of a single-connection terminal. Multi-position busbars explicitly permit multiple separately named terminal connections. Show an actionable error rather than silently rerouting anything.
+
+### Earth and grounding elements
+- Add *protective earth (PE) busbar* as a selectable device type with a configurable set of individually identified terminals and a single declared electrical function **PE**. Show it on an earth/bonding layer or alongside AC equipment with clear PE-only edges.
+- Support separate, explicit *DC negative busbar* (**DC-**) and *vehicle chassis bonding point* (**CHASSIS**) device/connection types. The existing Lynx negative bus and Blue Sea 5026 negative bus are already DC-negative distribution features; do not duplicate or imply physical links.
+- **PE, DC- and CHASSIS are not interchangeable**. A deliberate cross-function bond is a separate named, documented relationship with both endpoints, not an automatic adapter or a generic wire. The app must not recommend any PE/neutral/chassis/negative bonding architecture without confirmed installation context and appropriate specialist engineering assessment.
+- The physical presence, location, terminal count, current rating, and any bond to the vehicle chassis of the Vandy PE busbar are **unknown**. Seed an **unconnected planning placeholder** (not an installed item) only, or require the user to add it; never fabricate conductors, terminal capacities or existing attachments. Inverter PE, shore PE and chassis bonding configuration remain unresolved.
+- Grounding conductors and AC protective earth must not be passed through the DC load/cable-sizing calculator as though they were 12V load returns. Do not conflate DC negative and protective earth in 2D rendering or source tracing.
+
+### Acceptance cases for this refinement
+1. From a device, add/change/remove a typed connection to a specific bar terminal; the busbar view and diagram show exactly the same link both ways, surviving Update, JSON export/import and Reset.
+2. PE can fan out across distinct terminals on a busbar; two links cannot occupy one single-capacity terminal; deleting a connection releases that terminal.
+3. No link appears between PE, CHASSIS and DC- by default. Attempts to connect incompatible conductors are rejected, not silently bridged.
+4. The current DC negative topology (SmartShunt / Lynx / Blue Sea) is preserved and remains distinct from the as-yet-unconfirmed protective earthing system.
+5. Port-level communication links and power links retain their own typing and compatibility rules; device editor changes never invent a physical connection from an existing logical port-group relationship.
+6. Equipment panels show Current / Recommended where meaningful and no confidence-rating UI. Unknown current values remain unknown, and a recommendation does not automatically become current.
+7. Existing v1/v2/v3 saved projects still load without changing any previously saved ports, cable records, fuses or energy calculations; new busbar records and links start empty unless explicitly configured.
+
+**Implementation note:** This is an approved UX/connection-model requirement, not a claim that this feature is already built into Iteration 03. Do not mark it complete until the UI, migration and acceptance tests are implemented.
