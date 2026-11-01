@@ -24,8 +24,8 @@ function defaultPosition(c:Component,layer:Layer,groupIndex:number):Point{
 }
 function networkData(project:Project,layer:Layer){
   const components=project.components.filter(c=>
-    layer==='ac'?c.ports?.some(p=>p.system==='ac'):
-    layer==='dc'?c.voltage===12||c.voltage===24||c.voltage==='12/24'||c.kind==='solar'||c.kind==='battery':
+    layer==='ac'?c.ports?.some(p=>p.system==='ac')||c.busbarFunction==='PE':
+    layer==='dc'?c.voltage===12||c.voltage===24||c.voltage==='12/24'||c.kind==='solar'||c.kind==='battery'||c.busbarFunction==='DC-':
     project.communicationPorts.some(p=>p.componentId===c.id)
   );
   const wiring=effectiveWiring(project);
@@ -113,7 +113,7 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
     setLive(null);
   }
   return <div className="system-2d">
-    <div className="section-heading heading-top"><div><div className="eyebrow">ITERATION 03 / INTERACTIVE 2D</div><h1>System overview</h1><p>Explore the recorded AC, DC and communications networks. Drag nodes to lay out your system; no connections are created by dragging.</p></div></div>
+    <div className="section-heading heading-top"><div><div className="eyebrow">ITERATION 03 / INTERACTIVE 2D</div><h1>System overview</h1><p>Explore the recorded AC, DC and communications networks. Drag nodes to arrange them; connections are edited in the topology and connectivity sections. Unconnected busbars are planning placeholders.</p></div></div>
     <div className="notice"><AlertTriangle size={20}/><div><strong>Conceptual topology — not a wiring schematic</strong><p>Links represent recorded port-group relationships or communications cables, not a verified terminal-by-terminal connection, earthing arrangement or installable cable route. Missing edges mean a relationship has not been recorded.</p></div></div>
     <div className="overview-controls">
       <div className="overview-tabs" role="group" aria-label="Network layer">
