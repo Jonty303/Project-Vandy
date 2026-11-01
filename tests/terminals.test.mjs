@@ -84,3 +84,25 @@ test('switch assignments belong to circuit and persist without changing load pro
  loaded.circuits.find(c=>c.id==='floor-lighting').switchAssignments.push({id:'bad',componentId:'remote-six',outputId:'remote-999'});
  assert.ok(validateTerminals(loaded).some(s=>s.includes('remote-999')));
 });
+
+test('physical AC conductors are not invented from logical supply links',()=>{
+ const p=clone();
+ assert.equal(p.acConductors.length,0);
+ assert.ok(p.topologyLinks.some(l=>l.fromComponentId==='cu-shore'&&l.toComponentId==='multiplus'));
+ assert.deepEqual(validateTerminals(p),[]);
+});
+test('AC line, neutral, PE must terminate on compatible physical terminals and survive export',()=>{
+ const p=clone();
+ p.acConductors.push({
+  id:'shore-line',fromComponentId:'shore-inlet',fromTerminalId:'ac-out-L',
+  toComponentId:'cu-shore',toTerminalId:'ac-in-L',conductor:'L',status:'reported',
+  notes:'Entered as an example by user.'
+ });
+ assert.deepEqual(validateTerminals(p),[]);
+ const exported=JSON.stringify(p);
+ const imported=migrateProject(JSON.parse(exported));
+ assert.ok(imported);
+ assert.equal(imported.acConductors[0].toTerminalId,'ac-in-L');
+ imported.acConductors[0].toTerminalId='ac-in-PE';
+ assert.ok(validateTerminals(imported).some(e=>e.includes('shore-line')));
+});
