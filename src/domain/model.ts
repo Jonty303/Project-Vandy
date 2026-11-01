@@ -63,11 +63,48 @@ export interface SocketAssignment {
   id: string; socketComponentId: string; positionId: string;
   loadId: string; evidence: Evidence;
 }
+
+/** Editable planning assumptions, NOT measured charge behaviour. */
+export interface AutonomySettings {
+  startingSocPct: number;
+  reserveSocPct: number;
+  hoursDrivingPerDay: number;
+  /** Spare current available to the charger, NOT the alternator nameplate rating. */
+  availableAlternatorA: number | null;
+  alternatorVoltageV: number;
+  dcDcInputCurrentLimitA: number;
+  dcDcOutputCurrentLimitA: number;
+  dcDcOutputVoltageV: number;
+  dcDcEfficiency: number;
+  dcDcActiveFraction: number;
+  solarPanelWatts: number;
+  mpptNominalPvLimitWatts: number;
+  solarLossPct: number;
+  solarShadingFraction: number;
+  solarInclinationDeg: number;
+  /** PVGIS compass aspect: 0=south, 90=west, -90=east. */
+  solarAspectDeg: number;
+  solarMode: 'uk-reference' | 'selected-location';
+  solarLocationName: string;
+  solarLatitude: number;
+  solarLongitude: number;
+  solarMonth: number; // 1..12
+  solarManualWhPerDay: number | null;
+  solarClimatology?: {
+    source: 'PVGIS-v5_3';
+    requestedAt: string;
+    queryFingerprint: string;
+    monthlyDailyWh: number[]; // exactly 12, January..December
+    description: string;
+  };
+}
+
 export interface Project {
   schemaVersion: 2; name: string; nominalBatteryVoltage: DcVoltage;
   batteryCapacityAh: number | null; inverterEfficiency: number;
   /** Optional to preserve existing v2 saved data; default behaviour is inverter. */
   acOperatingMode?: AcOperatingMode;
+  autonomy?: AutonomySettings;
   profiles: Profile[]; components: Component[]; circuits: Circuit[]; loads: Load[];
   topologyLinks: TopologyLink[]; protectionDevices: ProtectionDevice[];
   socketAssignments: SocketAssignment[];
