@@ -105,21 +105,35 @@ export function AutonomyPage({project,profileId,change}:Props){
     </section>
     <section className="panel autonomy-results"><div className="panel-head"><h2>Off-grid rating & daily energy balance</h2></div>
       <div className="autonomy-rating"><small>PRELIMINARY OFF-GRID ASSESSMENT</small><strong>{
-        projection.incomplete||projection.solarWh===null||projection.batteryUsableWh===null
-          ? 'Not yet rated — incomplete input data'
+        projection.ratingBlockers.length>0
+          ? `Not yet rated — ${projection.ratingBlockers.length} required ${projection.ratingBlockers.length===1?'input needs':'inputs need'} attention`
           : projection.stationaryStatus==='no-average-depletion'
-            ? 'No average-day depletion while stationary'
+            ? 'Indicative stationary energy surplus'
             : projection.stationaryDays!==null
-              ? `Approx. ${projection.stationaryDays.toFixed(1)} stationary days to reserve`
-              : 'Unable to calculate endurance'
-      }</strong><p>Based on a repeated average day for the chosen month, not a weather or electrical safety rating.</p></div>
-      <div className="autonomy-numbers"><div><small>Daily load demand</small><strong>{wh(projection.dailyDemandWh)}</strong></div><div><small>Solar recharge</small><strong>{wh(projection.solarWh)}</strong></div><div><small>Driving recharge</small><strong>{wh(projection.drivingWh)}</strong></div></div>
+              ? `Indicative ${projection.stationaryDays.toFixed(1)} stationary days to reserve`
+              : 'Stationary endurance cannot be calculated'
+      }</strong><p>Using the <strong>{projection.profileName}</strong> consumption profile and <strong>{projection.solarMonthName}</strong> solar assumptions. Figures remain planning estimates, not certified or guaranteed endurance.</p></div>
+      {projection.ratingBlockers.length>0&&<div className="autonomy-diagnostic-panel" role="status">
+        <h3><AlertTriangle size={17}/> Exactly what is preventing a rating</h3>
+        <p>These values are needed for a reliable stationary and driving estimate. Until entered, consumption and the energy balance below are <strong>partial</strong>, and may overstate endurance.</p>
+        <ul>{projection.ratingBlockers.map(reason=><li key={reason.id}><strong>{reason.title}</strong><span>{reason.detail}</span><small>{reason.action}</small></li>)}</ul>
+      </div>}
+      {projection.drivingBlockers.length>0&&<div className="autonomy-diagnostic-panel" role="status">
+        <h3><Route size={17}/> Additional information needed for driving endurance</h3>
+        <p>These inputs affect <strong>driving only</strong>; they do not prevent the stationary projection.</p>
+        <ul>{projection.drivingBlockers.map(reason=><li key={reason.id}><strong>{reason.title}</strong><span>{reason.detail}</span><small>{reason.action}</small></li>)}</ul>
+      </div>}
+      <div className="autonomy-provisional"><h3>Why the remaining figures are still estimates</h3>
+        <p>Even after required inputs are entered, these assumptions limit confidence. They are not proof of actual charging or battery autonomy.</p>
+        <ul>{projection.provisionalReasons.map(reason=><li key={reason.id}><strong>{reason.title}</strong><span>{reason.detail}</span><small>{reason.action}</small></li>)}</ul>
+      </div>
+      <div className="autonomy-numbers"><div><small>{projection.ratingBlockers.some(r=>r.category==='consumer')?'Known loads only — incomplete':'Daily load demand'}</small><strong>{wh(projection.dailyDemandWh)}</strong></div><div><small>Solar recharge · {projection.solarMonthName}</small><strong>{wh(projection.solarWh)}</strong></div><div><small>Driving recharge</small><strong>{wh(projection.drivingWh)}</strong></div></div>
       <div className="autonomy-grid">
-        <article><h3>Stationary, no driving</h3><strong>{reportDays(projection.stationaryDays,projection.stationaryStatus)}</strong><p>Net battery demand: {wh(projection.stationaryNetWh)}</p></article>
-        <article><h3>With daily driving</h3><strong>{reportDays(projection.drivingDays,projection.drivingStatus)}</strong><p>Net battery demand: {wh(projection.drivingNetWh)}</p></article>
+        <article><h3>Stationary, no driving</h3><strong>{projection.ratingBlockers.length?'Not reliably calculable':reportDays(projection.stationaryDays,projection.stationaryStatus)}</strong><p>{projection.ratingBlockers.length?'Partial net demand':'Net battery demand'}: {wh(projection.stationaryNetWh)}</p></article>
+        <article><h3>With daily driving</h3><strong>{projection.ratingBlockers.length||projection.drivingBlockers.length?'Not reliably calculable':reportDays(projection.drivingDays,projection.drivingStatus)}</strong><p>{projection.ratingBlockers.length||projection.drivingBlockers.length?'Partial net demand':'Net battery demand'}: {wh(projection.drivingNetWh)}</p></article>
       </div>
       <p className="autonomy-note">A non-depleting average-day result is <strong>not unlimited off-grid endurance</strong>; several poor solar days or higher actual load may still exhaust the battery.</p>
-      {projection.incomplete&&<p className="supply-issue"><AlertTriangle size={15}/> Some consumer ratings remain unknown, so the days estimate may be optimistic. Off-grid readiness cannot be reliably rated yet.</p>}
+      {projection.ratingBlockers.length>0&&<p className="supply-issue"><AlertTriangle size={15}/> The displayed Wh totals exclude unknown or incompatible consumption. See the specific missing inputs above before relying on an off-grid estimate.</p>}
       {projection.warnings.map((w,i)=><p className="autonomy-note" key={i}>• {w}</p>)}
     </section>
   </div>;
