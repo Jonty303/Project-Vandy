@@ -88,3 +88,16 @@ This extends the same Iteration 03 branch and is a **test-data schedule**, not a
 5. Amp and surge ratings of water pump, diesel heater, roof vent, USB charging panels and switching controller; actual charge current settings and inverter surge assumptions.
 6. LED strip W/m ratings and whether bathroom strip and toilet light are the same fixture; gutter lighting brand and watts.
 7. Cerbo GX external communications wiring and SmartShunt AUX purpose.
+
+## Portable USB-C charging extension (2026-11-01)
+- Under **Phones & tablets**, seed exactly two iPhones and one iPad. These are user-owned device *counts*, not confirmed model IDs.
+- Each device owns a human-readable name, editable Wh battery capacity, evidence, manufacturer URL, circuit/source, charge efficiency, profile-specific charges per day (fractional values permitted) and configurable recharge percentage (default 80%).
+- An "80% charge" means replacing 80 percentage points of battery energy: from zero to 80%; this is not 80% charger duty cycle and does not imply a real device always starts at zero. Example user can enter a fraction of a full recharge or half an event as needed.
+- Default modern iPhone battery is **illustrative 15.5Wh**, not an asserted exact model. Default example 11-inch iPad is **28.93Wh**, as specified by Apple for the iPad (A16), https://www.apple.com/uk/ipad-11/specs/. Default 85% end-to-end USB-C-and-device battery charging efficiency is an explicit **engineering assumption**, not a measured value.
+- One daily 80% charge of each device produces approximately **56.4Wh/day** draw at the 12V charging circuit, excluding any other overhead or additional loads. Calculation: `(15.5 + 15.5 + 28.93) * .8 / .85`. AC inverter-backed USB-C supply uses an additional configurable MultiPlus conversion loss, whereas true shore supply does not discharge the habitation battery.
+- These are daily energy events, not a fixed charger wattage. Do **not** translate to peak W, required circuit fuse, or charging speed without an actual USB-C supply device rating and charging negotiation.
+- The events contribute to core circuit consumption, battery demand, and autonomy; generic pre-existing USB charging panel load modes default to zero duration to prevent counting the same load twice. An old saved project whose USB placeholder usage has changed deliberately keeps that usage and does **not** silently receive duplicate new portable charges.
+- Source location is a selectable DC USB charging circuit by default but can be 230V AC through inverter or shore, with appropriate conversion.
+- Empty device Wh is savable but produces an incomplete active-load rating; invalid percentages, duplicate identifiers, negative daily charge counts or missing source circuits block Update with an explicit explanation.
+- Profile switch is available directly in Phones & tablets and shares the global profile selection. Existing application-wide Reset/Update staging applies.
+- Verification: `tests/portableCharging.test.mjs` tests energy, duplicate prevention, battery/source losses, incomplete data, user-edited settings, JSON migration and profile handling.
