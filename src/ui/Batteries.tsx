@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BatteryCharging, Plus, Trash2, ShieldAlert, Thermometer, Network, Info, AlertTriangle } from 'lucide-react';
 import type { BatteryRecord, BatteryBank, Project, ThermalFeature, CapabilityEvidence, Evidence } from '../domain/model.ts';
-import { activeBankSummary, newBattery, summarizeBank, validateBattery } from '../domain/batteries.ts';
+import { newBattery, summarizeBank, validateBattery } from '../domain/batteries.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void};
 const choice:ThermalFeature[]=['unknown','yes','no'];
