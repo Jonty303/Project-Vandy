@@ -34,3 +34,12 @@ npm run build
 **This is planning software only.** It does not calculate conductor size, overcurrent protection, earthing/bonding, approved wiring, usable battery runtime or compliance with installation standards. CO detection, ventilation, combustion exhaust and LPG hazards must be assessed separately by competent installers. Component ratings and sample duty cycles may be owner-reported or provisional.
 
 See [DESIGN.md](DESIGN.md), [AGENTS.md](AGENTS.md), and the authoritative [Iteration 01 contract](docs/ITERATION_01.md).
+
+
+## Iteration 02 — review branch
+
+The `iteration-02` branch adds the logical topology view, two separate 230V consumer units, outlet assignments and protection-device metadata. It is *not* a physical wiring design or an electrical safety compliance assessment.
+
+Open the app on `iteration-02` with `npm install` and `npm run dev`, then choose **System topology** in the sidebar. The local browser project migrates from v1; export a backup if you have edited loads before testing a reset.
+
+The old `iteration-01` branch remains available. Iteration 02 is prepared as a draft pull request against `iteration-01` and has not been merged.
