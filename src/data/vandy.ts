@@ -2,6 +2,7 @@ import type { Circuit, Component, ElectricalPort, Evidence, Load, ModeUsage, Ope
 import { newBattery } from '../domain/batteries.ts';
 import { vandyCommunicationPorts, vandyAuthorities } from '../domain/connectivity.ts';
 import { initialWiringPlan } from '../domain/dcWiring.ts';
+import { vandyPortableCharging } from '../domain/portableCharging.ts';
 
 const profiles = [
   { id: 'normal', name: 'Normal day', description: 'Evening lighting, refrigeration and routine use' },
@@ -108,8 +109,8 @@ const loads: Load[] = [
   load('gas-water-heater','LPG water heater electronics','hot-water','standard',[mode('active','Heating water',60,'manual',10,10,10)],'water-heater','60W derived from manufacturer 12V × 5A input rating; energy profile assumed.'),
   load('extractor','Maxxair / Airxcel roof vent','ventilation','standard',[mode('running','Running',null,'unknown',30,60,15)],'maxxair-vent','Exact Maxxair model and fan-speed power unknown.'),
   load('starlink','Starlink (230V adapter)','ac-sockets','standard',[mode('on','Online',null,'unknown',120,480,120)],undefined,'Runs via inverter in Vandy; input watts still unknown.'),
-  load('usb-1','USB charging panel 1','usb-charging','standard',[mode('charging','Charging devices',null,'unknown',60,120,60)],'usb-panel-1','Enter actual input draw; do not double count devices powered through these ports.'),
-  load('usb-2','USB charging panel 2','usb-charging','standard',[mode('charging','Charging devices',null,'unknown',60,120,60)],'usb-panel-2'),
+  load('usb-1','USB charging panel 1','usb-charging','standard',[mode('charging','Additional unmodelled devices only',null,'unknown',0,0,0)],'usb-panel-1','USB panel itself is a socket/charger, not a load to count separately if its connected phones/tablets are modelled in Portable charging. Only use this placeholder for additional unmodelled energy.'),
+  load('usb-2','USB charging panel 2','usb-charging','standard',[mode('charging','Additional unmodelled devices only',null,'unknown',0,0,0)],'usb-panel-2'),
   load('laptop-shared','Shared laptop charger — 80W','ac-sockets','standard',[mode('charging','Charging',80,'reported',60,360,120)],undefined,'One shared 80W rated 230V charger; actual draw varies.'),
   {...load('kitchen-light','Kitchen LED lighting — 1.5m','kitchen-lighting','led-strip',[mode('on','On',null,'unknown',120,90,180)],undefined,'Owner reports 1.5m kitchen LED. 9.6W/m provisional; confirm true watts per metre.'),led:{lengthMetres:1.5,wattsPerMetre:9.6,brightnessFraction:1,evidence:'estimated'}},
   load('main-light','Main light','main-lighting','standard',[mode('on','On',null,'unknown',120,90,180)]),
@@ -168,4 +169,5 @@ export const seedProject: Project = {
   auxiliaryAssignments:[],
   diagramPositions:[],
   dcWiring:structuredClone(initialWiringPlan),
+  portableCharges:structuredClone(vandyPortableCharging),
 };
