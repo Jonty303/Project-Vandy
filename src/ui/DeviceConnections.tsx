@@ -182,7 +182,7 @@ export function DeviceConnections({project,change,componentId}:Props){
           <input value={t.label} onChange={e=>patchTerminal(t.id,{label:e.target.value})}/></label>
         <label className="field"><span>Conductor type</span>
           <select value={t.kind} disabled={referenced(t.id)} onChange={e=>patchTerminal(t.id,{kind:e.target.value as TerminalKind})}>
-            {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'] as const)
+            {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis','switch-contact'] as const)
               .map(k=><option key={k} value={k}>{k.replaceAll('-',' ')}</option>)}
           </select></label>
         <button className="button small" disabled={referenced(t.id)} onClick={()=>change(p=>({...p,components:p.components.map(c=>
@@ -190,7 +190,7 @@ export function DeviceConnections({project,change,componentId}:Props){
         {referenced(t.id)&&<small>Referenced by a saved connection. Disconnect it before removing or changing this terminal's type.</small>}
       </div>)}
       <label className="field"><span>New terminal type</span><select value={newTerminalKind} onChange={e=>setNewTerminalKind(e.target.value as TerminalKind)}>
-        {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'] as const)
+        {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis','switch-contact'] as const)
           .map(k=><option key={k} value={k}>{k.replaceAll('-',' ')}</option>)}
       </select></label>
       <button className="button small" onClick={addPhysicalTerminal}>Add terminal</button>
