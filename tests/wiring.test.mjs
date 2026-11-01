@@ -81,7 +81,7 @@ test('known owner lighting strip lengths are populated without inventing rain gu
  assert.equal(p.loads.find(l=>l.id==='kitchen-light').led.lengthMetres,1.5);
  assert.equal(p.loads.find(l=>l.id==='toilet-light').led.lengthMetres,1);
  assert.equal(ledRatedWatts(p.loads.find(l=>l.id==='floor-led')),19.2);
- assert.equal(ledRatedWatts(p.loads.find(l=>l.id==='kitchen-light')),14.4);
+ assert.ok(Math.abs(ledRatedWatts(p.loads.find(l=>l.id==='kitchen-light'))-14.4)<1e-8);
  assert.match(p.loads.find(l=>l.id==='outside-light').name,/rain-gutter/);
  assert.match(p.loads.find(l=>l.id==='outside-light').notes,/Brand and power rating unknown/);
 });
