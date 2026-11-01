@@ -57,7 +57,7 @@ export function migrateProject(x: unknown): Project | null {
   const newById=new Map(base.components.map(c=>[c.id,c]));
   const components: Component[]=old.components.map(c=>{
     const next=newById.get(c.id);
-    return next?{...c,ports:c.ports??next.ports,socketPositions:c.socketPositions??next.socketPositions}:c;
+    return next?{...c,...(!c.ports && next.ports?{ports:next.ports}:{}),...(!c.socketPositions && next.socketPositions?{socketPositions:next.socketPositions}:{})}:c;
   });
   for(const c of base.components)if(!components.some(o=>o.id===c.id))components.push(c);
   const circuits=[...old.circuits];
