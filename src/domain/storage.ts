@@ -11,7 +11,7 @@ const validIdList = (x: unknown): x is string[] => Array.isArray(x) && x.every(v
 const validEvidence = (x: unknown) => ['manual','measured','reported','listing','estimated','unknown'].includes(String(x));
 
 /** Strict enough to reject malformed imports; separate topology diagnostics report logical issues. */
-function validateBase(x: unknown): x is ProjectV1 {
+function validateBase(x: unknown): boolean {
   if(!isRecord(x) || !validString(x.name) || ![12,24].includes(Number(x.nominalBatteryVoltage))) return false;
   if(!validNumber(x.inverterEfficiency) || (x.inverterEfficiency as number)<=0 || (x.inverterEfficiency as number)>1) return false;
   if(x.batteryCapacityAh!==null && !validNonnegative(x.batteryCapacityAh)) return false;
