@@ -112,7 +112,6 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
     }
     setLive(null);
   }
-  const activeCount=data.edges.filter(e=>e.status==='verified').length;
   return <div className="system-2d">
     <div className="section-heading heading-top"><div><div className="eyebrow">ITERATION 03 / INTERACTIVE 2D</div><h1>System overview</h1><p>Explore the recorded AC, DC and communications networks. Drag nodes to lay out your system; no connections are created by dragging.</p></div></div>
     <div className="notice"><AlertTriangle size={20}/><div><strong>Conceptual topology — not a wiring schematic</strong><p>Links represent recorded port-group relationships or communications cables, not a verified terminal-by-terminal connection, earthing arrangement or installable cable route. Missing edges mean a relationship has not been recorded.</p></div></div>
@@ -126,7 +125,7 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
         <button className="button small" onClick={()=>{setZoom(.92);setPan({x:30,y:20})}}><Maximize2 size={16}/> Fit view</button>
       </div>
     </div>
-    <div className="overview-legend"><span>Dashed = proposed</span><span>Solid = reported</span><span>Bright = user-marked verified</span><span><Move size={13}/> Drag items to arrange</span></div>
+    <div className="overview-legend"><span>Dashed = planned relationship</span><span>Solid = recorded relationship</span><span><Move size={13}/> Drag items to arrange</span></div>
     <div className="overview-layout">
       <div className="overview-svg-wrap"><svg ref={svgRef} className="overview-svg" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           onPointerDown={e=>{if(e.target===e.currentTarget)start(e)}} onPointerMove={move}
@@ -161,18 +160,17 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
       </svg></div>
       <aside className="overview-detail-panel"><div className="overview-detail-heading"><Network size={20}/><h3>{item?.name??'Select equipment'}</h3></div>
         {item?<><p><strong>Type:</strong> {item.kind.replaceAll('-',' ')}</p><p><strong>Model:</strong> {item.model??'Unconfirmed'}</p>
-          <p><strong>Evidence:</strong> {item.evidence??'unknown'}</p>
           <p>{item.notes??'No additional equipment notes.'}</p>
-          <h4>Recorded relationships</h4>
+          <h4>Current / planned connections</h4>
           {data.edges.filter(e=>e.from===item.id||e.to===item.id).length?data.edges.filter(e=>e.from===item.id||e.to===item.id).map(e=>
-            <div className="overview-link-detail" key={e.id}><Cable size={14}/><span>{e.from===item.id?'To':'From'} {project.components.find(c=>c.id===(e.from===item.id?e.to:e.from))?.name} · {e.status}<small>{e.description}</small></span></div>):
+            <div className="overview-link-detail" key={e.id}><Cable size={14}/><span>{e.from===item.id?'To':'From'} {project.components.find(c=>c.id===(e.from===item.id?e.to:e.from))?.name}<small>{e.description}</small></span></div>):
             <p>There are no saved links for this device in the selected layer. We will not infer them from product names.</p>}
           {layer==='communications'&&recommendations.filter(r=>r.deviceId===item.id).map(r=><div className="overview-link-detail" key={r.id}><AlertTriangle size={14}/><span>{r.verdict}: {r.cable}<small>{r.benefits}</small></span></div>)}
           <h4>Documented / recorded interfaces</h4>{project.communicationPorts.filter(p=>p.componentId===item.id).map(p=>
-            <p key={p.id}>{p.name} — {p.protocol} ({p.evidence})</p>)}
+            <p key={p.id}>{p.name} — {p.protocol}</p>)}
           {onOpenDevice&&<button className="button small" onClick={()=>onOpenDevice(item.id)}>Open device details</button>}
         </>:<p>No selectable devices in this layer.</p>}
-        <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} saved links</span><span>{activeCount} marked verified</span></div>
+        <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} saved links</span></div>
       </aside>
     </div>
     <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC edges now use the individually recorded cable plan, including its 1m assumptions and fuse-position evidence. These edges do not certify wiring, conductor sizing or installation.</p>
