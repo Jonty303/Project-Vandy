@@ -70,3 +70,8 @@ npm run dev
 If the local branch is already checked out, use `git pull --ff-only`. Open forwarded port 5173. Browser-local v2 projects migrate to v3; JSON import/export remains supported. CI runs `npm run check` on `iteration-03`.
 
 Manufacturer documentation links and the bounded acceptance criteria are in `docs/ITERATION_03.md`.
+
+### Portable USB-C charging
+The **Phones & tablets** section has two iPhones and one iPad in the Vandy test data. Specify the number of 80%-battery-capacity charges each device receives during Normal, Working or Winter days. Switch profiles directly from the page. Each device's battery Wh and estimated USB-C charging efficiency are editable; these represent energy usage, **not charger wattage**.
+
+For the illustrative modern devices, one 0–80% recharge per device per day adds about **56Wh/day** to the 12V USB charging circuit. The two iPhone capacities (15.5Wh each) and 85% efficiency are assumptions; the example 11-inch iPad 28.93Wh capacity is published by Apple. These charge events are included automatically in the project loads and autonomy calculation. Do not add the same power again via a generic USB charger load.
