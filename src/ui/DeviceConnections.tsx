@@ -114,7 +114,6 @@ export function DeviceConnections({project,change,componentId}:Props){
       evidence:'unverified',notes:'Planning connection from device editor.'};
     change(p=>({...p,communicationConnections:[...p.communicationConnections,entry]}));setDataTo('');
   }
-  const gname=(c:string,t:string)=>names(project,c)+' — '+(groundingTerminal(project,c,t)?.label??t);
   const pname=(p:string)=>{const port=project.communicationPorts.find(x=>x.id===p);return port?names(project,port.componentId)+' — '+port.name:p;};
   return <div className="device-connections">
     <h4>Connections — {component.name}</h4>
