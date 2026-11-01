@@ -75,3 +75,5 @@ Manufacturer documentation links and the bounded acceptance criteria are in `doc
 The **Phones & tablets** section has two iPhones and one iPad in the Vandy test data. Specify the number of 80%-battery-capacity charges each device receives during Normal, Working or Winter days. Switch profiles directly from the page. Each device's battery Wh and estimated USB-C charging efficiency are editable; these represent energy usage, **not charger wattage**.
 
 For the illustrative modern devices, one 0–80% recharge per device per day adds about **56Wh/day** to the 12V USB charging circuit. The two iPhone capacities (15.5Wh each) and 85% efficiency are assumptions; the example 11-inch iPad 28.93Wh capacity is published by Apple. These charge events are included automatically in the project loads and autonomy calculation. Do not add the same power again via a generic USB charger load.
+
+- **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
