@@ -1,7 +1,8 @@
-import type { Component, Load, Project, ProjectV1 } from './model.ts';
+import type { Component, Load, Project, ProjectV1, ProjectV2 } from './model.ts';
 import { seedProject } from '../data/vandy.ts';
 
-export const STORAGE_KEY = 'project-vandy:project:v2';
+export const STORAGE_KEY = 'project-vandy:project:v3';
+export const V2_STORAGE_KEY = 'project-vandy:project:v2';
 export const LEGACY_STORAGE_KEY = 'project-vandy:project:v1';
 const isRecord = (x: unknown): x is Record<string,unknown> => !!x && typeof x==='object' && !Array.isArray(x);
 const validNumber = (x: unknown) => typeof x==='number' && Number.isFinite(x);
@@ -60,13 +61,53 @@ function validAutonomy(value:unknown):boolean{
   return true;
 }
 
-export function validateProject(x: unknown): x is Project {
-  if(!validateBase(x)||!isRecord(x)||x.schemaVersion!==2) return false;
+function validateV2Core(x:unknown):x is ProjectV2 {
+  if(!validateBase(x)||!isRecord(x)||![2,3].includes(Number(x.schemaVersion))) return false;
   if(!Array.isArray(x.topologyLinks)||!Array.isArray(x.protectionDevices)||!Array.isArray(x.socketAssignments))return false;
   if('autonomy' in x && x.autonomy!==undefined && !validAutonomy(x.autonomy))return false;
   if(!x.topologyLinks.every((l:unknown)=>isRecord(l)&&['proposed','reported','verified'].includes(String(l.status))&&['id','fromComponentId','fromPortId','toComponentId','toPortId'].every(k=>validString(l[k]))))return false;
   if(!x.protectionDevices.every((d:unknown)=>isRecord(d)&&validString(d.id)&&validString(d.consumerUnitId)&&validString(d.name)&&['rcd','mcb','rcbo','isolator','unknown'].includes(String(d.kind))&&(d.ratedCurrentA===null||validNonnegative(d.ratedCurrentA))&&(d.residualTripMa===null||validNonnegative(d.residualTripMa))&&validIdList(d.protectedCircuitIds)&&validEvidence(d.evidence)))return false;
   if(!x.socketAssignments.every((a:unknown)=>isRecord(a)&&['id','socketComponentId','positionId','loadId'].every(k=>validString(a[k]))&&validEvidence(a.evidence)))return false;
+  return true;
+}
+function isV2Project(x:unknown):x is ProjectV2{
+  return validateV2Core(x)&&isRecord(x)&&x.schemaVersion===2;
+}
+const validNullableNum=(x:unknown)=>x===null||validNumber(x);
+export function validateProject(x: unknown): x is Project {
+  if(!validateV2Core(x)||!isRecord(x)||x.schemaVersion!==3)return false;
+  if(!Array.isArray(x.batteries)||!Array.isArray(x.batteryBanks)||
+    !Array.isArray(x.communicationPorts)||!Array.isArray(x.communicationConnections)||
+    !Array.isArray(x.monitoringAuthorities)||!Array.isArray(x.diagramPositions))return false;
+  if(x.activeBatteryBankId!==null&&!validString(x.activeBatteryBankId))return false;
+  const unique=(items:{id:string}[])=>new Set(items.map(item=>item.id)).size===items.length;
+  if(!x.batteries.every((v:unknown)=>isRecord(v)&&validString(v.id)&&validString(v.name)&&
+     validString(v.manufacturer)&&validString(v.model)&&validString(v.chemistry)&&
+     validNullableNum(v.nominalVoltageV)&&validNullableNum(v.capacityAh)&&
+     validNullableNum(v.weightKg)&&validNullableNum(v.maxChargeA)&&validNullableNum(v.maxDischargeA)&&
+     validNullableNum(v.chargeMinC)&&validNullableNum(v.chargeMaxC)&&
+     validNullableNum(v.dischargeMinC)&&validNullableNum(v.dischargeMaxC)&&
+     isRecord(v.dimensionsMm)&&['length','width','height'].every(k=>validNullableNum(v.dimensionsMm[k]))&&
+     isRecord(v.bms)&&validString(v.bms.vendorApp)&&validString(v.bms.protocol)&&
+     isRecord(v.thermal)&&validNullableNum(v.thermal.onC)&&validNullableNum(v.thermal.offC)&&
+     validNullableNum(v.thermal.heaterWatts)&&validEvidence(v.evidence)&&
+     validString(v.documentationUrl)&&validString(v.notes)))return false;
+  if(!unique(x.batteries as {id:string}[]))return false;
+  if(!x.batteryBanks.every((v:unknown)=>isRecord(v)&&validString(v.id)&&validString(v.name)&&
+    Array.isArray(v.strings)&&v.strings.every((a:unknown)=>validIdList(a))))return false;
+  if(!unique(x.batteryBanks as {id:string}[]))return false;
+  if(!x.communicationPorts.every((v:unknown)=>isRecord(v)&&validString(v.id)&&validString(v.componentId)&&
+    validString(v.name)&&validString(v.protocol)&&validString(v.role)&&
+    validString(v.documentationUrl)&&validString(v.evidence)&&validIdList(v.functions)))return false;
+  if(!unique(x.communicationPorts as {id:string}[]))return false;
+  if(!x.communicationConnections.every((v:unknown)=>isRecord(v)&&validString(v.id)&&
+    validString(v.fromPortId)&&validString(v.toPortId)&&['proposed','reported','verified'].includes(String(v.status))&&
+    validString(v.cable)&&validIdList(v.functions)&&validString(v.evidence)))return false;
+  if(!unique(x.communicationConnections as {id:string}[]))return false;
+  if(!x.monitoringAuthorities.every((v:unknown)=>isRecord(v)&&validString(v.metric)&&
+    validString(v.componentId)&&validString(v.method)&&validString(v.evidence)&&validString(v.notes)))return false;
+  if(!x.diagramPositions.every((v:unknown)=>isRecord(v)&&validString(v.componentId)&&
+    validNumber(v.x)&&validNumber(v.y)))return false;
   return true;
 }
 function isLegacyProject(x: unknown): x is ProjectV1 {
@@ -82,6 +123,31 @@ function uneditedLegacyLaptop(load: Load): boolean {
 /** Merge new reference entries without overwriting changed user objects or profiles. */
 export function migrateProject(x: unknown): Project | null {
   if(validateProject(x)) return x;
+  if(isV2Project(x)){
+    const old=x as ProjectV2;
+    const vandy=structuredClone(seedProject);
+    // Existing v2 projects have no battery detail records. Preserve their edited
+    // legacy Ah field as a reported planning number, never silently reset to 280.
+    const batteries=vandy.batteries.map(b=>b.componentId==='battery'?{
+      ...b,capacityAh:old.batteryCapacityAh,
+      nominalVoltageV:old.nominalBatteryVoltage,
+      evidence:'reported' as const,
+      notes:b.notes+' Imported battery Ah from existing v2 project; confirm against actual hardware.'
+    }:b);
+    const customId=old.components.find(c=>c.kind==='battery')?.id;
+    if(customId && customId!=='battery'){
+      const legacy=old.components.find(c=>c.id===customId)!;
+      batteries[0]={...batteries[0],componentId:customId,name:legacy.name,
+        manufacturer:'',model:legacy.model??'',evidence:'reported' as const};
+    }
+    const componentIds=new Set(old.components.map(c=>c.id));
+    return {...old,schemaVersion:3,
+      batteries,batteryBanks:vandy.batteryBanks,
+      activeBatteryBankId:'habitation-bank',
+      communicationPorts:vandy.communicationPorts.filter(p=>componentIds.has(p.componentId)),
+      communicationConnections:[],monitoringAuthorities:vandy.monitoringAuthorities.filter(a=>componentIds.has(a.componentId)),
+      diagramPositions:[]};
+  }
   if(!isLegacyProject(x)) return null;
   const old=x as ProjectV1;
   const base=structuredClone(seedProject);
@@ -106,6 +172,8 @@ export function loadProject(): Project {
   try {
     const raw=localStorage.getItem(STORAGE_KEY);
     if(raw){const p=migrateProject(JSON.parse(raw) as unknown);if(p)return p;}
+    const oldV2=localStorage.getItem(V2_STORAGE_KEY);
+    if(oldV2){const p=migrateProject(JSON.parse(oldV2) as unknown);if(p)return p;}
     const legacy=localStorage.getItem(LEGACY_STORAGE_KEY);
     if(legacy){const p=migrateProject(JSON.parse(legacy) as unknown);if(p)return p;}
   }catch{/* Invalid/unavailable browser storage: retain demo. */}
