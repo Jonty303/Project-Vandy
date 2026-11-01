@@ -24,8 +24,10 @@ export function DeviceConnections({project,change,componentId}:Props){
   const [dataFrom,setDataFrom]=useState('');
   const [dataTo,setDataTo]=useState('');
   if(!component)return null;
-  const allTerminals=project.components.flatMap(c=>(c.groundingTerminals??[]).map(t=>({key:pair(c.id,t.id),componentId:c.id,terminalId:t.id,kind:t.kind,label:c.name+' — '+t.label})));
-  const ownGround=component.groundingTerminals??[];
+  const asGround=(c:typeof component)=>(c.terminals??[]).filter(t=>t.kind==='chassis'||t.kind==='protective-earth')
+    .map(t=>({id:t.id,label:t.label,kind:t.kind==='chassis'?'chassis' as const:'pe' as const}));
+  const allTerminals=project.components.flatMap(c=>asGround(c).map(t=>({key:pair(c.id,t.id),componentId:c.id,terminalId:t.id,kind:t.kind,label:c.name+' — '+t.label})));
+  const ownGround=asGround(component);
   const chosenGround=ownGround.find(t=>t.id===groundFrom)??ownGround[0];
   const groundPeers=allTerminals.filter(t=>t.componentId!==componentId&&chosenGround&&(chosenGround.kind==='pe'||t.kind==='chassis'));
   const earths=(project.groundingConnections??[]).filter(g=>g.fromComponentId===componentId||g.toComponentId===componentId);
