@@ -89,3 +89,63 @@ test('v2 JSON validation accepts good autonomy and rejects malformed PVGIS cache
  p.autonomy.dcDcEfficiency=1.3;
  assert.equal(validateProject(p),false);
 });
+
+test('Rating explicitly identifies every active unknown consumer rating and where to fix it',()=>{
+ const p=make();
+ const a=projectAutonomy(p,'working');
+ assert.ok(a.ratingBlockers.some(r=>r.title.includes('Starlink') && r.action.includes('Circuits & loads')));
+ assert.ok(a.ratingBlockers.some(r=>r.title.includes('Toilet flush')));
+ assert.ok(a.ratingBlockers.some(r=>r.title.includes('Floor LED strips')));
+ assert.ok(a.ratingBlockers.some(r=>r.id==='solar-missing'));
+ assert.equal(a.ratingBlockers.some(r=>r.id==='battery-capacity'),false);
+ assert.equal(a.solarMonthName,'June');
+ assert.ok(a.provisionalReasons.some(r=>r.id==='fridge-duty'));
+});
+test('Solar PVGIS or manual estimate removes only solar blocker; still lists incomplete consumers',()=>{
+ const p=make();p.autonomy={...autonomySettings(p),solarManualWhPerDay:250};
+ const a=projectAutonomy(p,'normal');
+ assert.equal(a.ratingBlockers.some(r=>r.id==='solar-missing'),false);
+ assert.ok(a.ratingBlockers.some(r=>r.category==='consumer'));
+ assert.ok(a.provisionalReasons.some(r=>r.id==='solar-method'&&r.title.includes('user-entered')));
+});
+test('Missing DC-DC spare amps only blocks driving scenario, never stationary',()=>{
+ const p=make();
+ p.autonomy={...autonomySettings(p),solarManualWhPerDay:300,hoursDrivingPerDay:3,availableAlternatorA:null};
+ const a=projectAutonomy(p,'normal');
+ assert.equal(a.drivingWh,null);
+ assert.ok(a.drivingBlockers.some(r=>r.title.includes('Spare alternator current')));
+ assert.equal(a.ratingBlockers.some(r=>r.category==='driving'),false);
+});
+test('Autonomy rating allows a complete set of active power inputs but retains explicit assumptions',()=>{
+ const p=make();
+ for(const load of p.loads) {
+   if(load.kind==='led-strip'){
+     load.led.lengthMetres=2;
+     load.led.wattsPerMetre=9.6;
+   }
+   for(const mode of load.modes){
+     if(mode.watts===null){mode.watts=8;mode.evidence='measured';}
+   }
+ }
+ p.autonomy={...autonomySettings(p),solarManualWhPerDay:500};
+ const a=projectAutonomy(p,'normal');
+ assert.deepEqual(a.ratingBlockers,[]);
+ assert.ok(a.provisionalReasons.some(r=>r.id==='nominal-battery'));
+ assert.ok(a.provisionalReasons.some(r=>r.id==='fridge-duty'));
+});
+test('Zero-duty unknown consumer is not considered an active missing wattage',()=>{
+ const p=make();
+ const load=p.loads.find(l=>l.id==='starlink');
+ load.modes[0].watts=null;
+ load.modes[0].usage.normal.dutyFraction=0;
+ const a=projectAutonomy(p,'normal');
+ assert.equal(a.ratingBlockers.some(r=>r.title.includes('Starlink')),false);
+});
+test('Unknown or zero battery capacity creates a specific rating blocker',()=>{
+ const p=make();p.batteryCapacityAh=null;
+ let a=projectAutonomy(p,'working');
+ assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
+ p.batteryCapacityAh=0;
+ a=projectAutonomy(p,'working');
+ assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
+});
