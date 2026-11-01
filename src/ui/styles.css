@@ -262,3 +262,16 @@
 .device-connections .button:disabled{opacity:.5;cursor:not-allowed}
 .equipment-card>details{margin:12px 0 0;border-top:1px solid #31505d;padding-top:10px;min-width:0}
 .equipment-card>details>summary{color:#7cdecc;font-size:12px;font-weight:700;cursor:pointer}
+
+/* Terminal-specific conductor editors and circuit-scoped switches. */
+.device-connections .terminal-edit{display:grid;gap:6px}
+.device-connections .terminal-edit .field input{width:100%;min-width:0}
+.device-connections .field select:disabled{opacity:.55;cursor:not-allowed}
+.circuit-switches{border-top:1px solid #315565;margin-top:14px;padding-top:13px;display:grid;gap:8px}
+.circuit-switches>strong{font-size:13px;color:#d9f2ef}
+.circuit-switches>p{font-size:11px;color:#abcbd2;line-height:1.55;margin:0}
+.circuit-switch-row{display:flex;align-items:center;justify-content:space-between;gap:11px;
+  padding:10px;border:1px solid #315665;background:#112c3b;border-radius:8px;font-size:12px}
+.circuit-switch-row span{min-width:0;overflow-wrap:anywhere}
+.circuit-switch-row .button{flex-shrink:0}
+.circuit-switches .field select{min-width:0;width:100%}
