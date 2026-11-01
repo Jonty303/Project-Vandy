@@ -194,6 +194,21 @@ export interface DcWiringPlan {
   cables:DcCableRun[];
   notes:string;
 }
+/** A portable-device charge is an energy event, not charger nameplate wattage.
+ * An 80% charge means replacing 80 percentage points of battery capacity (0% to 80%).
+ * Source circuit identifies the socket/USB supply, not a separate double-counted appliance.
+ */
+export interface PortableCharge {
+  id:string; name:string; category:'iphone'|'ipad'|'other';
+  batteryWh:number|null; batteryEvidence:Evidence; specificationUrl:string;
+  rechargeFraction:number;
+  /** User-estimated end-to-end USB supply-to-device-battery efficiency. */
+  chargingEfficiency:number;
+  /** Fractional events allowed, e.g. 0.5 charges per day. */
+  chargesPerDay:Record<string,number>;
+  circuitId:string;
+  notes:string;
+}
 export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
 
 export interface Project {
@@ -210,6 +225,8 @@ export interface Project {
   monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
   /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
   dcWiring?:DcWiringPlan;
+  /** Optional v3 addition: per-device charging as daily energy events, not peak watts. */
+  portableCharges?:PortableCharge[];
 }
 export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'auxiliaryAssignments'|'diagramPositions'> & {schemaVersion:2};
 export type ProjectV1 = Omit<ProjectV2, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
