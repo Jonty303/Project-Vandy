@@ -88,3 +88,8 @@
 .autonomy-results article p{font-size:12px;color:#9db7c2;margin-top:6px}
 @media(max-width:950px){.autonomy-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.autonomy-numbers{grid-template-columns:1fr}.autonomy-bars small{font-size:8px}.autonomy-results article strong{font-size:17px}}
+
+.autonomy-rating{margin:14px 0 17px;background:#0c3540;border:1px solid #356b72;border-radius:10px;padding:16px}
+.autonomy-rating small{display:block;letter-spacing:1.1px;font-weight:700;font-size:10px;color:#7cd5ca}
+.autonomy-rating strong{display:block;margin:9px 0;color:#d5fbf0;font-family:Outfit,system-ui;font-size:21px}
+.autonomy-rating p{font-size:11px;color:#a6c5cc}
