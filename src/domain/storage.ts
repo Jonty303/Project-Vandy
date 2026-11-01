@@ -89,6 +89,12 @@ export function validateProject(x: unknown): x is Project {
     !Array.isArray(x.communicationPorts)||!Array.isArray(x.communicationConnections)||
     !Array.isArray(x.monitoringAuthorities)||!Array.isArray(x.auxiliaryAssignments)||!Array.isArray(x.diagramPositions))return false;
   if(x.activeBatteryBankId!==null&&!validString(x.activeBatteryBankId))return false;
+  if('acConductors' in x && x.acConductors!==undefined){
+    if(!Array.isArray(x.acConductors)||!x.acConductors.every((c:unknown)=>isRecord(c)&&
+      ['id','fromComponentId','fromTerminalId','toComponentId','toTerminalId','notes'].every(k=>validString(c[k]))&&
+      ['L','N','PE'].includes(String(c.conductor))&&
+      ['proposed','reported','verified'].includes(String(c.status))))return false;
+  }
   if('groundingConnections' in x && x.groundingConnections!==undefined){
     if(!Array.isArray(x.groundingConnections)||!x.groundingConnections.every((g:unknown)=>isRecord(g)&&
       ['id','fromComponentId','fromTerminalId','toComponentId','toTerminalId'].every(k=>validString(g[k]))&&
