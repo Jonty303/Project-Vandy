@@ -51,3 +51,40 @@
 .topo-issues li small{color:#809eac}
 @media(max-width:1100px){.topo-cu-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.topo-link-controls{grid-template-columns:1fr}.topo-link-controls svg{transform:rotate(90deg);margin:0 auto}.topo-link-bottom{flex-wrap:wrap}.topo-sockets,.topo-port-grid{grid-template-columns:1fr}.topo-panel{padding:14px}.topo-warning{padding:13px}}
+
+/* Supply trace and autonomy planning */
+.derived-supply{padding:15px;margin:15px 0;background:#0c2836;border:1px solid #37616e;border-radius:9px;display:grid;gap:9px}
+.derived-supply p{font-size:12px;color:#adcbd4}.derived-supply strong{color:#e3f1f6}
+.derived-supply .form-grid{margin-top:9px}
+.supply-explainer{font-size:11px!important;color:#9abcc5!important}
+.supply-issue{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#e8bb80!important;margin-top:8px}
+.supply-issue svg{flex:0 0 15px;margin-top:2px}
+.autonomy-page{display:grid;gap:19px}
+.autonomy-page .panel{margin:0}
+.autonomy-page .panel-head h2{display:flex;align-items:center;gap:10px}
+.autonomy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.autonomy-grid .panel{min-width:0}
+.autonomy-page .field{display:flex;flex-direction:column;gap:7px;margin:7px 0}
+.autonomy-page .field span{color:#95b7c2;font-weight:700;font-size:11px}
+.autonomy-page .field svg{vertical-align:middle}
+.autonomy-note{margin-top:10px;font-size:12px;color:#9ebac7;line-height:1.6}
+.autonomy-page .form-grid{gap:10px}
+.autonomy-actions{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:15px;font-size:12px;color:#b4d5dd}
+.autonomy-actions button{flex-shrink:0}.autonomy-actions button:disabled{opacity:.6;cursor:progress}
+.autonomy-monthly{margin-top:21px;border-top:1px solid #304b5c;padding-top:17px}
+.autonomy-monthly p{font-size:12px;color:#a8bfcb}
+.autonomy-bars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:end;gap:5px;height:127px;padding:11px 3px 0}
+.autonomy-bars>div{display:flex;flex-direction:column;align-items:center;justify-content:end;gap:6px;height:108px}
+.autonomy-bars>div>span{display:block;width:min(100%,25px);background:#3c909e;border-radius:4px 4px 1px 1px}
+.autonomy-bars>div.current>span{background:#7be4d4}
+.autonomy-bars small{color:#8ca8b8;font-size:9px}
+.autonomy-numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.autonomy-numbers>div{background:#102b3b;border:1px solid #345063;border-radius:9px;padding:15px;min-width:0}
+.autonomy-numbers small{display:block;color:#8badbc;font-size:11px}
+.autonomy-numbers strong{display:block;font-family:Outfit,system-ui;font-size:23px;margin-top:5px;color:#cdf6f0}
+.autonomy-results .autonomy-grid>article{background:#102b3b;border:1px solid #355363;border-radius:9px;padding:17px}
+.autonomy-results article h3{margin:0;font-size:14px}
+.autonomy-results article strong{display:block;font-family:Outfit,system-ui;font-size:20px;color:#dcf8ef;margin-top:12px}
+.autonomy-results article p{font-size:12px;color:#9db7c2;margin-top:6px}
+@media(max-width:950px){.autonomy-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.autonomy-numbers{grid-template-columns:1fr}.autonomy-bars small{font-size:8px}.autonomy-results article strong{font-size:17px}}
