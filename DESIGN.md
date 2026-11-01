@@ -73,9 +73,11 @@ Vandy V1 records a Lynx chassis/earth connection to a common equipment-area bond
 
 ## Terminal-level connection pass (2026-11-01)
 - Each component now has stable-ID `terminals` with conductor types DC+, DC−, AC L, AC N, PE or chassis. Terminal labels and supplementary endpoints are editable from the device panel. Legacy grouped `ports` remain logical supply interfaces; data ports remain protocol-specific.
-- Every DC cable may reference a separate source and destination terminal ID. Existing Vandy cables acquire terminal IDs only where the original component endpoints match the known seed. Changed/missing endpoints remain deliberately unassigned. MPPT battery+ and MultiPlus DC+ are represented on proposed Lynx outputs, not claimed verified.
+- Every DC cable may reference a separate source and destination terminal ID. Existing Vandy cables acquire terminal IDs only where the original component endpoints match the known seed. Changed/missing endpoints remain deliberately unassigned. MPPT and MultiPlus DC battery+ are owner-reported connected to Lynx, but individual Lynx slot terminals are unassigned and the slot/fuse schedule remains provisional.
 - AC physical conductors are distinct `acConductors`, with separate L/N/PE records. No physical AC conductors are populated from existing logical AC topology or from chassis bonding.
 - Existing `groundingConnections` now resolve against the same physical PE/chassis terminal catalogue, retaining DC negative and protective earth as separate types.
 - Switch/device channel assignments are properties of `Circuit.switchAssignments`, not `Load`. Assignments do not change wattage or imply the actual physical switch is connected.
 - v3 JSON export/import retains terminals, terminal-bound wires, and circuit switches; missing fields are hydrated without overwriting user-specified records. Connection type mismatches and dangling switch-channel references block saving.
 - Visual 2D edges still attach to device cards, not physical port glyphs: direct endpoint dragging and installable wire routing are separate future milestones. AC logical and physical links can coexist, without treating one as proof of the other.
+
+- Remote controller and Votronic switch contacts use the `switch-contact` terminal kind until the owner confirms whether they switch DC positive, DC negative or another configuration. Circuit assignments do not infer conductor polarity.
