@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Cable, CircleHelp, Info, ShieldCheck } from 'lucide-react';
 import type { DcCableRun, DcFuseRecord, DcWiringPlan, Project } from '../domain/model.ts';
 import { effectiveWiring, sizeCable, validateWiring } from '../domain/dcWiring.ts';
+import { dcKind } from '../domain/terminals.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void};
 const asNumber=(value:string):number|null=>value.trim()===''?null:Number(value);
@@ -70,6 +71,16 @@ export function DcWiringPage({project,change}:Props){
       return <div key={c.id} className="dc-cable-row">
        <div className="cable-name"><strong>{c.name}</strong><small>{componentName(c.fromComponentId)} → {c.toCircuitId?circuitName(c.toCircuitId):componentName(c.toComponentId)} · {c.polarity}</small></div>
        <div className="dc-cable-fields">
+        <label>Source terminal<select value={c.fromTerminalId??''} onChange={e=>patchCable(c.id,{fromTerminalId:e.target.value||undefined})}>
+          <option value="">Unknown / not assigned</option>
+          {(project.components.find(x=>x.id===c.fromComponentId)?.terminals??[]).filter(t=>t.kind===dcKind(c.polarity))
+            .map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>
+        {c.toComponentId&&<label>Destination terminal<select value={c.toTerminalId??''} onChange={e=>patchCable(c.id,{toTerminalId:e.target.value||undefined})}>
+          <option value="">Unknown / not assigned</option>
+          {(project.components.find(x=>x.id===c.toComponentId)?.terminals??[]).filter(t=>t.kind===dcKind(c.polarity))
+            .map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>}
         <label>One-way length (m)<input type="number" step=".1" min=".1" value={c.lengthM} onChange={e=>patchCable(c.id,{lengthM:Number(e.target.value)})}/></label>
         <label>Length evidence<select value={c.lengthEvidence} onChange={e=>patchCable(c.id,{lengthEvidence:e.target.value as DcCableRun['lengthEvidence']})}>
          {(['assumed','reported','measured'] as const).map(x=><option key={x}>{x}</option>)}</select></label>
