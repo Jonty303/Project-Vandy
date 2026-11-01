@@ -79,8 +79,9 @@ export function ConnectivityPage({project,change}:Props){
       </div>)}
       {!project.communicationConnections.length&&<p className="autonomy-note">No external data cables recorded as installed or proposed yet. Use a recommendation above to plan one.</p>}
       <button className="button small" onClick={()=>{
-        const from=project.communicationPorts.find(p=>p.role==='device'&&p.protocol==='ve-direct');
-        const to=project.communicationPorts.find(p=>p.role==='controller'&&p.protocol==='ve-direct');
+        const occupied=new Set(project.communicationConnections.flatMap(c=>[c.fromPortId,c.toPortId]));
+        const from=project.communicationPorts.find(p=>p.role==='device'&&p.protocol==='ve-direct'&&!occupied.has(p.id));
+        const to=project.communicationPorts.find(p=>p.role==='controller'&&p.protocol==='ve-direct'&&!occupied.has(p.id));
         if(from&&to)addConnection(from.id,to.id);
       }}><Plus size={14}/> Add manual VE.Direct connection</button>
     </section>
