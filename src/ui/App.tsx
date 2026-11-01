@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Activity, AlertTriangle, BatteryCharging, Cable, Check, ChevronDown, CircleHelp, Cpu, Download, Gauge, Layers, Plus, RotateCcw, Save, Settings, ShieldAlert, Trash2, Upload, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, BatteryCharging, Cable, Check, ChevronDown, CircleHelp, Cpu, Download, Gauge, Layers, Network, Plus, RotateCcw, Save, Settings, ShieldAlert, Trash2, Upload, Zap } from 'lucide-react';
 import type { Circuit, Evidence, Load, LoadKind, OperatingMode, Project, Supply } from '../domain/model.ts';
 import { calculateProject, ledRatedWatts } from '../domain/calculations.ts';
-import { loadProject, saveProject, validateProject } from '../domain/storage.ts';
+import { loadProject, saveProject, migrateProject } from '../domain/storage.ts';
+import { TopologyPage } from './Topology.tsx';
 import { seedProject } from '../data/vandy.ts';
 
-type Page = 'overview' | 'loads' | 'equipment' | 'settings';
+type Page = 'overview' | 'loads' | 'topology' | 'equipment' | 'settings';
 const fmt = (value: number, digits = 0) => value.toLocaleString('en-GB', { maximumFractionDigits: digits });
 const makeId = () => crypto.randomUUID();
 const toNullable = (value: string) => value.trim() === '' ? null : Math.max(0, Number(value));
@@ -80,7 +81,7 @@ export function App() {
   function exportProject() {
     const blob=new Blob([JSON.stringify(project,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='vandy-project-v1.json';a.click();
+    const a=document.createElement('a');a.href=url;a.download='vandy-project-v2.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     setMessage('Project JSON exported.');
   }
@@ -89,9 +90,10 @@ export function App() {
     try {
       if (file.size>2_000_000) throw Error('Project file is too large (maximum 2MB).');
       const value: unknown=JSON.parse(await file.text());
-      if (!validateProject(value)) throw Error('Unsupported or invalid Project Vandy schema.');
-      setProject(value);setProfileId(value.profiles[0]?.id ?? 'normal');
-      setSelectedCircuit(value.circuits[0]?.id ?? '');setSelectedLoad(null);setMessage('Project imported successfully.');
+      const imported=migrateProject(value);
+      if (!imported) throw Error('Unsupported or invalid Project Vandy schema.');
+      setProject(imported);setProfileId(imported.profiles[0]?.id ?? 'normal');
+      setSelectedCircuit(imported.circuits[0]?.id ?? '');setSelectedLoad(null);setMessage('Project imported successfully (v1 imports are migrated to v2).');
     } catch(e) {setMessage(e instanceof Error?e.message:'Unable to import project.');}
     finally {if(fileRef.current) fileRef.current.value='';}
   }
@@ -101,13 +103,13 @@ export function App() {
       <div className="nav-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
         {([
-          ['overview','Overview',Gauge],['loads','Circuits & loads',Layers],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
+          ['overview','Overview',Gauge],['loads','Circuits & loads',Layers],['topology','System topology',Network],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
         ] as const).map(([id,label,Icon])=><button key={id} className={`nav-item ${page===id?'active':''}`} onClick={()=>setPage(id)}><Icon size={18}/>{label}</button>)}
       </nav>
-      <div className="sidebar-bottom"><div className="supply-pill"><span className="status-dot"/> ENGINE ONLINE <span>v0.1</span></div><p>12V / 24V ready<br/>Iteration 01 · Load calculator</p></div>
+      <div className="sidebar-bottom"><div className="supply-pill"><span className="status-dot"/> ENGINE ONLINE <span>v0.2</span></div><p>12V / 24V ready<br/>Iteration 02 · Logical topology</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'OVERVIEW':page==='loads'?'CIRCUITS & LOADS':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 01</Tag></div></header>
+      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'OVERVIEW':page==='loads'?'CIRCUITS & LOADS':page==='topology'?'TOPOLOGY':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 02</Tag></div></header>
       <div className="content">
         {page==='overview' && <>
           <div className="hero"><div className="eyebrow"><span className="eyebrow-line"/> ENERGY PLANNING / VANDY V1</div><div className="hero-row"><div><h1>Know your power.<br/><em>Before you need it.</em></h1><p>Understand consumption, identify missing measurements and organise every appliance into its electrical circuit.</p></div><div className="voltage-card"><span>SYSTEM VOLTAGE</span><strong>{project.nominalBatteryVoltage}<small>V</small></strong><p>Habitation battery</p></div></div></div>
@@ -142,10 +144,11 @@ export function App() {
             <Field label="Notes / assumptions"><textarea rows={2} value={load.notes??''} onChange={e=>patchLoad(load.id,{notes:e.target.value})}/></Field></section>}
           </>:<Empty>Add your first circuit to begin.</Empty>}</div></div>
         </>}
+        {page==='topology' && <TopologyPage project={project} change={patchProject}/>}
         {page==='equipment' && <><div className="section-heading heading-top"><div><div className="eyebrow">REFERENCE EQUIPMENT LIBRARY</div><h1>Known components</h1><p>Installed hardware, protection and controller placeholders — kept distinct from power consumers.</p></div><Tag>{project.components.length} ITEMS</Tag></div><div className="notice"><CircleHelp size={19}/><div><strong>Inventory only in this iteration</strong><p>Equipment connections, terminal mapping, fuse ratings and component compatibility will be modelled and validated in later iterations.</p></div></div><div className="equipment-grid">{project.components.map(c=><article className="equipment-card" key={c.id}><div className="equipment-icon"><Cpu size={20}/></div><div><div className="equipment-heading"><strong>{c.name}</strong><Tag tone={c.evidence==='manual'?'good':c.evidence==='unknown'?'warn':'neutral'}>{c.evidence??'unknown'}</Tag></div><div className="equipment-sub">{c.model?`${c.model} · `:''}{c.kind.replace('-',' ')} {c.voltage?`· ${c.voltage}V`:''}</div><p>{c.notes??'Specification recorded; physical wiring to be captured later.'}</p>{c.outputs && <span className="equipment-foot">{c.outputs.length} individually identifiable outputs</span>}{c.hazards?.length? <div className="hazards"><ShieldAlert size={13}/>{c.hazards.join(' · ').replaceAll('-',' ')}</div>:null}</div></article>)}</div></>}
         {page==='settings' && <><div className="section-heading heading-top"><div><div className="eyebrow">YOUR PROJECT</div><h1>Settings & data</h1><p>Configure the battery model and manage your local project file.</p></div></div><div className="settings-grid"><section className="panel"><div className="panel-head"><div><div className="overline">PROJECT IDENTITY</div><h2>System configuration</h2></div></div><Field label="Project name"><input value={project.name} onChange={e=>patchProject(p=>({...p,name:e.target.value}))}/></Field><div className="form-grid"><Field label="Battery voltage"><select value={project.nominalBatteryVoltage} onChange={e=>patchProject(p=>({...p,nominalBatteryVoltage:Number(e.target.value) as 12|24}))}><option value={12}>12V</option><option value={24}>24V</option></select></Field><Field label="Battery capacity (Ah)"><input type="number" min="0" step="1" placeholder="Unknown" value={inputNumeric(project.batteryCapacityAh)} onChange={e=>patchProject(p=>({...p,batteryCapacityAh:toNullable(e.target.value)}))}/></Field><Field label="Inverter efficiency (%)" hint="Assumption for 230V inverter-supplied loads; no converter is auto-inserted."><input type="number" min="1" max="100" step="1" value={Math.round(project.inverterEfficiency*100)} onChange={e=>patchProject(p=>({...p,inverterEfficiency:Math.min(1,Math.max(0.01,Number(e.target.value)/100))}))}/></Field></div><div className="subtle-hint"><AlertTriangle size={16}/> Changing the battery voltage does not automatically convert circuits or make 12V equipment compatible. Mismatches are flagged in the calculator.</div></section><section className="panel"><div className="panel-head"><div><div className="overline">LOCAL FIRST</div><h2>Import & export</h2></div></div><p>Your project is stored only in this browser. Export JSON backups before clearing your browser data or switching devices.</p><div className="settings-actions"><button className="button primary" onClick={exportProject}><Download size={17}/> Export project JSON</button><button className="button" onClick={()=>fileRef.current?.click()}><Upload size={17}/> Import project JSON</button><input className="visually-hidden" ref={fileRef} type="file" accept="application/json,.json" onChange={e=>void importProject(e.target.files?.[0])}/></div><div className="separator"/><button className="button destructive" onClick={()=>{if(confirm('Reset all locally stored project changes to the original Vandy demo?')) {setProject(structuredClone(seedProject));setProfileId('normal');setSelectedCircuit('toilet');setSelectedLoad('toilet-light');setMessage('Demo project restored.');}}}><RotateCcw size={17}/> Reset demo inventory</button></section></div><div className="notice critical"><ShieldAlert size={21}/><div><strong>Safety is a requirement, not a certification claim.</strong><p>Combustion equipment needs proper ventilation, exhaust routing and appropriate carbon monoxide detection. Electrical and LPG work must follow applicable manufacturer guidance and safety regulations. This application currently checks energy arithmetic only; it does not approve an installation.</p></div></div></>}
         {message&&<div className="toast" role="status"><Check size={16}/>{message}<button aria-label="Dismiss" onClick={()=>setMessage('')}>×</button></div>}
-        <footer className="app-footer"><span>VANDY POWER STUDIO / ITR-01</span><span>ENGINEERING FIRST · ASSUMPTIONS VISIBLE</span></footer>
+        <footer className="app-footer"><span>VANDY POWER STUDIO / ITR-02</span><span>ENGINEERING FIRST · ASSUMPTIONS VISIBLE</span></footer>
       </div>
     </main>
   </div>;
