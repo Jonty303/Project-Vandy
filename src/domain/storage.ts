@@ -1,5 +1,6 @@
 import type { Component, Load, Project, ProjectV1, ProjectV2 } from './model.ts';
 import { seedProject } from '../data/vandy.ts';
+import { initialWiringPlan } from './dcWiring.ts';
 
 export const STORAGE_KEY = 'project-vandy:project:v3';
 export const V2_STORAGE_KEY = 'project-vandy:project:v2';
@@ -112,6 +113,21 @@ export function validateProject(x: unknown): x is Project {
     ['proposed','reported','verified'].includes(String(v.status))&&validString(v.notes)))return false;
   if(!x.diagramPositions.every((v:unknown)=>isRecord(v)&&validString(v.componentId)&&
     validNumber(v.x)&&validNumber(v.y)))return false;
+  if('dcWiring' in x && x.dcWiring!==undefined){
+    const w=x.dcWiring;
+    if(!isRecord(w)||!Array.isArray(w.fuses)||!Array.isArray(w.cables)||!validString(w.notes))return false;
+    if(!w.fuses.every((f:unknown)=>isRecord(f)&&validString(f.id)&&validString(f.label)&&
+      (f.holderComponentId===null||validString(f.holderComponentId))&&
+      (f.slot===null||(validNumber(f.slot)&&(f.slot as number)>=1))&&
+      (f.ratingA===null||validNonnegative(f.ratingA))&&validString(f.fuseForm)&&validString(f.placement)&&
+      (f.nearComponentId===null||validString(f.nearComponentId))&&
+      validString(f.status)&&validString(f.confidence)&&validString(f.notes)&&validString(f.documentationUrl)))return false;
+    if(!w.cables.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&
+      validString(c.fromComponentId)&&validString(c.polarity)&&validNumber(c.lengthM)&&
+      validString(c.lengthEvidence)&&validNullableNum(c.designCurrentA)&&
+      validNullableNum(c.manufacturerMinMm2)&&validNumber(c.voltageV)&&
+      (c.fuseId===null||validString(c.fuseId))&&validString(c.status)&&validString(c.notes)))return false;
+  }
   return true;
 }
 function isLegacyProject(x: unknown): x is ProjectV1 {
@@ -124,9 +140,45 @@ function uneditedLegacyLaptop(load: Load): boolean {
   return m.watts===65&&m.evidence==='estimated'&&m.usage.normal?.minutesPerDay===0&&
     m.usage.working?.minutesPerDay===480&&m.usage.winter?.minutesPerDay===0;
 }
+/** Hydrate existing v3 browser projects with the new test-data wiring model.
+ * Never overwrite custom load measurements, circuit sources or user-edited fuse schedules.
+ */
+function hydrateWiring(p:Project):Project{
+  const vandy=p.components.some(c=>c.id==='battery')&&p.components.some(c=>c.id==='lynx')&&p.components.some(c=>c.id==='blue-sea');
+  if(!vandy)return p.dcWiring?p:{...p,dcWiring:{fuses:[],cables:[],notes:'No default Vandy wiring plan for this custom project.'}};
+  const defaults=seedProject;
+  const components=p.components.slice();
+  for(const id of ['starter-battery','isolator']){
+    const c=defaults.components.find(c=>c.id===id);
+    if(c&&!components.some(x=>x.id===id))components.push(structuredClone(c));
+  }
+  const circuits=p.circuits.map(c=>{
+    const starter=defaults.circuits.find(d=>d.id===c.id);
+    return starter&&!c.sourceComponentId&&starter.sourceComponentId==='blue-sea'?
+      {...c,sourceComponentId:starter.sourceComponentId,sourceOutputId:starter.sourceOutputId,
+        notes:[c.notes,starter.notes].filter(Boolean).join(' ')}:c;
+  });
+  const loads=p.loads.map(l=>{
+    if(l.id==='floor-led'&&l.led?.lengthMetres===null)return {...l,led:{...l.led,lengthMetres:2}};
+    if(l.id==='kitchen-light'&&l.name==='Kitchen light'&&l.kind==='standard'&&l.modes[0]?.watts===null){
+      const d=defaults.loads.find(x=>x.id==='kitchen-light');
+      return d?structuredClone(d):l;
+    }
+    if(l.id==='toilet-light'&&l.name==='Toilet light'&&l.kind==='standard'&&l.modes[0]?.watts===1){
+      const d=defaults.loads.find(x=>x.id==='toilet-light');
+      return d?structuredClone(d):l;
+    }
+    if(l.id==='outside-light'&&l.name==='Outside light'&&l.modes[0]?.watts===null){
+      const d=defaults.loads.find(x=>x.id==='outside-light');
+      return d?structuredClone(d):l;
+    }
+    return l;
+  });
+  return {...p,components,circuits,loads,dcWiring:p.dcWiring??structuredClone(initialWiringPlan)};
+}
 /** Merge new reference entries without overwriting changed user objects or profiles. */
 export function migrateProject(x: unknown): Project | null {
-  if(validateProject(x)) return x;
+  if(validateProject(x)) return hydrateWiring(x);
   if(isV2Project(x)){
     const old=x as ProjectV2;
     const vandy=structuredClone(seedProject);
@@ -145,12 +197,12 @@ export function migrateProject(x: unknown): Project | null {
         manufacturer:'',model:legacy.model??'',evidence:'reported' as const};
     }
     const componentIds=new Set(old.components.map(c=>c.id));
-    return {...old,schemaVersion:3,
+    return hydrateWiring({...old,schemaVersion:3,
       batteries,batteryBanks:vandy.batteryBanks,
       activeBatteryBankId:'habitation-bank',
       communicationPorts:vandy.communicationPorts.filter(p=>componentIds.has(p.componentId)),
       communicationConnections:[],monitoringAuthorities:vandy.monitoringAuthorities.filter(a=>componentIds.has(a.componentId)),
-      auxiliaryAssignments:[],diagramPositions:[]};
+      auxiliaryAssignments:[],diagramPositions:[]});
   }
   if(!isLegacyProject(x)) return null;
   const old=x as ProjectV1;
@@ -169,8 +221,8 @@ export function migrateProject(x: unknown): Project | null {
   });
   const keepLegacyLaptop=loads.some(l=>['laptop-one','laptop-two'].includes(l.id));
   for(const l of base.loads)if(!(l.id==='laptop-shared'&&keepLegacyLaptop)&&!loads.some(o=>o.id===l.id))loads.push(l);
-  return {...base,name:old.name,nominalBatteryVoltage:old.nominalBatteryVoltage,batteryCapacityAh:old.batteryCapacityAh,
-    inverterEfficiency:old.inverterEfficiency,profiles:old.profiles,components,circuits,loads};
+  return hydrateWiring({...base,name:old.name,nominalBatteryVoltage:old.nominalBatteryVoltage,batteryCapacityAh:old.batteryCapacityAh,
+    inverterEfficiency:old.inverterEfficiency,profiles:old.profiles,components,circuits,loads});
 }
 export function loadProject(): Project {
   try {
