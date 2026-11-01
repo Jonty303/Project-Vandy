@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, BatteryCharging, CloudSun, MapPin, RefreshCw, Route } from 'lucide-react';
 import type { AutonomySettings, Project } from '../domain/model.ts';
 import { autonomySettings, dcDcEstimate, estimateSolarWh, LOCATION_PRESETS, projectAutonomy, solarFingerprint } from '../domain/autonomy.ts';
+import { activeBankSummary, batteryCapacityForPlanning } from '../domain/batteries.ts';
 
 interface Props {project: Project; profileId:string; change:(fn:(p:Project)=>Project)=>void}
 const wh=(x:number|null,digits=0)=>x===null?'Unknown':x.toLocaleString('en-GB',{maximumFractionDigits:digits})+' Wh';
@@ -14,6 +15,7 @@ function reportDays(days:number|null,status:'unknown'|'depleting'|'no-average-de
 }
 export function AutonomyPage({project,profileId,change}:Props){
   const settings=autonomySettings(project);
+  const activeBank=activeBankSummary(project);
   const projection=useMemo(()=>projectAutonomy(project,profileId),[project,profileId]);
   const dc=dcDcEstimate(settings,project.nominalBatteryVoltage);
   const solar=estimateSolarWh(settings);
@@ -42,7 +44,7 @@ export function AutonomyPage({project,profileId,change}:Props){
         source:'PVGIS-v5_3',requestedAt:body.requestedAt??new Date().toISOString(),
         description:body.description??'European Commission PVGIS monthly estimate',queryFingerprint:fingerprint,monthlyDailyWh:values
       }}}));
-      setApiMessage('PVGIS monthly data loaded and saved in this browser.');
+      setApiMessage('PVGIS monthly data loaded into the editor. Press Update to save this data to your project.');
     }catch(e){setApiMessage((e instanceof Error?e.message:'PVGIS request failed')+'. In a static production deployment a separate backend is required; use a manual daily estimate meanwhile.');}
     finally{setFetching(false);}
   }
@@ -58,7 +60,7 @@ export function AutonomyPage({project,profileId,change}:Props){
         <div className="form-grid">
           <label className="field"><span>Starting battery SOC (%)</span><input type="number" min="0" max="100" value={settings.startingSocPct} onChange={e=>numeric('startingSocPct',e.target.value)}/></label>
           <label className="field"><span>Minimum reserve SOC (%)</span><input type="number" min="0" max="100" value={settings.reserveSocPct} onChange={e=>numeric('reserveSocPct',e.target.value)}/></label>
-        </div><p className="autonomy-note">Uses {project.batteryCapacityAh??'unknown'}Ah at {project.nominalBatteryVoltage}V nominal, with no assumption about battery health or temperature. Configured usable range: {wh(projection.batteryUsableWh)}.</p>
+        </div><p className="autonomy-note">Uses {batteryCapacityForPlanning(project)??'unknown'}Ah {activeBank?'from active battery bank':'from legacy project settings'} at {project.nominalBatteryVoltage}V nominal, with no assumption about battery health or temperature. Configured usable range: {wh(projection.batteryUsableWh)}.</p>
       </section>
       <section className="panel"><div className="panel-head"><h2><Route size={18}/> DC-DC charging while driving</h2></div>
         <div className="form-grid">
