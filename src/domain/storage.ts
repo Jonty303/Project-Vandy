@@ -147,7 +147,9 @@ function hydrateWiring(p:Project):Project{
   const vandy=p.components.some(c=>c.id==='battery')&&p.components.some(c=>c.id==='lynx')&&p.components.some(c=>c.id==='blue-sea');
   if(!vandy)return p.dcWiring?p:{...p,dcWiring:{fuses:[],cables:[],notes:'No default Vandy wiring plan for this custom project.'}};
   const defaults=seedProject;
-  const components=p.components.slice();
+  const components=p.components.map(c=>c.id==='battery'&&c.name==='WattCycle LiFePO₄ battery'?
+    {...c,name:'WattCycle 280Ah Mini Bluetooth LiFePO₄',model:'280Ah Mini Bluetooth (revision unconfirmed)',
+      notes:[c.notes,'Owner identified Mini Bluetooth variant; exact revision still unverified.'].filter(Boolean).join(' ')}:c);
   for(const id of ['starter-battery','isolator']){
     const c=defaults.components.find(c=>c.id===id);
     if(c&&!components.some(x=>x.id===id))components.push(structuredClone(c));
@@ -174,7 +176,11 @@ function hydrateWiring(p:Project):Project{
     }
     return l;
   });
-  return {...p,components,circuits,loads,dcWiring:p.dcWiring??structuredClone(initialWiringPlan)};
+  const batteries=p.batteries.map(b=>b.id==='battery-wattcycle'&&b.model==='280Ah LiFePO₄ (exact variant unconfirmed)'?
+    {...b,name:'WattCycle 280Ah Mini Bluetooth habitation battery',
+      model:'280Ah Mini Bluetooth LiFePO₄ (revision unconfirmed)',
+      notes:[b.notes,'Owner confirmed Mini Bluetooth version; exact revision and self-heating still unverified.'].filter(Boolean).join(' ')}:b);
+  return {...p,components,circuits,loads,batteries,dcWiring:p.dcWiring??structuredClone(initialWiringPlan)};
 }
 /** Merge new reference entries without overwriting changed user objects or profiles. */
 export function migrateProject(x: unknown): Project | null {
