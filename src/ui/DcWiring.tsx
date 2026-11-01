@@ -53,8 +53,11 @@ export function DcWiringPage({project,change}:Props){
        <label>Nearest device<select value={f.nearComponentId??''} onChange={e=>patchFuse(f.id,{nearComponentId:e.target.value||null})}><option value="">Unconfirmed</option>{project.components.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
        <label>Fuse form<select value={f.fuseForm} onChange={e=>patchFuse(f.id,{fuseForm:e.target.value as DcFuseRecord['fuseForm']})}>{(['unknown','inline','MEGA','ATO-ATC'] as const).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>
-      <div className="fuse-notes">{f.notes}</div>
-      {f.id.startsWith('orion-')&&<p className="field-warning"><Info size={15}/> The owner confirmed 70A on both Orion sides; the physical fuse-to-battery distance remains unknown. Recommend protecting the run at its respective battery source end.</p>}
+      <div className="fuse-notes">{f.notes}
+        {f.relativeElectricalOrder&&<p><strong>Reported electrical order:</strong> {f.relativeElectricalOrder}</p>}
+        {f.recommendedPlacement&&<p><strong>Recommended fuse position:</strong> {f.recommendedPlacement.replaceAll('-',' ')} near {componentName(f.recommendedNearComponentId??undefined)}. This recommendation does not confirm the installed distance.</p>}
+      </div>
+      {f.id.startsWith('orion-')&&<p className="field-warning"><Info size={15}/> The owner confirmed 70A on both Orion sides; their physical distances from the two batteries remain unverified. A fuse at the Orion/load end alone does not protect the battery-to-fuse conductor.</p>}
       {f.status==='proposed'&&<p className="field-warning"><Info size={15}/> Provisional rating and position. Not confirmed installed.</p>}
       {issues.filter(i=>i.id===f.id&&i.severity==='blocker').map((i,index)=><p key={index} className="field-blocker"><AlertTriangle size={15}/>{i.message}</p>)}
     </div>)}</div>
