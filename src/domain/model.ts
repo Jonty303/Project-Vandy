@@ -7,7 +7,7 @@ export type LoadKind = 'standard' | 'led-strip' | 'compressor' | 'multi-state';
 export type ComponentKind =
   | 'battery' | 'solar' | 'mppt' | 'dc-dc' | 'inverter' | 'distribution'
   | 'controller' | 'switch' | 'usb-charger' | 'appliance' | 'monitor'
-  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet';
+  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet' | 'bonding-busbar' | 'ground-point';
 export type Hazard = 'electrical-fire' | 'electric-shock' | 'carbon-monoxide' | 'combustion-exhaust' | 'lpg' | 'water-leak';
 
 /** The third DC conductor is a chassis/bonding connection, NEVER a synonym for negative or AC PE. */
@@ -23,10 +23,19 @@ export interface ElectricalPort {
   voltage: 12 | 24 | 230 | '12/24'; conductors: Conductor[];
 }
 export interface SocketPosition { id: string; label: string }
+/** Chassis bonding and protective earth are distinct from DC negative returns. */
+export interface GroundingTerminal { id:string; label:string; kind:'chassis'|'pe' }
+export interface GroundingConnection {
+  id:string; fromComponentId:string; fromTerminalId:string;
+  toComponentId:string; toTerminalId:string;
+  kind:'chassis-bond'|'protective-earth'; notes?:string;
+}
+
 export interface Component {
   id: string; name: string; kind: ComponentKind; model?: string;
   voltage?: DcVoltage | '12/24' | '230';
   outputs?: OutputChannel[]; ports?: ElectricalPort[]; socketPositions?: SocketPosition[];
+  groundingTerminals?: GroundingTerminal[];
   notes?: string; evidence?: Evidence; hazards?: Hazard[];
 }
 export interface Circuit {
@@ -209,7 +218,7 @@ export interface PortableCharge {
   circuitId:string;
   notes:string;
 }
-export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
+export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'|'grounding'; x:number; y:number }
 
 export interface Project {
   schemaVersion: 3; name: string; nominalBatteryVoltage: DcVoltage;
@@ -222,6 +231,8 @@ export interface Project {
   socketAssignments: SocketAssignment[];
   batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
   communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
+  /** Explicit owner-entered earth/chassis bonds; optional for older saved v3 projects. */
+  groundingConnections?:GroundingConnection[];
   monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
   /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
   dcWiring?:DcWiringPlan;
