@@ -1,7 +1,7 @@
 name: Verify
 on:
   push:
-    branches: [main, iteration-01]
+    branches: [main, iteration-01, iteration-02]
   pull_request:
 jobs:
   test-and-build:
