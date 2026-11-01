@@ -6,6 +6,16 @@ import { resolveLogicalSupply } from '../src/domain/supply.ts';
 import { validateProject } from '../src/domain/storage.ts';
 
 const make=()=>structuredClone(seedProject);
+test('Vandy default assumes one hour driving per day without inventing alternator capacity',()=>{
+ const p=make();
+ const settings=autonomySettings(p);
+ assert.equal(settings.hoursDrivingPerDay,1);
+ assert.equal(settings.availableAlternatorA,null);
+ assert.equal(dcDcEstimate(settings,12).wh,null);
+ p.autonomy={...settings,hoursDrivingPerDay:2.5,availableAlternatorA:30};
+ assert.equal(autonomySettings(p).hoursDrivingPerDay,2.5);
+ assert.ok((dcDcEstimate(autonomySettings(p),12).wh??0)>0);
+});
 test('Vandy sample AC load derives MultiPlus as source via socket consumer unit',()=>{
  const p=make(),starlink=p.loads.find(l=>l.id==='starlink');
  const source=resolveLogicalSupply(p,starlink);
