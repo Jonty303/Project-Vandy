@@ -23,7 +23,7 @@ const originalComponents: Component[] = [
   {...component('battery', 'WattCycle 280Ah Mini Bluetooth LiFePO₄', 'battery', '280Ah Mini Bluetooth (revision unconfirmed)', 'Existing 12V LiFePO4; exact variant revision not checked; usable capacity not verified', 'reported'), voltage:12, hazards:['electrical-fire']},
   {...component('starter-battery','Vehicle starter battery (model unknown)','battery',undefined,'Starter battery for Orion XS input; capacity and chemistry unverified','reported'),voltage:12},
   {...component('isolator','Habitation battery isolator','switch',undefined,'Owner confirms positive cable follows 150A main fuse → isolator → Lynx Distributor','reported'),voltage:12},
-  {...component('lynx', 'Victron Lynx Distributor', 'distribution','Lynx Distributor','Main DC distribution', 'reported'), voltage:12},
+  {...component('lynx', 'Victron Lynx Distributor', 'distribution','Lynx Distributor','Main DC distribution; owner reports a separate earth/chassis connection to a busbar', 'reported'), voltage:12,groundingTerminals:[{id:'earth',label:'Earth/chassis connection',kind:'chassis'}]},
   {...component('blue-sea','Blue Sea ST Blade fuse block','distribution','5026','12 fused outputs, integrated negative bus', 'reported'), voltage:12, outputs:channels('fuse',12)},
   {...component('remote-six','Generic 6-way remote control box','controller',undefined,'Six channels, input positive/negative and reported chassis/earth connection; actual internal protection and switching unverified','unknown'), voltage:12, outputs:channels('remote',6)},
   {...component('votronic-1','Votronic rocker switch 1','switch',undefined,'Illuminated panel switch; exact rating unknown','unknown'), voltage:12},
@@ -59,9 +59,12 @@ const portMap: Record<string,ElectricalPort[]> = {
 };
 const components: Component[] = [
   ...originalComponents.map(c=>portMap[c.id] ? {...c,ports:portMap[c.id]} : c),
+  {...component('front-earth-busbar','Main equipment earth busbar','bonding-busbar',undefined,'Common earth busbar serving the main electrical equipment area; each individual equipment connection can be recorded separately.','reported'),groundingTerminals:[{id:'bond',label:'Bonding busbar',kind:'chassis'}]},
+  {...component('front-chassis-ground','Main equipment vehicle ground point','ground-point',undefined,'Vehicle chassis ground point connected to the main equipment earth busbar. Precise fixing/location not recorded.','reported'),groundingTerminals:[{id:'stud',label:'Chassis ground stud',kind:'chassis'}]},
+  {...component('rear-pillar-ground','Rear pillar chassis earth point','ground-point',undefined,'Rear pillar chassis earth for both 230V consumer unit protective-earth connections.','reported'),groundingTerminals:[{id:'stud',label:'Rear pillar earth stud',kind:'chassis'}]},
   {...component('shore-inlet','16A shore inlet','shore-inlet',undefined,'230V shore connection; physical wiring unverified','reported'),voltage:'230',ports:[ac('ac-out','Shore feed','output')],hazards:['electric-shock']},
-  {...component('cu-shore','CU-01 — Shore protection','consumer-unit',undefined,'Separate consumer unit protecting incoming shore power; devices/rating unverified','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Protected AC output','output')],hazards:['electric-shock']},
-  {...component('cu-sockets','CU-02 — Socket distribution','consumer-unit',undefined,'Separate consumer unit protecting outgoing sockets; breaker allocation unknown','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Socket distribution (logical)','output')],hazards:['electric-shock']},
+  {...component('cu-shore','CU-01 — Shore protection','consumer-unit',undefined,'Separate consumer unit protecting incoming shore power; devices/rating unverified','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Protected AC output','output')],groundingTerminals:[{id:'pe',label:'Protective earth (PE)',kind:'pe'}],hazards:['electric-shock']},
+  {...component('cu-sockets','CU-02 — Socket distribution','consumer-unit',undefined,'Separate consumer unit protecting outgoing sockets; breaker allocation unknown','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Socket distribution (logical)','output')],groundingTerminals:[{id:'pe',label:'Protective earth (PE)',kind:'pe'}],hazards:['electric-shock']},
   {...component('kitchen-socket','Kitchen double socket','socket-outlet',undefined,'Two socket positions; gas hob igniter uses one','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'left',label:'Socket 1'},{id:'right',label:'Socket 2'}],hazards:['electric-shock']},
   {...component('garage-socket','Garage single socket','socket-outlet',undefined,'230V socket; circuit and protection unverified','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'only',label:'Socket 1'}],hazards:['electric-shock']},
   {...component('maxxair-vent','Maxxair / Airxcel roof vent','appliance',undefined,'Model and current still to confirm','reported'),voltage:12},
@@ -139,6 +142,12 @@ export const seedProject: Project = {
     {id:'cu-to-kitchen',fromComponentId:'cu-sockets',fromPortId:'ac-out',toComponentId:'kitchen-socket',toPortId:'ac-in',status:'proposed',notes:'Physical breaker and wiring unknown'},
     {id:'cu-to-garage',fromComponentId:'cu-sockets',fromPortId:'ac-out',toComponentId:'garage-socket',toPortId:'ac-in',status:'proposed',notes:'Physical breaker and wiring unknown'},
     {id:'lynx-to-remote',fromComponentId:'lynx',fromPortId:'dc-out',toComponentId:'remote-six',toPortId:'dc-in',status:'reported',notes:'Owner reports +, − and an earth connection; actual protective bonding unverified'},
+  ],
+  groundingConnections:[
+    {id:'lynx-front-earth',fromComponentId:'lynx',fromTerminalId:'earth',toComponentId:'front-earth-busbar',toTerminalId:'bond',kind:'chassis-bond',notes:'Owner confirms Lynx earth terminal connects to the common equipment-area busbar.'},
+    {id:'busbar-front-chassis',fromComponentId:'front-earth-busbar',fromTerminalId:'bond',toComponentId:'front-chassis-ground',toTerminalId:'stud',kind:'chassis-bond',notes:'Owner confirms the main earth busbar connects to a vehicle grounding point.'},
+    {id:'shore-cu-rear-pe',fromComponentId:'cu-shore',fromTerminalId:'pe',toComponentId:'rear-pillar-ground',toTerminalId:'stud',kind:'protective-earth',notes:'Owner confirms incoming shore CU earth to rear pillar chassis point.'},
+    {id:'socket-cu-rear-pe',fromComponentId:'cu-sockets',fromTerminalId:'pe',toComponentId:'rear-pillar-ground',toTerminalId:'stud',kind:'protective-earth',notes:'Owner confirms outgoing sockets CU earth to rear pillar chassis point.'}
   ],
   protectionDevices:[
     {id:'shore-rcd',consumerUnitId:'cu-shore',name:'Shore RCD (details unknown)',kind:'rcd',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
