@@ -32,6 +32,9 @@ function upstreamRoutes(project:Project,start:string,kind:Component['kind']):Rou
     const current=route.ids[route.ids.length-1];
     if(project.components.find(c=>c.id===current)?.kind===kind){found.push(route);continue;}
     for(const link of links.filter(l=>l.toComponentId===current)){
+      // A shore-only circuit must not trace upstream *through* an inverter/transfer
+      // device. The MultiPlus's pass-through is modelled separately as an AC scenario.
+      if(kind==='shore-inlet' && project.components.some(c=>c.id===link.fromComponentId&&c.kind==='inverter'))continue;
       if(route.ids.includes(link.fromComponentId))continue;
       pending.push({ids:[...route.ids,link.fromComponentId],statuses:[...route.statuses,link.status]});
     }
