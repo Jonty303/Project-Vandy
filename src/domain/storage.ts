@@ -15,6 +15,7 @@ function validateBase(x: unknown): boolean {
   if(!isRecord(x) || !validString(x.name) || ![12,24].includes(Number(x.nominalBatteryVoltage))) return false;
   if(!validNumber(x.inverterEfficiency) || (x.inverterEfficiency as number)<=0 || (x.inverterEfficiency as number)>1) return false;
   if(x.batteryCapacityAh!==null && !validNonnegative(x.batteryCapacityAh)) return false;
+  if('acOperatingMode' in x && !['inverter','shore'].includes(String(x.acOperatingMode))) return false;
   if(!Array.isArray(x.profiles)||!Array.isArray(x.components)||!Array.isArray(x.circuits)||!Array.isArray(x.loads)) return false;
   if(!x.profiles.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.name))) return false;
   if(!x.components.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&validString(c.kind)&&
