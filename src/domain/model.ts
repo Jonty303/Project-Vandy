@@ -158,6 +158,38 @@ export interface AuxiliaryAssignment {
   portId:string; purpose:'starter-voltage'|'battery-temperature'|'midpoint';
   targetComponentId:string|null; accessory:string; status:CommunicationStatus; notes:string;
 }
+/** DC conductor sizing is a planning recommendation, never a cable certification. */
+export type DcCablePolarity = 'positive' | 'negative' | 'chassis';
+export type ProtectionPlacement = 'battery-end'|'distribution-end'|'equipment-end'|'integrated-in-distributor'|'unconfirmed';
+export type FuseConfidence = 'owner-checked'|'owner-reported'|'manufacturer-range'|'provisional'|'unknown';
+export interface DcFuseRecord {
+  id:string; label:string; holderComponentId:string|null; slot:number|null;
+  ratingA:number|null; fuseForm:'MEGA'|'ATO-ATC'|'inline'|'unknown';
+  placement:ProtectionPlacement;
+  /** Exact physical position relative to the source and destination, NOT power flow. */
+  nearComponentId:string|null;
+  status:'reported'|'proposed'|'unknown';
+  confidence:FuseConfidence; documentationUrl:string; notes:string;
+}
+export interface DcCableRun {
+  id:string; name:string; fromComponentId:string; toComponentId?:string;
+  toCircuitId?:string; polarity:DcCablePolarity;
+  /** Assumed one-way conductor length. Return run is a separate cable. */
+  lengthM:number; lengthEvidence:'assumed'|'reported'|'measured';
+  /** Design current only: null when genuine manufacturer/load current is unknown. */
+  designCurrentA:number|null;
+  /** Manufacturer recommended minimum cross-section when available. */
+  manufacturerMinMm2:number|null;
+  /** User-selectable nominal battery/system voltage for voltage-drop estimate. */
+  voltageV:number;
+  fuseId:string|null;
+  status:'reported'|'proposed'|'unknown'; notes:string;
+}
+export interface DcWiringPlan {
+  fuses:DcFuseRecord[];
+  cables:DcCableRun[];
+  notes:string;
+}
 export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
 
 export interface Project {
@@ -172,6 +204,8 @@ export interface Project {
   batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
   communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
   monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
+  /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
+  dcWiring?:DcWiringPlan;
 }
 export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'auxiliaryAssignments'|'diagramPositions'> & {schemaVersion:2};
 export type ProjectV1 = Omit<ProjectV2, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
