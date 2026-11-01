@@ -1,4 +1,4 @@
-import type { CommunicationConnection, CommunicationPort, MonitoringAuthority, Project } from './model.ts';
+import type { CommunicationPort, MonitoringAuthority, Project } from './model.ts';
 
 const cerboDoc='https://www.victronenergy.com/media/pg/Cerbo_GX/en/technical-specifications.html';
 const shuntDoc='https://www.victronenergy.com/media/pg/SmartShunt/en/technical-data.html';
@@ -23,7 +23,7 @@ export const vandyCommunicationPorts:CommunicationPort[]=[
 export const vandyAuthorities:MonitoringAuthority[]=[
   {metric:'habitation-soc',componentId:'smartshunt',method:'local',evidence:'unverified',
     notes:'Recommended primary bank SOC reference; verify shunt setup and Cerbo connection.'},
-  {metric:'cell-voltages',componentId:'battery',method:'vendor-app',evidence:'reported',
+  {metric:'cell-voltages',componentId:'battery',method:'vendor-app',evidence:'unverified',
     notes:'WattCycle app BMS cell readings; no documented Cerbo integration.'}
 ];
 export interface ConnectionDiagnostic {id:string;level:'blocker'|'incomplete'|'warning';message:string}
