@@ -61,7 +61,7 @@ function validAutonomy(value:unknown):boolean{
   return true;
 }
 
-function validateV2Core(x:unknown):x is ProjectV2 {
+function validateV2Core(x:unknown):boolean {
   if(!validateBase(x)||!isRecord(x)||![2,3].includes(Number(x.schemaVersion))) return false;
   if(!Array.isArray(x.topologyLinks)||!Array.isArray(x.protectionDevices)||!Array.isArray(x.socketAssignments))return false;
   if('autonomy' in x && x.autonomy!==undefined && !validAutonomy(x.autonomy))return false;
@@ -87,7 +87,7 @@ export function validateProject(x: unknown): x is Project {
      validNullableNum(v.weightKg)&&validNullableNum(v.maxChargeA)&&validNullableNum(v.maxDischargeA)&&
      validNullableNum(v.chargeMinC)&&validNullableNum(v.chargeMaxC)&&
      validNullableNum(v.dischargeMinC)&&validNullableNum(v.dischargeMaxC)&&
-     isRecord(v.dimensionsMm)&&['length','width','height'].every(k=>validNullableNum(v.dimensionsMm[k]))&&
+     isRecord(v.dimensionsMm)&&['length','width','height'].every(k=>validNullableNum((v.dimensionsMm as Record<string,unknown>)[k]))&&
      isRecord(v.bms)&&validString(v.bms.vendorApp)&&validString(v.bms.protocol)&&
      isRecord(v.thermal)&&validNullableNum(v.thermal.onC)&&validNullableNum(v.thermal.offC)&&
      validNullableNum(v.thermal.heaterWatts)&&validEvidence(v.evidence)&&
