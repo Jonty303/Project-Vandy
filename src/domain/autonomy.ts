@@ -4,7 +4,7 @@ import { activeBankSummary, batteryCapacityForPlanning } from './batteries.ts';
 
 export const DEFAULT_AUTONOMY: AutonomySettings = {
   startingSocPct: 90, reserveSocPct: 20,
-  hoursDrivingPerDay: 0, availableAlternatorA: null,
+  hoursDrivingPerDay: 1, availableAlternatorA: null,
   alternatorVoltageV: 13.8, dcDcInputCurrentLimitA: 50,
   dcDcOutputCurrentLimitA: 50, dcDcOutputVoltageV: 14.2,
   dcDcEfficiency: 0.95, dcDcActiveFraction: 0.8,
