@@ -1,4 +1,4 @@
-import type { Circuit, Component, LinkStatus, Load, Project, Supply } from './model.ts';
+import type { Component, LinkStatus, Load, Project, Supply } from './model.ts';
 import { checkLogicalLink, findPort } from './topology.ts';
 
 export type SupplyOrigin = 'inverter' | 'shore' | 'dc' | 'unresolved';
