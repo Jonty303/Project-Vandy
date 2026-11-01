@@ -147,5 +147,6 @@ export const seedProject: Project = {
   communicationPorts:vandyCommunicationPorts,
   communicationConnections:[],
   monitoringAuthorities:vandyAuthorities,
+  auxiliaryAssignments:[],
   diagramPositions:[],
 };
