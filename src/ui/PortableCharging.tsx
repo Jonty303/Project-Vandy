@@ -2,7 +2,7 @@ import { Plus, Smartphone, Tablet, Trash2, AlertTriangle, BatteryCharging, Info 
 import type { PortableCharge, Project, Evidence } from '../domain/model.ts';
 import { portableChargeEnergy } from '../domain/portableCharging.ts';
 
-type Props={project:Project;profileId:string;change:(fn:(p:Project)=>Project)=>void};
+type Props={project:Project;profileId:string;onProfileChange:(id:string)=>void;change:(fn:(p:Project)=>Project)=>void};
 const fmt=(n:number)=>Number(n.toFixed(1)).toLocaleString('en-GB');
 const numeric=(x:number|null)=>x===null?'':String(x);
 const optional=(s:string)=>s.trim()===''?null:Number(s);
@@ -14,7 +14,7 @@ function newCharge(project:Project,kind:'iphone'|'ipad'|'other'):PortableCharge{
     circuitId:project.circuits.find(c=>c.id==='usb-charging')?.id??project.circuits.find(c=>c.supply==='dc')?.id??project.circuits[0]?.id??'',
     notes:'Battery Wh and 85% charge efficiency are estimates until confirmed for this specific device and USB-C converter.'};
 }
-export function PortableChargingPage({project,profileId,change}:Props){
+export function PortableChargingPage({project,profileId,onProfileChange,change}:Props){
  const devices=project.portableCharges??[];
  const selected=project.profiles.find(p=>p.id===profileId);
  const update=(id:string,patch:Partial<PortableCharge>)=>change(p=>({...p,
@@ -32,6 +32,11 @@ export function PortableChargingPage({project,profileId,change}:Props){
    <div className="notice"><Info size={20}/><div><strong>What an 80% charge means</strong>
      <p>By default, one charge means replenishing <strong>80% of the device's rated battery energy</strong>, such as 0% → 80%, not simply charging a device that happens to be at 80%. We then account for conversion and battery charging losses using an editable efficiency assumption. The current iPhone type is illustrative, not identified from your actual phones.</p>
    </div></div>
+   <div className="portable-profile"><label className="field"><span>Daily usage profile</span>
+     <select value={profileId} onChange={e=>onProfileChange(e.target.value)}>
+       {project.profiles.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+     </select><small>Change the profile to edit its own charges-per-day assumptions; other profiles remain unchanged.</small>
+     </label></div>
    <div className="portable-summary">
      <div><span>CHARGING DEMAND / {selected?.name??profileId}</span><strong>{fmt(total)} <small>Wh/day from habitation battery</small></strong></div>
      <div><span>CONNECTED DEVICES</span><strong>{devices.length}</strong></div>
