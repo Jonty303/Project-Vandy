@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import type { Project, GroundingConnection, DcCableRun, TopologyLink, CommunicationConnection } from '../domain/model.ts';
+import type { Project, GroundingConnection, DcCableRun, TopologyLink, CommunicationConnection, TerminalKind } from '../domain/model.ts';
 import { effectiveWiring } from '../domain/dcWiring.ts';
 import { groundingTerminal } from '../domain/grounding.ts';
+import { dcKind } from '../domain/terminals.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void;componentId:string};
 const pair=(a:string,b:string)=>JSON.stringify([a,b]);
@@ -14,6 +15,10 @@ export function DeviceConnections({project,change,componentId}:Props){
   const [groundFrom,setGroundFrom]=useState('');
   const [groundTo,setGroundTo]=useState('');
   const [dcTo,setDcTo]=useState('');
+  const [dcPolarity,setDcPolarity]=useState<DcCableRun['polarity']>('positive');
+  const [dcFromTerminal,setDcFromTerminal]=useState('');
+  const [dcToTerminal,setDcToTerminal]=useState('');
+  const [newTerminalKind,setNewTerminalKind]=useState<TerminalKind>('dc-positive');
   const [logicalFrom,setLogicalFrom]=useState('');
   const [logicalTo,setLogicalTo]=useState('');
   const [dataFrom,setDataFrom]=useState('');
@@ -51,9 +56,9 @@ export function DeviceConnections({project,change,componentId}:Props){
       const plan=effectiveWiring(p);
       return {...p,dcWiring:{...plan,cables:plan.cables.map(c=>{
         if(c.id!==runId)return c;
-        if(c.toComponentId===componentId)return {...c,fromComponentId:value.replace(/^device:/,'')};
+        if(c.toComponentId===componentId)return {...c,fromComponentId:value.replace(/^device:/,''),fromTerminalId:undefined};
         return {...c,toComponentId:value.startsWith('device:')?value.slice(7):undefined,
-          toCircuitId:value.startsWith('circuit:')?value.slice(8):undefined};
+          toCircuitId:value.startsWith('circuit:')?value.slice(8):undefined,toTerminalId:undefined};
       })}};
     });
   }
@@ -62,11 +67,39 @@ export function DeviceConnections({project,change,componentId}:Props){
     const entry:DcCableRun={id:id(),name:'New DC conductor',fromComponentId:componentId,
       toComponentId:dcTo.startsWith('device:')?dcTo.slice(7):undefined,
       toCircuitId:dcTo.startsWith('circuit:')?dcTo.slice(8):undefined,
-      polarity:'positive',lengthM:1,lengthEvidence:'assumed',designCurrentA:null,
+      fromTerminalId:dcFromTerminal||undefined,
+      toTerminalId:dcTo.startsWith('device:')?(dcToTerminal||undefined):undefined,
+      polarity:dcPolarity,lengthM:1,lengthEvidence:'assumed',designCurrentA:null,
       manufacturerMinMm2:null,voltageV:project.nominalBatteryVoltage,fuseId:null,status:'proposed',
       notes:'User-entered conductor; verify actual termination, polarity, current, fuse and cable route.'};
     change(p=>{const plan=effectiveWiring(p);return {...p,dcWiring:{...plan,cables:[...plan.cables,entry]}};});
-    setDcTo('');
+    setDcTo('');setDcToTerminal('');
+  }
+  function patchDcTerminal(runId:string,which:'fromTerminalId'|'toTerminalId',value:string){
+    change(p=>{const plan=effectiveWiring(p);
+      return {...p,dcWiring:{...plan,cables:plan.cables.map(c=>c.id===runId?{...c,[which]:value||undefined}:c)}};
+    });
+  }
+  const ownPhysical=component.terminals??[];
+  const referenced=(terminalId:string)=>
+    effectiveWiring(project).cables.some(c=>
+      (c.fromComponentId===componentId&&c.fromTerminalId===terminalId)||
+      (c.toComponentId===componentId&&c.toTerminalId===terminalId))||
+    (project.groundingConnections??[]).some(g=>
+      (g.fromComponentId===componentId&&g.fromTerminalId===terminalId)||
+      (g.toComponentId===componentId&&g.toTerminalId===terminalId));
+  function patchTerminal(terminalId:string,patch:Partial<(typeof ownPhysical)[number]>){
+    change(p=>({...p,components:p.components.map(c=>c.id===componentId?
+      {...c,terminals:(c.terminals??[]).map(t=>t.id===terminalId?{...t,...patch}:t)}:c)}));
+  }
+  function addPhysicalTerminal(){
+    change(p=>{
+      const existing=p.components.find(c=>c.id===componentId)?.terminals??[];
+      const n=Array.from({length:999},(_,i)=>'custom-'+(i+1)).find(id=>!existing.some(t=>t.id===id));
+      if(!n)return p;
+      return {...p,components:p.components.map(c=>c.id===componentId?
+        {...c,terminals:[...(c.terminals??[]),{id:n,label:'New terminal',kind:newTerminalKind}]}:c)};
+    });
   }
   const ownPorts=component.ports??[];
   const selectedPort=ownPorts.find(p=>p.id===logicalFrom)??ownPorts[0];
@@ -117,6 +150,26 @@ export function DeviceConnections({project,change,componentId}:Props){
   const pname=(p:string)=>{const port=project.communicationPorts.find(x=>x.id===p);return port?names(project,port.componentId)+' — '+port.name:p;};
   return <div className="device-connections">
     <h4>Connections — {component.name}</h4>
+    <details><summary>Physical terminals ({ownPhysical.length})</summary>
+      <small>These are editable terminal labels and types. A listed terminal does not mean that a wire is attached. Connections reference stable terminal IDs.</small>
+      {ownPhysical.map(t=><div key={t.id} className="connect-edit terminal-edit">
+        <label className="field"><span>Terminal label ({t.id})</span>
+          <input value={t.label} onChange={e=>patchTerminal(t.id,{label:e.target.value})}/></label>
+        <label className="field"><span>Conductor type</span>
+          <select value={t.kind} disabled={referenced(t.id)} onChange={e=>patchTerminal(t.id,{kind:e.target.value as TerminalKind})}>
+            {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'] as const)
+              .map(k=><option key={k} value={k}>{k.replaceAll('-',' ')}</option>)}
+          </select></label>
+        <button className="button small" disabled={referenced(t.id)} onClick={()=>change(p=>({...p,components:p.components.map(c=>
+          c.id===componentId?{...c,terminals:(c.terminals??[]).filter(x=>x.id!==t.id)}:c)}))}>Remove terminal</button>
+        {referenced(t.id)&&<small>Referenced by a saved connection. Disconnect it before removing or changing this terminal's type.</small>}
+      </div>)}
+      <label className="field"><span>New terminal type</span><select value={newTerminalKind} onChange={e=>setNewTerminalKind(e.target.value as TerminalKind)}>
+        {(['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'] as const)
+          .map(k=><option key={k} value={k}>{k.replaceAll('-',' ')}</option>)}
+      </select></label>
+      <button className="button small" onClick={addPhysicalTerminal}>Add terminal</button>
+    </details>
     {ownGround.length>0&&<details open><summary>Earth / chassis ({earths.length})</summary>
       {earths.map(g=>{
         const localFrom=g.fromComponentId===componentId;
@@ -139,15 +192,52 @@ export function DeviceConnections({project,change,componentId}:Props){
       <small>DC negative, AC protective earth and chassis are never interchangeable by default.</small>
     </details>}
     {component.voltage!=='230'&&!['ground-point','bonding-busbar'].includes(component.kind)&&<details><summary>DC conductors ({dc.length})</summary>
-      {dc.map(c=><div className="connect-edit" key={c.id}>
+      {dc.map(c=>{
+        const kind=dcKind(c.polarity);
+        const source=project.components.find(x=>x.id===c.fromComponentId);
+        const destination=project.components.find(x=>x.id===c.toComponentId);
+        const sourceTerminals=(source?.terminals??[]).filter(t=>t.kind===kind);
+        const targetTerminals=(destination?.terminals??[]).filter(t=>t.kind===kind);
+        return <div className="connect-edit" key={c.id}>
         <strong>{c.name}</strong><label className="field"><span>{c.fromComponentId===componentId?'Destination':'Source'}</span>
           <select value={c.fromComponentId===componentId?asTarget(c):'device:'+c.fromComponentId} onChange={e=>patchDc(c.id,e.target.value)}>
             <option value="">Not assigned</option>{dcDestinations.filter(t=>c.toComponentId!==componentId||t.value.startsWith('device:')).map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-        </label><small>{c.polarity} · {c.lengthM}m nominal one-way. Edit length/fuse in DC cables & fuses.</small>
+        </label>
+        <div className="form-grid">
+          <label className="field"><span>From {source?.name??'source'} — {c.polarity} terminal</span>
+            <select value={c.fromTerminalId??''} onChange={e=>patchDcTerminal(c.id,'fromTerminalId',e.target.value)}>
+              <option value="">Unassigned / unknown</option>
+              {sourceTerminals.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+            </select></label>
+          {c.toComponentId&&<label className="field"><span>To {destination?.name??'destination'} — {c.polarity} terminal</span>
+            <select value={c.toTerminalId??''} onChange={e=>patchDcTerminal(c.id,'toTerminalId',e.target.value)}>
+              <option value="">Unassigned / unknown</option>
+              {targetTerminals.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+            </select></label>}
+        </div>
+        <small>{c.polarity} · {c.lengthM}m nominal one-way. {c.toCircuitId?'Circuit destination: individual appliance terminal not specified. ':''}Edit length/fuse in DC cables & fuses.</small>
         <button className="button small" onClick={()=>change(p=>{const plan=effectiveWiring(p);return {...p,dcWiring:{...plan,cables:plan.cables.filter(x=>x.id!==c.id)}};})}>Remove conductor</button>
-      </div>)}
-      <div className="form-grid"><label className="field"><span>New connection destination</span><select value={dcTo} onChange={e=>setDcTo(e.target.value)}><option value="">Choose destination…</option>{dcDestinations.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
+      </div>;
+      })}
+      <div className="form-grid">
+        <label className="field"><span>New conductor polarity</span>
+          <select value={dcPolarity} onChange={e=>{setDcPolarity(e.target.value as DcCableRun['polarity']);setDcFromTerminal('');setDcToTerminal('');}}>
+            <option value="positive">DC positive</option><option value="negative">DC negative</option><option value="chassis">Chassis / bonding (not DC negative)</option>
+          </select></label>
+        <label className="field"><span>Source terminal</span><select value={dcFromTerminal} onChange={e=>setDcFromTerminal(e.target.value)}>
+          <option value="">Unassigned / unknown</option>
+          {ownPhysical.filter(t=>t.kind===dcKind(dcPolarity)).map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>
+        <label className="field"><span>New connection destination</span><select value={dcTo} onChange={e=>{setDcTo(e.target.value);setDcToTerminal('');}}>
+          <option value="">Choose destination…</option>{dcDestinations.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+        </select></label>
+        {dcTo.startsWith('device:')&&<label className="field"><span>Destination terminal</span>
+          <select value={dcToTerminal} onChange={e=>setDcToTerminal(e.target.value)}>
+            <option value="">Unassigned / unknown</option>
+            {(project.components.find(c=>c.id===dcTo.slice(7))?.terminals??[]).filter(t=>t.kind===dcKind(dcPolarity))
+              .map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+          </select></label>}
         <button className="button small" disabled={!dcTo} onClick={addDc}>Add DC conductor</button></div>
     </details>}
     {ownPorts.length>0&&<details><summary>Logical AC/DC supply links ({logicalLinks.length})</summary>
