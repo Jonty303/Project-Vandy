@@ -91,7 +91,7 @@ const seedRunEndpoints:Record<string,[string,string|undefined,string|undefined,s
  'starter-orion':['starter-battery','orion',undefined,'positive','input-positive'],
  'orion-battery':['orion','battery',undefined,'output-positive','positive'],
  'orion-ground':['orion',undefined,undefined,'gnd',undefined],
- 'lynx-remote':['lynx','remote-six',undefined,'output-1-positive','input-positive'],
+ 'lynx-remote':['lynx','remote-six',undefined,undefined,'input-positive'],
  'lynx-blue-sea':['lynx','blue-sea',undefined,'output-2-positive','input-positive'],
  'lynx-mppt':['lynx','mppt',undefined,undefined,'battery-positive'],
  'lynx-multi':['lynx','multiplus',undefined,undefined,'battery-positive']
