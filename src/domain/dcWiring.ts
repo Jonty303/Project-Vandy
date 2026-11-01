@@ -93,6 +93,19 @@ export const initialWiringPlan:DcWiringPlan={
   cable('lynx-multi','Lynx slot 4 ↔ MultiPlus 12/500/20 DC connection','lynx','multiplus',undefined,'positive',100,25,'lynx-4','proposed','100A external fuse proposed, manufacturer internal fuse is separate. Actual current and cable to be checked.'),
  ],
 };
+// The owner checked fuse ratings and electrical order, not the exact distance
+// from either battery terminal. Keep observed location and recommended location
+// independently; a fuse at the LOAD end does not protect the upstream cable.
+for(const id of ['battery-main','orion-in','orion-out']){
+ const f=initialWiringPlan.fuses.find(f=>f.id===id)!;
+ f.placement='unconfirmed';
+ f.nearComponentId=null;
+ f.recommendedPlacement='battery-end';
+ f.recommendedNearComponentId=id==='orion-in'?'starter-battery':'battery';
+ f.relativeElectricalOrder=id==='battery-main'?'Habitation battery positive → 150A fuse → isolator → Lynx':
+   id==='orion-in'?'Starter battery positive → 70A fuse → Orion XS IN':
+   'Orion XS OUT → 70A fuse → habitation battery positive';
+}
 /** Sequential Blue Sea mapping is a layout assumption, not owner-confirmed placement. */
 const branches=[
  {circuit:'refrigeration',label:'CR65X fridge',fuseA:10,loadA:5,minimum:2.5},
