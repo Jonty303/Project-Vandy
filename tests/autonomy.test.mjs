@@ -141,11 +141,12 @@ test('Zero-duty unknown consumer is not considered an active missing wattage',()
  const a=projectAutonomy(p,'normal');
  assert.equal(a.ratingBlockers.some(r=>r.title.includes('Starlink')),false);
 });
-test('Unknown or zero battery capacity creates a specific rating blocker',()=>{
- const p=make();p.batteryCapacityAh=null;
+test('Unknown or zero capacity of the ACTIVE BATTERY BANK creates a specific rating blocker',()=>{
+ const p=make();p.batteryCapacityAh=999; // legacy scalar must not override the active battery bank
+ p.batteries[0].capacityAh=null;
  let a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
- p.batteryCapacityAh=0;
+ p.batteries[0].capacityAh=0;
  a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
 });
