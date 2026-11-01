@@ -24,7 +24,19 @@ export interface ElectricalPort {
 }
 export interface SocketPosition { id: string; label: string }
 /** Chassis bonding and protective earth are distinct from DC negative returns. */
+/** A discrete connectable endpoint, not a grouped logical supply port. */
+export type TerminalKind='dc-positive'|'dc-negative'|'ac-line'|'ac-neutral'|'protective-earth'|'chassis';
+export interface PhysicalTerminal {
+  id:string; label:string; kind:TerminalKind;
+  /** Optional descriptive role: converters and busbars may accept bidirectional power. */
+  role?:'input'|'output'|'bidirectional';
+  notes?:string;
+}
+/** Legacy earth/bond catalogue is preserved for existing v3 JSON exports. */
 export interface GroundingTerminal { id:string; label:string; kind:'chassis'|'pe' }
+export interface CircuitSwitchAssignment {
+  id:string; componentId:string; outputId?:string;
+}
 export interface GroundingConnection {
   id:string; fromComponentId:string; fromTerminalId:string;
   toComponentId:string; toTerminalId:string;
@@ -36,12 +48,15 @@ export interface Component {
   voltage?: DcVoltage | '12/24' | '230';
   outputs?: OutputChannel[]; ports?: ElectricalPort[]; socketPositions?: SocketPosition[];
   groundingTerminals?: GroundingTerminal[];
+  terminals?: PhysicalTerminal[];
   notes?: string; evidence?: Evidence; hazards?: Hazard[];
 }
 export interface Circuit {
   id: string; name: string; supply: Supply; voltage: 12 | 24 | 230;
   /** Informational assignment; not verified installation wiring. */
   sourceComponentId?: string; sourceOutputId?: string; notes?: string;
+  /** Switching devices and optional controller channels belong to the circuit, not its loads. */
+  switchAssignments?: CircuitSwitchAssignment[];
 }
 export interface ModeUsage { minutesPerDay: number; dutyFraction: number }
 export interface OperatingMode {
@@ -186,6 +201,8 @@ export interface DcFuseRecord {
 }
 export interface DcCableRun {
   id:string; name:string; fromComponentId:string; toComponentId?:string;
+  /** Physical terminal IDs; omission means unassigned, never an assumed connection. */
+  fromTerminalId?:string; toTerminalId?:string;
   toCircuitId?:string; polarity:DcCablePolarity;
   /** Assumed one-way conductor length. Return run is a separate cable. */
   lengthM:number; lengthEvidence:'assumed'|'reported'|'measured';
