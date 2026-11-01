@@ -27,7 +27,7 @@ function validateBase(x: unknown): boolean {
     (!('socketPositions' in c)||Array.isArray(c.socketPositions)&&c.socketPositions.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.label)))&&
     (!('terminals' in c)||c.terminals===undefined||Array.isArray(c.terminals)&&c.terminals.every((t:unknown)=>
       isRecord(t)&&validString(t.id)&&validString(t.label)&&
-      ['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'].includes(String(t.kind)))))) return false;
+      ['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis','switch-contact'].includes(String(t.kind)))))) return false;
   if(!x.circuits.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&['dc','ac-inverter','ac-shore'].includes(String(c.supply))&&[12,24,230].includes(Number(c.voltage))&&
     (!('switchAssignments' in c)||c.switchAssignments===undefined||Array.isArray(c.switchAssignments)&&
       c.switchAssignments.every((a:unknown)=>isRecord(a)&&validString(a.id)&&validString(a.componentId)&&
