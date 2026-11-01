@@ -2,6 +2,7 @@ import type { Component, Load, Project, ProjectV1, ProjectV2 } from './model.ts'
 import { seedProject } from '../data/vandy.ts';
 import { initialWiringPlan } from './dcWiring.ts';
 import { vandyPortableCharging } from './portableCharging.ts';
+import { defaultTerminals, hydrateCableTerminals } from './terminals.ts';
 
 export const STORAGE_KEY = 'project-vandy:project:v3';
 export const V2_STORAGE_KEY = 'project-vandy:project:v2';
@@ -23,8 +24,14 @@ function validateBase(x: unknown): boolean {
   if(!x.profiles.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.name))) return false;
   if(!x.components.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&validString(c.kind)&&
     (!('ports' in c)||Array.isArray(c.ports)&&c.ports.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.label)&&['ac','dc'].includes(String(p.system))&&['input','output'].includes(String(p.direction))&&[12,24,230,'12/24'].includes(p.voltage as string|number)&&validIdList(p.conductors)))&&
-    (!('socketPositions' in c)||Array.isArray(c.socketPositions)&&c.socketPositions.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.label))))) return false;
-  if(!x.circuits.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&['dc','ac-inverter','ac-shore'].includes(String(c.supply))&&[12,24,230].includes(Number(c.voltage)))) return false;
+    (!('socketPositions' in c)||Array.isArray(c.socketPositions)&&c.socketPositions.every((p:unknown)=>isRecord(p)&&validString(p.id)&&validString(p.label)))&&
+    (!('terminals' in c)||c.terminals===undefined||Array.isArray(c.terminals)&&c.terminals.every((t:unknown)=>
+      isRecord(t)&&validString(t.id)&&validString(t.label)&&
+      ['dc-positive','dc-negative','ac-line','ac-neutral','protective-earth','chassis'].includes(String(t.kind)))))) return false;
+  if(!x.circuits.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&['dc','ac-inverter','ac-shore'].includes(String(c.supply))&&[12,24,230].includes(Number(c.voltage))&&
+    (!('switchAssignments' in c)||c.switchAssignments===undefined||Array.isArray(c.switchAssignments)&&
+      c.switchAssignments.every((a:unknown)=>isRecord(a)&&validString(a.id)&&validString(a.componentId)&&
+        (a.outputId===undefined||validString(a.outputId)))))) return false;
   if(!x.loads.every((l:unknown)=>isRecord(l)&&validString(l.id)&&validString(l.name)&&validString(l.circuitId)&&['standard','compressor','led-strip','multi-state'].includes(String(l.kind))&&Array.isArray(l.modes)&&l.modes.length>0&&
     l.modes.every((m:unknown)=>isRecord(m)&&validString(m.id)&&validString(m.name)&&(m.watts===null||validNonnegative(m.watts))&&isRecord(m.usage)&&Object.values(m.usage).every((u:unknown)=>isRecord(u)&&validNonnegative(u.minutesPerDay)&&(u.minutesPerDay as number)<=1440&&validNonnegative(u.dutyFraction)&&(u.dutyFraction as number)<=1)))) return false;
   const ids=(list:{id:string}[])=>new Set(list.map(x=>x.id)).size===list.length;
@@ -138,7 +145,9 @@ export function validateProject(x: unknown): x is Project {
       (f.nearComponentId===null||validString(f.nearComponentId))&&
       validString(f.status)&&validString(f.confidence)&&validString(f.notes)&&validString(f.documentationUrl)))return false;
     if(!w.cables.every((c:unknown)=>isRecord(c)&&validString(c.id)&&validString(c.name)&&
-      validString(c.fromComponentId)&&validString(c.polarity)&&validNumber(c.lengthM)&&
+      validString(c.fromComponentId)&&validString(c.polarity)&&
+      (c.fromTerminalId===undefined||validString(c.fromTerminalId))&&
+      (c.toTerminalId===undefined||validString(c.toTerminalId))&&validNumber(c.lengthM)&&
       validString(c.lengthEvidence)&&validNullableNum(c.designCurrentA)&&
       validNullableNum(c.manufacturerMinMm2)&&validNumber(c.voltageV)&&
       (c.fuseId===null||validString(c.fuseId))&&validString(c.status)&&validString(c.notes)))return false;
@@ -160,7 +169,9 @@ function uneditedLegacyLaptop(load: Load): boolean {
  */
 function hydrateWiring(p:Project):Project{
   const vandy=p.components.some(c=>c.id==='battery')&&p.components.some(c=>c.id==='lynx')&&p.components.some(c=>c.id==='blue-sea');
-  if(!vandy)return p.dcWiring?p:{...p,dcWiring:{fuses:[],cables:[],notes:'No default Vandy wiring plan for this custom project.'}};
+  if(!vandy)return {...p,components:p.components.map(c=>c.terminals===undefined?{...c,terminals:defaultTerminals(c)}:c),
+    dcWiring:p.dcWiring?{...p.dcWiring,cables:p.dcWiring.cables.map(hydrateCableTerminals)}:
+      {fuses:[],cables:[],notes:'No default Vandy wiring plan for this custom project.'}};
   const defaults=seedProject;
   const components=p.components.map(c=>c.id==='battery'&&c.name==='WattCycle LiFePO₄ battery'?
     {...c,name:'WattCycle 280Ah Mini Bluetooth LiFePO₄',model:'280Ah Mini Bluetooth (revision unconfirmed)',
@@ -213,7 +224,10 @@ function hydrateWiring(p:Project):Project{
   const userHasUSBPlaceholder=adaptedLoads.some(l=>['usb-1','usb-2'].includes(l.id)&&
     l.modes.some(m=>Object.values(m.usage).some(u=>u.minutesPerDay>0)));
   const devices=p.portableCharges??(userHasUSBPlaceholder?[]:structuredClone(vandyPortableCharging));
-  return {...p,components,circuits,loads:adaptedLoads,batteries,dcWiring:p.dcWiring??structuredClone(initialWiringPlan),
+  const wiring=p.dcWiring??structuredClone(initialWiringPlan);
+  return {...p,components:components.map(c=>c.terminals===undefined?{...c,terminals:defaultTerminals(c)}:c),
+    circuits,loads:adaptedLoads,batteries,
+    dcWiring:{...wiring,cables:wiring.cables.map(hydrateCableTerminals)},
     groundingConnections:p.groundingConnections??structuredClone(defaults.groundingConnections??[]),
     portableCharges:devices};
 }
