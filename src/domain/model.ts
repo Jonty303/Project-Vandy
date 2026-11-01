@@ -7,7 +7,7 @@ export type LoadKind = 'standard' | 'led-strip' | 'compressor' | 'multi-state';
 export type ComponentKind =
   | 'battery' | 'solar' | 'mppt' | 'dc-dc' | 'inverter' | 'distribution'
   | 'controller' | 'switch' | 'usb-charger' | 'appliance' | 'monitor'
-  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet';
+  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet' | 'busbar';
 export type Hazard = 'electrical-fire' | 'electric-shock' | 'carbon-monoxide' | 'combustion-exhaust' | 'lpg' | 'water-leak';
 
 /** The third DC conductor is a chassis/bonding connection, NEVER a synonym for negative or AC PE. */
@@ -27,6 +27,8 @@ export interface Component {
   id: string; name: string; kind: ComponentKind; model?: string;
   voltage?: DcVoltage | '12/24' | '230';
   outputs?: OutputChannel[]; ports?: ElectricalPort[]; socketPositions?: SocketPosition[];
+  /** Busbar conductor identity; never equate PE with DC negative or chassis. */
+  busbarFunction?: 'PE' | 'DC-' | 'CHASSIS';
   notes?: string; evidence?: Evidence; hazards?: Hazard[];
 }
 export interface Circuit {
