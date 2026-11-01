@@ -1,4 +1,4 @@
-import type { Circuit, Component, Evidence, Load, ModeUsage, OperatingMode, Project } from '../domain/model.ts';
+import type { Circuit, Component, ElectricalPort, Evidence, Load, ModeUsage, OperatingMode, Project } from '../domain/model.ts';
 
 const profiles = [
   { id: 'normal', name: 'Normal day', description: 'Evening lighting, refrigeration and routine use' },
@@ -15,7 +15,7 @@ const usage = (normal: number, working = normal, winter = normal, duty = 1): Rec
 const mode = (id: string, name: string, watts: number | null, evidence: Evidence, normal: number, working = normal, winter = normal, duty = 1): OperatingMode => ({ id, name, watts, evidence, usage: usage(normal,working,winter,duty) });
 const load = (id: string, name: string, circuitId: string, kind: Load['kind'], modes: OperatingMode[], componentId?: string, notes?: string): Load => ({ id,name,circuitId,kind,modes,componentId,notes });
 
-const components: Component[] = [
+const originalComponents: Component[] = [
   {...component('battery', 'WattCycle LiFePO₄ battery', 'battery', '280Ah', 'Existing 12V battery; current usable capacity not verified', 'reported'), voltage:12, hazards:['electrical-fire']},
   {...component('lynx', 'Victron Lynx Distributor', 'distribution','Lynx Distributor','Main DC distribution', 'reported'), voltage:12},
   {...component('blue-sea','Blue Sea ST Blade fuse block','distribution','5026','12 fused outputs, integrated negative bus', 'reported'), voltage:12, outputs:channels('fuse',12)},
@@ -35,6 +35,27 @@ const components: Component[] = [
   {...component('cerbo','Victron Cerbo GX','monitor',undefined,undefined,'reported'),voltage:12},
 ];
 
+
+const ac = (id: string, label: string, direction: 'input' | 'output'): ElectricalPort => ({id,label,direction,system:'ac',voltage:230,conductors:['L','N','PE']});
+const dc = (id: string, label: string, direction: 'input' | 'output'): ElectricalPort => ({id,label,direction,system:'dc',voltage:12,conductors:['DC+','DC-','CHASSIS']});
+// Ports represent grouped interfaces, never physical cable runs or an electrical safety verdict.
+const portMap: Record<string,ElectricalPort[]> = {
+  battery:[dc('dc-out','Battery DC terminals','output')],
+  lynx:[dc('dc-in','DC input/bus','input'),dc('dc-out','DC distribution bus','output')],
+  'remote-six':[dc('dc-in','DC input and separate chassis interface','input')],
+  'blue-sea':[dc('dc-in','Fuse-block DC input','input')],
+  multiplus:[ac('ac-in','AC shore input','input'),ac('ac-out','AC output','output'),dc('dc-in','DC inverter input','input')]
+};
+const components: Component[] = [
+  ...originalComponents.map(c=>portMap[c.id] ? {...c,ports:portMap[c.id]} : c),
+  {...component('shore-inlet','16A shore inlet','shore-inlet',undefined,'230V shore connection; physical wiring unverified','reported'),voltage:'230',ports:[ac('ac-out','Shore feed','output')],hazards:['electric-shock']},
+  {...component('cu-shore','CU-01 — Shore protection','consumer-unit',undefined,'Separate consumer unit protecting incoming shore power; devices/rating unverified','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Protected AC output','output')],hazards:['electric-shock']},
+  {...component('cu-sockets','CU-02 — Socket distribution','consumer-unit',undefined,'Separate consumer unit protecting outgoing sockets; breaker allocation unknown','reported'),voltage:'230',ports:[ac('ac-in','AC input','input'),ac('ac-out','Socket distribution (logical)','output')],hazards:['electric-shock']},
+  {...component('kitchen-socket','Kitchen double socket','socket-outlet',undefined,'Two socket positions; gas hob igniter uses one','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'left',label:'Socket 1'},{id:'right',label:'Socket 2'}],hazards:['electric-shock']},
+  {...component('garage-socket','Garage single socket','socket-outlet',undefined,'230V socket; circuit and protection unverified','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'only',label:'Socket 1'}],hazards:['electric-shock']},
+  {...component('maxxair-vent','Maxxair / Airxcel roof vent','appliance',undefined,'Model and current still to confirm','reported'),voltage:12},
+];
+
 const circuits: Circuit[] = [
   {id:'refrigeration',name:'Refrigeration',supply:'dc',voltage:12},
   {id:'floor-lighting',name:'Floor lighting',supply:'dc',voltage:12},
@@ -47,6 +68,10 @@ const circuits: Circuit[] = [
   {id:'usb-charging',name:'USB charging',supply:'dc',voltage:12},
   {id:'ac-sockets',name:'Inverter-powered sockets',supply:'ac-inverter',voltage:230},
   {id:'inverter-idle',name:'Inverter operating overhead',supply:'dc',voltage:12},
+  {id:'kitchen-lighting',name:'Kitchen lighting (logical)',supply:'dc',voltage:12,notes:'Actual fuse/switch unknown'},
+  {id:'main-lighting',name:'Main lighting (logical)',supply:'dc',voltage:12,notes:'Actual fuse/switch unknown'},
+  {id:'outside-lighting',name:'Outside lighting (logical)',supply:'dc',voltage:12,notes:'Actual fuse/switch unknown'},
+  {id:'garage-lighting',name:'Garage lighting (logical)',supply:'dc',voltage:12,notes:'Actual fuse/switch unknown'},
 ];
 
 const loads: Load[] = [
@@ -61,17 +86,21 @@ const loads: Load[] = [
     mode('cooldown','Shutdown cooldown',null,'unknown',0,0,5)
   ],'diesel-heater','40W manufacturer rating; startup current and time are not confirmed measurements.'),
   load('gas-water-heater','LPG water heater electronics','hot-water','standard',[mode('active','Heating water',60,'manual',10,10,10)],'water-heater','60W derived from manufacturer 12V × 5A input rating; energy profile assumed.'),
-  load('extractor','Roof extractor fan','ventilation','standard',[mode('running','Running',null,'unknown',30,60,15)]),
-  load('starlink','Starlink','communications','standard',[mode('on','Online',null,'unknown',120,480,120)]),
+  load('extractor','Maxxair / Airxcel roof vent','ventilation','standard',[mode('running','Running',null,'unknown',30,60,15)],'maxxair-vent','Exact Maxxair model and fan-speed power unknown.'),
+  load('starlink','Starlink (230V adapter)','ac-sockets','standard',[mode('on','Online',null,'unknown',120,480,120)],undefined,'Runs via inverter in Vandy; input watts still unknown.'),
   load('usb-1','USB charging panel 1','usb-charging','standard',[mode('charging','Charging devices',null,'unknown',60,120,60)],'usb-panel-1','Enter actual input draw; do not double count devices powered through these ports.'),
   load('usb-2','USB charging panel 2','usb-charging','standard',[mode('charging','Charging devices',null,'unknown',60,120,60)],'usb-panel-2'),
-  load('laptop-one','Laptop charger 1','ac-sockets','standard',[mode('charging','Charging',65,'estimated',0,480,0)],undefined,'65W adapter rating is a planning estimate; actual draw varies.'),
-  load('laptop-two','Laptop charger 2','ac-sockets','standard',[mode('charging','Charging',65,'estimated',0,480,0)],undefined,'65W planning estimate; verify actual charger.'),
+  load('laptop-shared','Shared laptop charger — 80W','ac-sockets','standard',[mode('charging','Charging',80,'reported',60,360,120)],undefined,'One shared 80W rated 230V charger; actual draw varies.'),
+  load('kitchen-light','Kitchen light','kitchen-lighting','standard',[mode('on','On',null,'unknown',120,90,180)]),
+  load('main-light','Main light','main-lighting','standard',[mode('on','On',null,'unknown',120,90,180)]),
+  load('outside-light','Outside light','outside-lighting','standard',[mode('on','On',null,'unknown',20,20,30)]),
+  load('garage-light','Garage light','garage-lighting','standard',[mode('on','On',null,'unknown',20,20,30)]),
+  load('hob-igniter','Gas hob electric igniter','ac-sockets','standard',[mode('ignition','Ignition',null,'unknown',2,2,2)],undefined,'Plugs into kitchen double socket. Actual electrical input unknown.'),
   load('inverter-standby','MultiPlus idle consumption','inverter-idle','standard',[mode('idle','Idle',null,'unknown',0,480,0)],'multiplus','Do not assume standby loss until rated/measured.'),
 ];
 
 export const seedProject: Project = {
-  schemaVersion:1,
+  schemaVersion:2,
   name:'Vandy — existing electrical installation',
   nominalBatteryVoltage:12,
   batteryCapacityAh:280,
@@ -80,4 +109,23 @@ export const seedProject: Project = {
   components,
   circuits,
   loads,
+
+  topologyLinks:[
+    {id:'shore-to-cu',fromComponentId:'shore-inlet',fromPortId:'ac-out',toComponentId:'cu-shore',toPortId:'ac-in',status:'proposed',notes:'Conceptual only, not verified wiring'},
+    {id:'cu-to-multiplus',fromComponentId:'cu-shore',fromPortId:'ac-out',toComponentId:'multiplus',toPortId:'ac-in',status:'proposed',notes:'Protective devices and transfer topology unverified'},
+    {id:'multiplus-to-cu',fromComponentId:'multiplus',fromPortId:'ac-out',toComponentId:'cu-sockets',toPortId:'ac-in',status:'proposed',notes:'Conceptual inverter-backed outlet supply'},
+    {id:'cu-to-kitchen',fromComponentId:'cu-sockets',fromPortId:'ac-out',toComponentId:'kitchen-socket',toPortId:'ac-in',status:'proposed',notes:'Physical breaker and wiring unknown'},
+    {id:'cu-to-garage',fromComponentId:'cu-sockets',fromPortId:'ac-out',toComponentId:'garage-socket',toPortId:'ac-in',status:'proposed',notes:'Physical breaker and wiring unknown'},
+    {id:'lynx-to-remote',fromComponentId:'lynx',fromPortId:'dc-out',toComponentId:'remote-six',toPortId:'dc-in',status:'reported',notes:'Owner reports +, − and an earth connection; actual protective bonding unverified'},
+  ],
+  protectionDevices:[
+    {id:'shore-rcd',consumerUnitId:'cu-shore',name:'Shore RCD (details unknown)',kind:'rcd',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
+    {id:'shore-mcb',consumerUnitId:'cu-shore',name:'Shore breaker (details unknown)',kind:'mcb',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
+    {id:'sockets-rcd',consumerUnitId:'cu-sockets',name:'Socket RCD (details unknown)',kind:'rcd',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
+    {id:'sockets-mcb-1',consumerUnitId:'cu-sockets',name:'Socket breaker 1 (unknown)',kind:'mcb',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
+    {id:'sockets-mcb-2',consumerUnitId:'cu-sockets',name:'Socket breaker 2 (unknown)',kind:'mcb',ratedCurrentA:null,residualTripMa:null,protectedCircuitIds:[],evidence:'unknown'},
+  ],
+  socketAssignments:[
+    {id:'hob-kitchen',socketComponentId:'kitchen-socket',positionId:'left',loadId:'hob-igniter',evidence:'reported'},
+  ],
 };
