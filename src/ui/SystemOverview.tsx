@@ -78,6 +78,15 @@ function networkData(project:Project,layer:Layer){
         description:`${c.name} · ${endpoints} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
     }
   }
+  if(layer==='ac'){
+    for(const c of project.acConductors??[]){
+      if(!ids.has(c.fromComponentId)||!ids.has(c.toComponentId))continue;
+      const source=project.components.find(x=>x.id===c.fromComponentId)?.terminals?.find(t=>t.id===c.fromTerminalId)?.label??c.fromTerminalId;
+      const target=project.components.find(x=>x.id===c.toComponentId)?.terminals?.find(t=>t.id===c.toTerminalId)?.label??c.toTerminalId;
+      edges.push({id:c.id,from:c.fromComponentId,to:c.toComponentId,status:c.status,
+        description:'Physical '+c.conductor+' conductor: '+source+' → '+target+' ('+c.status+')'});
+    }
+  }
   const count=new Map<number,number>();
   const positions=new Map<string,Point>();
   for(const c of components){
@@ -188,6 +197,6 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
         <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} connections</span></div>
       </aside>
     </div>
-    <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC edges now use the individually recorded cable plan, including its 1m assumptions and fuse-position evidence. These edges do not certify wiring, conductor sizing or installation.</p>
+    <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC conductor and AC physical wire details come from saved terminal-specific records; the AC layer also retains its distinct logical supply links. Circuit destinations and unknown terminals remain explicit. Neither the edges nor the model certify wiring or installation.</p>
   </div>;
 }
