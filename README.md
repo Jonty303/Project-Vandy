@@ -77,3 +77,14 @@ The **Phones & tablets** section has two iPhones and one iPad in the Vandy test 
 For the illustrative modern devices, one 0–80% recharge per device per day adds about **56Wh/day** to the 12V USB charging circuit. The two iPhone capacities (15.5Wh each) and 85% efficiency are assumptions; the example 11-inch iPad 28.93Wh capacity is published by Apple. These charge events are included automatically in the project loads and autonomy calculation. Do not add the same power again via a generic USB charger load.
 
 - **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
+
+
+## Device connections & grounding — feature branch
+The `feature/device-connections-and-grounding` branch adds a Connections editor on equipment cards and on the 2D device-inspection panel. Changes to logical power links, data links, planned DC conductors and explicit grounding links update the corresponding diagrams; press **Update** to persist, or **Reset** to discard. The 2D view now offers a separate **Earth & chassis** layer.
+
+Vandy's seed shows the owner-described Lynx → main earth busbar → front vehicle chassis point, and PE from both consumer units to a separate rear-pillar chassis grounding point. This is a representation of reported topology, not tested continuity, a permitted bonding design or a BS 7671 approval. Directly dragging wire endpoints in the diagram is future work; dragging equipment still affects layout only.
+
+### Physical terminal editor (working branch)
+Equipment cards and the 2D detail sidebar can define, rename and select discrete physical terminals. DC cables record source and destination terminal IDs, and AC L/N/PE can be recorded as independent conductor runs without guessing installation wiring. The original logical supply and communication layers remain distinct. Circuit switches, including individual channels of a controller, can be assigned in **Circuits & loads**; switches are not a property of loads. Existing v3 exports remain importable, and new fields are retained in JSON export. Safety and actual connectivity still require owner inspection; the diagram is not an electrical installation certificate.
+
+The two owner-confirmed MPPT and MultiPlus Lynx connections deliberately have **unassigned Lynx output terminal IDs**, pending fuse-position inspection. Remote and Votronic switch contacts remain **polarity unknown** until inspected.

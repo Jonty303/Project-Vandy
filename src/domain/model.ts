@@ -7,7 +7,7 @@ export type LoadKind = 'standard' | 'led-strip' | 'compressor' | 'multi-state';
 export type ComponentKind =
   | 'battery' | 'solar' | 'mppt' | 'dc-dc' | 'inverter' | 'distribution'
   | 'controller' | 'switch' | 'usb-charger' | 'appliance' | 'monitor'
-  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet';
+  | 'consumer-unit' | 'shore-inlet' | 'socket-outlet' | 'bonding-busbar' | 'ground-point';
 export type Hazard = 'electrical-fire' | 'electric-shock' | 'carbon-monoxide' | 'combustion-exhaust' | 'lpg' | 'water-leak';
 
 /** The third DC conductor is a chassis/bonding connection, NEVER a synonym for negative or AC PE. */
@@ -23,16 +23,40 @@ export interface ElectricalPort {
   voltage: 12 | 24 | 230 | '12/24'; conductors: Conductor[];
 }
 export interface SocketPosition { id: string; label: string }
+/** Chassis bonding and protective earth are distinct from DC negative returns. */
+/** A discrete connectable endpoint, not a grouped logical supply port. */
+export type TerminalKind='dc-positive'|'dc-negative'|'ac-line'|'ac-neutral'|'protective-earth'|'chassis'|'switch-contact';
+export interface PhysicalTerminal {
+  id:string; label:string; kind:TerminalKind;
+  /** Optional descriptive role: converters and busbars may accept bidirectional power. */
+  role?:'input'|'output'|'bidirectional';
+  notes?:string;
+}
+/** Legacy earth/bond catalogue is preserved for existing v3 JSON exports. */
+export interface GroundingTerminal { id:string; label:string; kind:'chassis'|'pe' }
+export interface CircuitSwitchAssignment {
+  id:string; componentId:string; outputId?:string;
+}
+export interface GroundingConnection {
+  id:string; fromComponentId:string; fromTerminalId:string;
+  toComponentId:string; toTerminalId:string;
+  kind:'chassis-bond'|'protective-earth'; notes?:string;
+}
+
 export interface Component {
   id: string; name: string; kind: ComponentKind; model?: string;
   voltage?: DcVoltage | '12/24' | '230';
   outputs?: OutputChannel[]; ports?: ElectricalPort[]; socketPositions?: SocketPosition[];
+  groundingTerminals?: GroundingTerminal[];
+  terminals?: PhysicalTerminal[];
   notes?: string; evidence?: Evidence; hazards?: Hazard[];
 }
 export interface Circuit {
   id: string; name: string; supply: Supply; voltage: 12 | 24 | 230;
   /** Informational assignment; not verified installation wiring. */
   sourceComponentId?: string; sourceOutputId?: string; notes?: string;
+  /** Switching devices and optional controller channels belong to the circuit, not its loads. */
+  switchAssignments?: CircuitSwitchAssignment[];
 }
 export interface ModeUsage { minutesPerDay: number; dutyFraction: number }
 export interface OperatingMode {
@@ -177,6 +201,8 @@ export interface DcFuseRecord {
 }
 export interface DcCableRun {
   id:string; name:string; fromComponentId:string; toComponentId?:string;
+  /** Physical terminal IDs; omission means unassigned, never an assumed connection. */
+  fromTerminalId?:string; toTerminalId?:string;
   toCircuitId?:string; polarity:DcCablePolarity;
   /** Assumed one-way conductor length. Return run is a separate cable. */
   lengthM:number; lengthEvidence:'assumed'|'reported'|'measured';
@@ -188,6 +214,12 @@ export interface DcCableRun {
   voltageV:number;
   fuseId:string|null;
   status:'reported'|'proposed'|'unknown'; notes:string;
+}
+/** Each AC conductor is independently recorded. Logical L/N/PE links do not create these runs. */
+export interface AcConductorRun {
+  id:string; fromComponentId:string; fromTerminalId:string;
+  toComponentId:string; toTerminalId:string;
+  conductor:'L'|'N'|'PE'; status:LinkStatus; notes:string;
 }
 export interface DcWiringPlan {
   fuses:DcFuseRecord[];
@@ -209,7 +241,7 @@ export interface PortableCharge {
   circuitId:string;
   notes:string;
 }
-export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
+export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'|'grounding'; x:number; y:number }
 
 export interface Project {
   schemaVersion: 3; name: string; nominalBatteryVoltage: DcVoltage;
@@ -222,6 +254,10 @@ export interface Project {
   socketAssignments: SocketAssignment[];
   batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
   communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
+  /** Explicit owner-entered earth/chassis bonds; optional for older saved v3 projects. */
+  groundingConnections?:GroundingConnection[];
+  /** Optional per-conductor AC wiring; separate from logical topology and earth/chassis bonds. */
+  acConductors?:AcConductorRun[];
   monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
   /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
   dcWiring?:DcWiringPlan;

@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Cable, CircleHelp, Info, ShieldCheck } from 'lucide-react';
 import type { DcCableRun, DcFuseRecord, DcWiringPlan, Project } from '../domain/model.ts';
 import { effectiveWiring, sizeCable, validateWiring } from '../domain/dcWiring.ts';
+import { dcKind } from '../domain/terminals.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void};
 const asNumber=(value:string):number|null=>value.trim()===''?null:Number(value);
 const num=(value:number|null)=>value===null?'':String(value);
 const fuseStatuses=['proposed','reported','unknown'] as const;
-const fuseConfidence=['unknown','provisional','manufacturer-range','owner-reported','owner-checked'] as const;
 const placements=['unconfirmed','battery-end','distribution-end','equipment-end','integrated-in-distributor'] as const;
 export function DcWiringPage({project,change}:Props){
  const plan=effectiveWiring(project);
@@ -46,10 +46,9 @@ export function DcWiringPage({project,change}:Props){
     <div className="fuse-schedule">{shownFuses.map(f=><div className="fuse-row" key={f.id}>
       <div className="fuse-title"><strong>{f.label}</strong><small>{f.holderComponentId?componentName(f.holderComponentId):'Independent in-line fuse'}{f.slot!==null?` · position ${f.slot}`:''}</small></div>
       <div className="fuse-fields">
-       <label>Rated amps<input type="number" min="0" step="1" placeholder="Unknown" value={num(f.ratingA)} onChange={e=>patchFuse(f.id,{ratingA:asNumber(e.target.value)})}/></label>
+       <label>{f.status==='reported'?'Current fuse rating (A)':'Proposed fuse rating (A)'}<input type="number" min="0" step="1" placeholder="Unknown" value={num(f.ratingA)} onChange={e=>patchFuse(f.id,{ratingA:asNumber(e.target.value)})}/></label>
        <label>Fuse status<select value={f.status} onChange={e=>patchFuse(f.id,{status:e.target.value as DcFuseRecord['status']})}>{fuseStatuses.map(x=><option key={x}>{x}</option>)}</select></label>
-       <label>Confidence<select value={f.confidence} onChange={e=>patchFuse(f.id,{confidence:e.target.value as DcFuseRecord['confidence']})}>{fuseConfidence.map(x=><option key={x}>{x}</option>)}</select></label>
-       <label>Actual fuse location<select value={f.placement} onChange={e=>patchFuse(f.id,{placement:e.target.value as DcFuseRecord['placement']})}>{placements.map(x=><option key={x} value={x}>{x.replaceAll('-',' ')}</option>)}</select></label>
+       <label>Current fuse location<select value={f.placement} onChange={e=>patchFuse(f.id,{placement:e.target.value as DcFuseRecord['placement']})}>{placements.map(x=><option key={x} value={x}>{x.replaceAll('-',' ')}</option>)}</select></label>
        <label>Nearest device<select value={f.nearComponentId??''} onChange={e=>patchFuse(f.id,{nearComponentId:e.target.value||null})}><option value="">Unconfirmed</option>{project.components.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
        <label>Fuse form<select value={f.fuseForm} onChange={e=>patchFuse(f.id,{fuseForm:e.target.value as DcFuseRecord['fuseForm']})}>{(['unknown','inline','MEGA','ATO-ATC'] as const).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>
@@ -72,6 +71,16 @@ export function DcWiringPage({project,change}:Props){
       return <div key={c.id} className="dc-cable-row">
        <div className="cable-name"><strong>{c.name}</strong><small>{componentName(c.fromComponentId)} → {c.toCircuitId?circuitName(c.toCircuitId):componentName(c.toComponentId)} · {c.polarity}</small></div>
        <div className="dc-cable-fields">
+        <label>Source terminal<select value={c.fromTerminalId??''} onChange={e=>patchCable(c.id,{fromTerminalId:e.target.value||undefined})}>
+          <option value="">Unknown / not assigned</option>
+          {(project.components.find(x=>x.id===c.fromComponentId)?.terminals??[]).filter(t=>t.kind===dcKind(c.polarity))
+            .map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>
+        {c.toComponentId&&<label>Destination terminal<select value={c.toTerminalId??''} onChange={e=>patchCable(c.id,{toTerminalId:e.target.value||undefined})}>
+          <option value="">Unknown / not assigned</option>
+          {(project.components.find(x=>x.id===c.toComponentId)?.terminals??[]).filter(t=>t.kind===dcKind(c.polarity))
+            .map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+        </select></label>}
         <label>One-way length (m)<input type="number" step=".1" min=".1" value={c.lengthM} onChange={e=>patchCable(c.id,{lengthM:Number(e.target.value)})}/></label>
         <label>Length evidence<select value={c.lengthEvidence} onChange={e=>patchCable(c.id,{lengthEvidence:e.target.value as DcCableRun['lengthEvidence']})}>
          {(['assumed','reported','measured'] as const).map(x=><option key={x}>{x}</option>)}</select></label>

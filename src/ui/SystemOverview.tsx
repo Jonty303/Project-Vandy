@@ -4,14 +4,16 @@ import { ZoomIn, ZoomOut, Maximize2, Network, Move, Cable, AlertTriangle } from 
 import type { Component, Project } from '../domain/model.ts';
 import { recommendConnections } from '../domain/connectivity.ts';
 import { effectiveWiring } from '../domain/dcWiring.ts';
+import { DeviceConnections } from './DeviceConnections.tsx';
 
-type Layer='ac'|'dc'|'communications';
+type Layer='ac'|'dc'|'communications'|'grounding';
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void;onOpenDevice?:(id:string)=>void};
 type Point={x:number;y:number};
 type Edge={id:string;from:string;to:string;status:'proposed'|'reported'|'verified';description:string};
 const WIDTH=1730,HEIGHT=1050,NW=205,NH=82;
 const clamp=(v:number,lo:number,hi:number)=>Math.min(hi,Math.max(lo,v));
 function group(c:Component,layer:Layer):number{
+  if(layer==='grounding')return c.kind==='consumer-unit'||c.id==='lynx'?0:c.kind==='bonding-busbar'?1:2;
   if(layer==='communications')return c.id==='cerbo'?2:c.kind==='battery'?0:1;
   if(c.kind==='solar'||c.kind==='shore-inlet'||c.kind==='battery')return 0;
   if(['mppt','dc-dc','inverter','monitor'].includes(c.kind))return 1;
@@ -24,6 +26,7 @@ function defaultPosition(c:Component,layer:Layer,groupIndex:number):Point{
 }
 function networkData(project:Project,layer:Layer){
   const components=project.components.filter(c=>
+    layer==='grounding'?Boolean(c.groundingTerminals?.length):
     layer==='ac'?c.ports?.some(p=>p.system==='ac'):
     layer==='dc'?c.voltage===12||c.voltage===24||c.voltage==='12/24'||c.kind==='solar'||c.kind==='battery':
     project.communicationPorts.some(p=>p.componentId===c.id)
@@ -34,7 +37,12 @@ function networkData(project:Project,layer:Layer){
       evidence:'estimated',notes:'Virtual circuit destination from the provisional Blue Sea wiring schedule. Physical routing and connected individual appliances have not been confirmed.'});
   }
   const ids=new Set(components.map(c=>c.id));
-  const edges:Edge[]=layer==='communications'?
+  const edges:Edge[]=layer==='grounding'?
+    (project.groundingConnections??[]).filter(link=>ids.has(link.fromComponentId)&&ids.has(link.toComponentId)).map(link=>({
+      id:link.id,from:link.fromComponentId,to:link.toComponentId,status:'reported' as const,
+      description:(link.kind==='protective-earth'?'Protective earth':'Chassis bonding')+' — '+link.fromTerminalId+' to '+link.toTerminalId
+    })):
+    layer==='communications'?
     project.communicationConnections.flatMap(link=>{
       const source=project.communicationPorts.find(p=>p.id===link.fromPortId);
       const target=project.communicationPorts.find(p=>p.id===link.toPortId);
@@ -60,8 +68,23 @@ function networkData(project:Project,layer:Layer){
       // Draw positive and negative paths separately, including the confirmed shunt return.
       if(c.polarity==='negative'&&c.toCircuitId)continue;
       const fuse=wiring.fuses.find(f=>f.id===c.fuseId);
+      const terminalName=(componentId:string,terminalId?:string)=>
+        project.components.find(x=>x.id===componentId)?.terminals?.find(t=>t.id===terminalId)?.label??
+        (terminalId??'terminal unassigned');
+      const endpoints=terminalName(c.fromComponentId,c.fromTerminalId)+' → '+
+        (c.toCircuitId?'Circuit '+(project.circuits.find(x=>x.id===c.toCircuitId)?.name??c.toCircuitId):
+          terminalName(c.toComponentId??'',c.toTerminalId));
       edges.push({id:c.id,from:c.fromComponentId,to:dest,status:c.status==='reported'?'reported':'proposed',
-        description:`${c.name} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
+        description:`${c.name} · ${endpoints} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
+    }
+  }
+  if(layer==='ac'){
+    for(const c of project.acConductors??[]){
+      if(!ids.has(c.fromComponentId)||!ids.has(c.toComponentId))continue;
+      const source=project.components.find(x=>x.id===c.fromComponentId)?.terminals?.find(t=>t.id===c.fromTerminalId)?.label??c.fromTerminalId;
+      const target=project.components.find(x=>x.id===c.toComponentId)?.terminals?.find(t=>t.id===c.toTerminalId)?.label??c.toTerminalId;
+      edges.push({id:c.id,from:c.fromComponentId,to:c.toComponentId,status:c.status,
+        description:'Physical '+c.conductor+' conductor: '+source+' → '+target+' ('+c.status+')'});
     }
   }
   const count=new Map<number,number>();
@@ -112,13 +135,12 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
     }
     setLive(null);
   }
-  const activeCount=data.edges.filter(e=>e.status==='verified').length;
   return <div className="system-2d">
-    <div className="section-heading heading-top"><div><div className="eyebrow">ITERATION 03 / INTERACTIVE 2D</div><h1>System overview</h1><p>Explore the recorded AC, DC and communications networks. Drag nodes to lay out your system; no connections are created by dragging.</p></div></div>
+    <div className="section-heading heading-top"><div><div className="eyebrow">ITERATION 03 / INTERACTIVE 2D</div><h1>System overview</h1><p>Explore DC, AC, communications and earth/bonding connections. Arrange components by dragging; select a device to edit the connections shown here.</p></div></div>
     <div className="notice"><AlertTriangle size={20}/><div><strong>Conceptual topology — not a wiring schematic</strong><p>Links represent recorded port-group relationships or communications cables, not a verified terminal-by-terminal connection, earthing arrangement or installable cable route. Missing edges mean a relationship has not been recorded.</p></div></div>
     <div className="overview-controls">
       <div className="overview-tabs" role="group" aria-label="Network layer">
-        {(['dc','ac','communications'] as const).map(l=><button key={l} className={layer===l?'active':''} onClick={()=>{setLayer(l);setLive(null)}}>{l==='dc'?'12V / DC':l==='ac'?'230V / AC':'Communications'}</button>)}
+        {(['dc','ac','communications','grounding'] as const).map(l=><button key={l} className={layer===l?'active':''} onClick={()=>{setLayer(l);setLive(null)}}>{l==='dc'?'12V / DC':l==='ac'?'230V / AC':l==='communications'?'Communications':'Earth & chassis'}</button>)}
       </div><div className="overview-tools">
         <button className="button small" onClick={()=>setZoom(z=>clamp(z/1.2,.35,2.4))} aria-label="Zoom out"><ZoomOut size={17}/></button>
         <span>{Math.round(zoom*100)}%</span>
@@ -126,7 +148,7 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
         <button className="button small" onClick={()=>{setZoom(.92);setPan({x:30,y:20})}}><Maximize2 size={16}/> Fit view</button>
       </div>
     </div>
-    <div className="overview-legend"><span>Dashed = proposed</span><span>Solid = reported</span><span>Bright = user-marked verified</span><span><Move size={13}/> Drag items to arrange</span></div>
+    <div className="overview-legend"><span>Dashed = planned</span><span>Solid = recorded connection</span><span><Move size={13}/> Drag items to arrange</span><span>Change a connection from the selected device's editor</span></div>
     <div className="overview-layout">
       <div className="overview-svg-wrap"><svg ref={svgRef} className="overview-svg" viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           onPointerDown={e=>{if(e.target===e.currentTarget)start(e)}} onPointerMove={move}
@@ -161,7 +183,6 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
       </svg></div>
       <aside className="overview-detail-panel"><div className="overview-detail-heading"><Network size={20}/><h3>{item?.name??'Select equipment'}</h3></div>
         {item?<><p><strong>Type:</strong> {item.kind.replaceAll('-',' ')}</p><p><strong>Model:</strong> {item.model??'Unconfirmed'}</p>
-          <p><strong>Evidence:</strong> {item.evidence??'unknown'}</p>
           <p>{item.notes??'No additional equipment notes.'}</p>
           <h4>Recorded relationships</h4>
           {data.edges.filter(e=>e.from===item.id||e.to===item.id).length?data.edges.filter(e=>e.from===item.id||e.to===item.id).map(e=>
@@ -170,11 +191,12 @@ export function SystemOverviewPage({project,change,onOpenDevice}:Props){
           {layer==='communications'&&recommendations.filter(r=>r.deviceId===item.id).map(r=><div className="overview-link-detail" key={r.id}><AlertTriangle size={14}/><span>{r.verdict}: {r.cable}<small>{r.benefits}</small></span></div>)}
           <h4>Documented / recorded interfaces</h4>{project.communicationPorts.filter(p=>p.componentId===item.id).map(p=>
             <p key={p.id}>{p.name} — {p.protocol} ({p.evidence})</p>)}
+          <DeviceConnections key={item.id} project={project} change={change} componentId={item.id}/>
           {onOpenDevice&&<button className="button small" onClick={()=>onOpenDevice(item.id)}>Open device details</button>}
         </>:<p>No selectable devices in this layer.</p>}
-        <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} saved links</span><span>{activeCount} marked verified</span></div>
+        <div className="overview-metrics"><span>{data.components.length} devices</span><span>{data.edges.length} connections</span></div>
       </aside>
     </div>
-    <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC edges now use the individually recorded cable plan, including its 1m assumptions and fuse-position evidence. These edges do not certify wiring, conductor sizing or installation.</p>
+    <p className="autonomy-note">Diagram placements are cosmetic; press Update to save them. DC conductor and AC physical wire details come from saved terminal-specific records; the AC layer also retains its distinct logical supply links. Circuit destinations and unknown terminals remain explicit. Neither the edges nor the model certify wiring or installation.</p>
   </div>;
 }

@@ -64,3 +64,20 @@ A distinct communications model stores individually available and occupied devic
 The interactive 2D overview has AC, DC and communications layers and operates on **the same saved logical connection model** as equipment editors. Node layouts are cosmetic and may be dragged independently by layer. It is explicitly not a wire-by-wire schematic.
 
 Manual field changes are staged with Reset/Update rather than silently persisting on every keystroke. Incomplete-but-safe data may be saved with warnings; only invalid values or broken structural relationships block Update with explicit causes. Imported v1/v2 records migrate to v3.
+
+
+## Device-first connections and earthing — November 2026
+The future wiring netlist is a single persisted connection graph accessible both from each equipment device and the 2D designer. Device editing is introduced before diagram-endpoint dragging; the diagram must always update from the edited model. Only compatible endpoints may be connected and every change uses the application's Update/Reset workflow. Current and recommended engineering values are emphasised in the UI, with provenance details retained internally rather than surfaced as confidence badges.
+
+Vandy V1 records a Lynx chassis/earth connection to a common equipment-area bonding busbar, with that busbar connected to a main vehicle chassis point. Both 230V consumer units have protective-earth connections to the **rear pillar** chassis point. Individual additional devices that use the front busbar are not yet specified. Separate DC negative, AC PE and chassis-bond types prevent dangerous implicit equivalence; any actual DC negative/chassis or N–PE bond must be recorded and independently validated before it is shown.
+
+## Terminal-level connection pass (2026-11-01)
+- Each component now has stable-ID `terminals` with conductor types DC+, DC−, AC L, AC N, PE or chassis. Terminal labels and supplementary endpoints are editable from the device panel. Legacy grouped `ports` remain logical supply interfaces; data ports remain protocol-specific.
+- Every DC cable may reference a separate source and destination terminal ID. Existing Vandy cables acquire terminal IDs only where the original component endpoints match the known seed. Changed/missing endpoints remain deliberately unassigned. MPPT and MultiPlus DC battery+ are owner-reported connected to Lynx, but individual Lynx slot terminals are unassigned and the slot/fuse schedule remains provisional.
+- AC physical conductors are distinct `acConductors`, with separate L/N/PE records. No physical AC conductors are populated from existing logical AC topology or from chassis bonding.
+- Existing `groundingConnections` now resolve against the same physical PE/chassis terminal catalogue, retaining DC negative and protective earth as separate types.
+- Switch/device channel assignments are properties of `Circuit.switchAssignments`, not `Load`. Assignments do not change wattage or imply the actual physical switch is connected.
+- v3 JSON export/import retains terminals, terminal-bound wires, and circuit switches; missing fields are hydrated without overwriting user-specified records. Connection type mismatches and dangling switch-channel references block saving.
+- Visual 2D edges still attach to device cards, not physical port glyphs: direct endpoint dragging and installable wire routing are separate future milestones. AC logical and physical links can coexist, without treating one as proof of the other.
+
+- Remote controller and Votronic switch contacts use the `switch-contact` terminal kind until the owner confirms whether they switch DC positive, DC negative or another configuration. Circuit assignments do not infer conductor polarity.
