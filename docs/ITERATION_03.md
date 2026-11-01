@@ -103,3 +103,21 @@ This extends the same Iteration 03 branch and is a **test-data schedule**, not a
 - Verification: `tests/portableCharging.test.mjs` tests energy, duplicate prevention, battery/source losses, incomplete data, user-edited settings, JSON migration and profile handling.
 
 - **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
+
+
+## 2026-11-01 extension — device-first connection editing and grounded chassis attachment points
+- Simplify owner-facing presentations: remove confidence scores and provenance badges. Show **Current setting** and **Recommended setting** where a real manufacturer recommendation is available; do not label a provisional fuse as an installed/current rating. Keep internal source records for audit and safe migration.
+- Connection destinations must be editable on the **device itself**. DC conductor routes, logical AC/DC port-group links, communications ports and earthing/bonding links share the same persisted model that generates the 2D overview. Staged Update/Reset remains authoritative.
+- The 2D diagram must reflect device connection changes. Directly reattaching individual connection endpoints by dragging within the diagram remains a **future capability**, sharing the identical model and compatibility checks. Dragging a device currently changes only its layout position.
+- Owner-confirmed **front equipment-area earth route**: Lynx Distributor chassis/earth terminal → common earth/bonding busbar → vehicle chassis ground point. Owner says other equipment in this area is earthed at this busbar, but exact individual terminals/cables are not identified: do not fabricate specific device bonds.
+- Owner-confirmed **rear equipment-area protective earth**: both 230V consumer unit PE terminations → rear pillar vehicle chassis earth attachment point.
+- Distinguish **DC negative current return**, **230V protective earth**, and **vehicle chassis bonding**. The Lynx DC-negative bus and its separate chassis/earth attachment are not interchangeable. Do not invent a MultiPlus N–PE link, SmartShunt bypass, Orion GND route or a DC-negative-to-chassis conductor. Physical continuity, earthing arrangements, conductor cross sections, AC transfer behaviour, ground-stud position and bond resistance require inspection.
+- The two chassis attachment points are separate physical locations on one vehicle chassis. The model records their documented routes separately; it does not claim independent earth systems or certify safety.
+- Earthing links may be edited under an individual device's Connections section, and visualised in the **Earth & chassis** 2D layer.
+- The product should eventually let a user drag a specific wire endpoint to a *compatible* terminal, with validation and a clear confirmation before changing existing connections.
+
+### Added acceptance criteria
+- Four explicit seed records: Lynx → main earth busbar; main earth busbar → front chassis point; shore consumer unit PE → rear pillar point; socket consumer unit PE → rear pillar point.
+- Ground and PE terminals are modeled separately from DC negative; malformed/chassis/PE mixups are rejected.
+- Old v3 browser storage hydrates new grounding equipment and links without overwriting a user's loads, existing wires or newly changed grounding links.
+- Changing a device's connection endpoint changes the same saved link used by its 2D graph. Existing Iteration 03 safety boundaries remain in place.
