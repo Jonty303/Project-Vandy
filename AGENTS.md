@@ -40,3 +40,9 @@
 - Bluetooth batteries default to vendor-app-only. Manufacturer-documented protocol support is necessary before suggesting GX management, and documented CAN bus does not imply DVCC support.
 - Treat communication ports as capacity-constrained single slots and SmartShunt AUX as one selectable use. Propose documented cables where suitable, but no unverified connection is marked installed.
 - Distinguish DC/AC power topology, communications topology and cosmetic 2D layout. No direct device control or invented wire runs.
+
+## Device editor / protective-earth design requirement (2026-11-01)
+- Treat the latest `docs/ITERATION_03.md` connection-editor and PE busbar refinement as planned requirements, not existing capabilities.
+- Device-side Add/Change/Disconnect must update the same typed graph rendered by 2D; later diagram handle dragging edits that graph too. Node dragging alone never changes connections.
+- Model PE, DC- and CHASSIS separately; never create automatic bonding or equate AC earth with a battery negative return. Never seed confirmed chassis/shore/inverter earth links without user evidence.
+- UI should show Current and Recommended settings where applicable, not confidence classifications. Preserve internal traceability and never relabel proposals or unknown values as observed installed values.
