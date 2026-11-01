@@ -146,6 +146,7 @@ export const seedProject: Project = {
     {id:'cu-to-garage',fromComponentId:'cu-sockets',fromPortId:'ac-out',toComponentId:'garage-socket',toPortId:'ac-in',status:'proposed',notes:'Physical breaker and wiring unknown'},
     {id:'lynx-to-remote',fromComponentId:'lynx',fromPortId:'dc-out',toComponentId:'remote-six',toPortId:'dc-in',status:'reported',notes:'Owner reports +, − and an earth connection; actual protective bonding unverified'},
   ],
+  acConductors:[], // Physical AC L/N/PE cabling has not been confirmed.
   groundingConnections:[
     {id:'lynx-front-earth',fromComponentId:'lynx',fromTerminalId:'earth',toComponentId:'front-earth-busbar',toTerminalId:'bond',kind:'chassis-bond',notes:'Owner confirms Lynx earth terminal connects to the common equipment-area busbar.'},
     {id:'busbar-front-chassis',fromComponentId:'front-earth-busbar',fromTerminalId:'bond',toComponentId:'front-chassis-ground',toTerminalId:'stud',kind:'chassis-bond',notes:'Owner confirms the main earth busbar connects to a vehicle grounding point.'},
