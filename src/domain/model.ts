@@ -154,6 +154,10 @@ export interface MonitoringAuthority {
   method:'gx'|'vendor-app'|'local'|'manual';
   evidence:CapabilityEvidence; notes:string;
 }
+export interface AuxiliaryAssignment {
+  portId:string; purpose:'starter-voltage'|'battery-temperature'|'midpoint';
+  targetComponentId:string|null; accessory:string; status:CommunicationStatus; notes:string;
+}
 export interface DiagramPosition { componentId:string; x:number; y:number }
 
 export interface Project {
@@ -167,7 +171,7 @@ export interface Project {
   socketAssignments: SocketAssignment[];
   batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
   communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
-  monitoringAuthorities:MonitoringAuthority[]; diagramPositions:DiagramPosition[];
+  monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
 }
-export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'diagramPositions'> & {schemaVersion:2};
+export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'auxiliaryAssignments'|'diagramPositions'> & {schemaVersion:2};
 export type ProjectV1 = Omit<ProjectV2, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
