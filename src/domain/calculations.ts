@@ -49,7 +49,7 @@ export function calculateLoad(load: Load, circuit: Circuit, project: Project, pr
       issues.push(`Invalid usage for ${mode.name}`); missing = true; continue;
     }
     if (!validPositive(watts)) {
-      if (usage.minutesPerDay > 0) { issues.push(`Missing power rating for ${mode.name}`); missing = true; }
+      if (usage.minutesPerDay > 0 && usage.dutyFraction > 0) { issues.push(`Missing power rating for ${mode.name}`); missing = true; }
       continue;
     }
     peakWatts = Math.max(peakWatts, watts);
