@@ -47,3 +47,11 @@ No drag-and-drop wiring canvas, verified connection topology, fuse/cable sizing,
 - Report daily load Wh, solar Wh, DC-DC Wh, stationary/off-grid net, daily-driving net, and indicative days to minimum SOC, with **no finite number if average energy balance is non-depleting**. Flag partial load ratings as optimistic and do not grant a positive safety/off-grid rating while important loads are unmeasured.
 - Exclude shore charge from off-grid calculations, do not extrapolate instantaneous weather or exact MPPT clipping from monthly PVGIS data, and do not count spare generation beyond battery capacity.
 - Preserve existing JSON schema v2 with optional autonomy configuration, defaults for older imports, and tests for charger limits, unknown solar, provenance, AC paths and two driving/stationary scenarios.
+
+## Rating transparency refinement (2026-11-01)
+- Replace generic "Not yet rated — incomplete input data" with **explicit actionable blockers** derived from the actual selected usage profile and individual calculation results, identifying the exact consumer, circuit, operating mode and field to complete.
+- Distinguish required stationary/off-grid inputs (known active load watts, usable battery capacity, and solar PVGIS/manual source) from **driving-only** fields such as spare alternator current. Never prevent stationary evaluation solely because no driving current estimate is present.
+- Display provisional assumptions separately (unverified/non-manual watts, fridge duty fraction, charger efficiency and active-driving percentage, nominal battery capacity, estimated solar month/source). These do not inherently mean the mathematical estimate cannot be produced.
+- Where active load watts are missing, **daily consumer demand and daily energy balance are partial**, and neither stationary nor driving outcomes may claim reliable days or no net depletion.
+- Inactive consumers (zero minutes or zero duty factor) must not require watts for the active profile. Preserve their inventory and unknown ratings for future profiles.
+- Add regression coverage for active missing ratings, manual/unknown solar, incomplete charging, full input cases, and zero-duty consumers.
