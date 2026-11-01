@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, Cable, CircleHelp, Info, ShieldCheck } from 'lucide-react';
 import type { DcCableRun, DcFuseRecord, DcWiringPlan, Project } from '../domain/model.ts';
-import { effectiveWiring, sizeCable, validateWiring, awgForMm2 } from '../domain/dcWiring.ts';
+import { effectiveWiring, sizeCable, validateWiring } from '../domain/dcWiring.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void};
 const asNumber=(value:string):number|null=>value.trim()===''?null:Number(value);
@@ -9,7 +9,6 @@ const num=(value:number|null)=>value===null?'':String(value);
 const fuseStatuses=['proposed','reported','unknown'] as const;
 const fuseConfidence=['unknown','provisional','manufacturer-range','owner-reported','owner-checked'] as const;
 const placements=['unconfirmed','battery-end','distribution-end','equipment-end','integrated-in-distributor'] as const;
-const polarities=['positive','negative','chassis'] as const;
 export function DcWiringPage({project,change}:Props){
  const plan=effectiveWiring(project);
  const [section,setSection]=useState<'all'|'trunk'|'lynx'|'blue-sea'>('all');
