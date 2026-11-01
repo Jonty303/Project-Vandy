@@ -31,9 +31,39 @@ function validateBase(x: unknown): boolean {
   return true;
 }
 
+/** Reject malformed autonomy settings before accepting browser JSON imports. */
+function validAutonomy(value:unknown):boolean{
+  if(!isRecord(value))return false;
+  const numbers=['startingSocPct','reserveSocPct','hoursDrivingPerDay','alternatorVoltageV',
+    'dcDcInputCurrentLimitA','dcDcOutputCurrentLimitA','dcDcOutputVoltageV','dcDcEfficiency',
+    'dcDcActiveFraction','solarPanelWatts','mpptNominalPvLimitWatts','solarLossPct','solarShadingFraction',
+    'solarInclinationDeg','solarAspectDeg','solarLatitude','solarLongitude','solarMonth'];
+  if(numbers.some(k=>!validNumber(value[k])))return false;
+  if(!validString(value.solarLocationName))return false;
+  if(!['uk-reference','selected-location'].includes(String(value.solarMode)))return false;
+  if(value.availableAlternatorA!==null&&!validNonnegative(value.availableAlternatorA))return false;
+  if(value.solarManualWhPerDay!==null&&!validNonnegative(value.solarManualWhPerDay))return false;
+  if((value.startingSocPct as number)<0||(value.startingSocPct as number)>100)return false;
+  if((value.reserveSocPct as number)<0||(value.reserveSocPct as number)>100)return false;
+  if((value.dcDcEfficiency as number)<=0||(value.dcDcEfficiency as number)>1)return false;
+  if((value.dcDcActiveFraction as number)<0||(value.dcDcActiveFraction as number)>1)return false;
+  if((value.solarShadingFraction as number)<0||(value.solarShadingFraction as number)>1)return false;
+  if((value.solarMonth as number)<1||(value.solarMonth as number)>12)return false;
+  if((value.solarPanelWatts as number)<=0||(value.mpptNominalPvLimitWatts as number)<=0)return false;
+  if('solarClimatology' in value && value.solarClimatology!==undefined){
+    const d=value.solarClimatology;
+    if(!isRecord(d)||d.source!=='PVGIS-v5_3'||!validString(d.requestedAt)||
+      !validString(d.queryFingerprint)||!validString(d.description)||
+      !Array.isArray(d.monthlyDailyWh)||d.monthlyDailyWh.length!==12||
+      d.monthlyDailyWh.some((n:unknown)=>!validNonnegative(n)))return false;
+  }
+  return true;
+}
+
 export function validateProject(x: unknown): x is Project {
   if(!validateBase(x)||!isRecord(x)||x.schemaVersion!==2) return false;
   if(!Array.isArray(x.topologyLinks)||!Array.isArray(x.protectionDevices)||!Array.isArray(x.socketAssignments))return false;
+  if('autonomy' in x && x.autonomy!==undefined && !validAutonomy(x.autonomy))return false;
   if(!x.topologyLinks.every((l:unknown)=>isRecord(l)&&['proposed','reported','verified'].includes(String(l.status))&&['id','fromComponentId','fromPortId','toComponentId','toPortId'].every(k=>validString(l[k]))))return false;
   if(!x.protectionDevices.every((d:unknown)=>isRecord(d)&&validString(d.id)&&validString(d.consumerUnitId)&&validString(d.name)&&['rcd','mcb','rcbo','isolator','unknown'].includes(String(d.kind))&&(d.ratedCurrentA===null||validNonnegative(d.ratedCurrentA))&&(d.residualTripMa===null||validNonnegative(d.residualTripMa))&&validIdList(d.protectedCircuitIds)&&validEvidence(d.evidence)))return false;
   if(!x.socketAssignments.every((a:unknown)=>isRecord(a)&&['id','socketComponentId','positionId','loadId'].every(k=>validString(a[k]))&&validEvidence(a.evidence)))return false;
