@@ -82,7 +82,7 @@ export const acKind=(conductor:'L'|'N'|'PE'):TerminalKind=>
 /** A legacy run receives endpoint IDs only when its original component endpoints match.
  * Edited wiring is never silently reconnected to a guessed terminal.
  */
-const seedRunEndpoints:Record<string,[string,string|undefined,string|undefined,string,string|undefined]>={
+const seedRunEndpoints:Record<string,[string,string|undefined,string|undefined,string|undefined,string|undefined]>={
  'battery-fuse-isolator':['battery','isolator',undefined,'positive','input-positive'],
  'isolator-lynx':['isolator','lynx',undefined,'output-positive','input-positive'],
  'battery-shunt':['battery','smartshunt',undefined,'negative','battery-minus'],
@@ -92,8 +92,8 @@ const seedRunEndpoints:Record<string,[string,string|undefined,string|undefined,s
  'orion-ground':['orion',undefined,undefined,'gnd',undefined],
  'lynx-remote':['lynx','remote-six',undefined,'output-1-positive','input-positive'],
  'lynx-blue-sea':['lynx','blue-sea',undefined,'output-2-positive','input-positive'],
- 'lynx-mppt':['lynx','mppt',undefined,'output-3-positive','battery-positive'],
- 'lynx-multi':['lynx','multiplus',undefined,'output-4-positive','battery-positive']
+ 'lynx-mppt':['lynx','mppt',undefined,undefined,'battery-positive'],
+ 'lynx-multi':['lynx','multiplus',undefined,undefined,'battery-positive']
 };
 for(let n=1;n<=12;n++){
   const circuits=['refrigeration','floor-lighting','toilet','water','diesel-heating','hot-water',
@@ -106,7 +106,7 @@ export function hydrateCableTerminals(run:DcCableRun):DcCableRun{
   if(!seed||run.fromTerminalId!==undefined||run.toTerminalId!==undefined)return run;
   const [from,to,circuit,fromTerminalId,toTerminalId]=seed;
   if(run.fromComponentId!==from||run.toComponentId!==to||run.toCircuitId!==circuit)return run;
-  return {...run,fromTerminalId,...(toTerminalId?{toTerminalId}:{})};
+  return {...run,...(fromTerminalId?{fromTerminalId}:{}),...(toTerminalId?{toTerminalId}:{})};
 }
 export function validateTerminals(project:Project):string[]{
  const issues:string[]=[];
