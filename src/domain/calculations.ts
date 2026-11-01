@@ -1,5 +1,6 @@
 import type { Circuit, Load, ModeUsage, OperatingMode, Project } from './model.ts';
 import { resolveLogicalSupply } from './supply.ts';
+import { portableChargeEnergy } from './portableCharging.ts';
 
 export interface LoadResult {
   loadId: string; name: string; circuitId: string; deliveredWh: number;
@@ -77,6 +78,18 @@ export function calculateProject(project: Project, profileId: string): ProjectRe
       allLoads.add(load.id);
       return calculateLoad(load, circuit, project, profileId);
     });
+    // Portable charges are energy events, not constant-power appliance modes.
+    // Adding their energy here ensures dashboard, circuit totals and autonomy
+    // use the exact same calculation, with no invented charge peak watts.
+    for(const device of project.portableCharges??[]){
+      if(device.circuitId!==circuit.id)continue;
+      const event=portableChargeEnergy(device,project,profileId);
+      loads.push({
+        loadId:'portable:'+device.id,name:device.name,circuitId:circuit.id,
+        deliveredWh:event.supplyWh,batteryWh:event.batteryWh,
+        peakWatts:0,incomplete:event.incomplete,issues:event.issues
+      });
+    }
     return {
       circuitId: circuit.id, name: circuit.name,
       deliveredWh: loads.reduce((n, l) => n + l.deliveredWh, 0),
@@ -97,6 +110,8 @@ export function calculateProject(project: Project, profileId: string): ProjectRe
   if ((project.acOperatingMode ?? 'inverter') === 'shore') warnings.push('Shore-power scenario assumes shore available and MultiPlus pass-through; battery charging, charger overhead and AC transfer are not simulated.');
   const incompleteLoads = circuitResults.flatMap(c => c.loads.filter(l => l.incomplete).map(l => l.name));
   if (incompleteLoads.length) warnings.push('Totals are partial: some powered loads have missing ratings or conversion details');
+  if((project.portableCharges??[]).length)warnings.push('Phone/tablet charging is modelled as Wh per 80%-capacity replenishment, not a peak USB-C power rating. Do not also enter the same energy as a generic USB panel appliance load.');
+
   warnings.push('Worst-case connected watts is a sum of load maxima, not a verified simultaneous demand or fuse-sizing calculation.');
   return {
     deliveredWh: circuitResults.reduce((n, c) => n + c.deliveredWh, 0), batteryWh,
