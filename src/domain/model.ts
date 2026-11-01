@@ -25,7 +25,7 @@ export interface ElectricalPort {
 export interface SocketPosition { id: string; label: string }
 /** Chassis bonding and protective earth are distinct from DC negative returns. */
 /** A discrete connectable endpoint, not a grouped logical supply port. */
-export type TerminalKind='dc-positive'|'dc-negative'|'ac-line'|'ac-neutral'|'protective-earth'|'chassis';
+export type TerminalKind='dc-positive'|'dc-negative'|'ac-line'|'ac-neutral'|'protective-earth'|'chassis'|'switch-contact';
 export interface PhysicalTerminal {
   id:string; label:string; kind:TerminalKind;
   /** Optional descriptive role: converters and busbars may accept bidirectional power. */
