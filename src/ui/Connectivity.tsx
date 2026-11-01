@@ -55,7 +55,7 @@ export function ConnectivityPage({project,change}:Props){
         <div className="connect-rec-head"><strong>{rec.title}</strong><span>{rec.verdict}</span></div>
         <p>{rec.benefits}</p><p>{rec.reason}</p><p><strong>Cable / accessory:</strong> {rec.cable}</p>
         {rec.documentationUrl&&<a href={rec.documentationUrl} target="_blank" rel="noreferrer">Manufacturer guidance</a>}
-        {rec.targetPortId?<button className="button small" onClick={()=>addConnection(rec.sourcePortId,rec.targetPortId)}><Plus size={14}/> Propose this connection</button>:
+        {rec.targetPortId?<button className="button small" onClick={()=>addConnection(rec.sourcePortId,rec.targetPortId!)}><Plus size={14}/> Propose this connection</button>:
           <p className="field-warning"><AlertTriangle size={14}/> No automatically allocated port. Review compatibility or available input capacity.</p>}
       </article>)}</div>
       {!recommendations.length&&<p>No additional documented recommendations for the currently selected equipment. Verify the connected cable inventory below.</p>}
