@@ -55,3 +55,12 @@ A campervan electrical design assistant that starts with a reliable load calcula
 - UK regional baseline is explicitly an equal-weight average of five UK locations and is **not a validated geographical average or a forecast**.
 - The autonomy model simulates nominal usable battery range and a repeated *average* day. It does not verify a safe off-grid duration, model probability of bad weather, charging taper, driving/solar time-of-day, reserve battery health, low-temperature restrictions or electrical safety.
 - Source path to AC consumers is derived from compatible topology links and presented as proposed/reported/verified *claims*. Operating scenario determines estimated battery energy for inverter-fed AC loads.
+
+## Iteration 03: battery/BMS records, communications and interactive overview
+The third iteration extends Vandy's underlying single equipment/project model with detailed battery records, series/parallel battery-bank topology, distinct BMS capabilities, self-heating details, and evidence/documentation provenance. The bank is authoritative for autonomy while old project Ah remains for import compatibility when no bank is selected. Unknown values remain null.
+
+A distinct communications model stores individually available and occupied device ports, data-link status (proposed/reported/verified), measured-source authority and optional SmartShunt AUX use. Recommendation rules use documented Victron interfaces and identify adapters/cables and benefits without implying installation. No Bluetooth third-party BMS integration is assumed absent manufacturer documentation.
+
+The interactive 2D overview has AC, DC and communications layers and operates on **the same saved logical connection model** as equipment editors. Node layouts are cosmetic and may be dragged independently by layer. It is explicitly not a wire-by-wire schematic.
+
+Manual field changes are staged with Reset/Update rather than silently persisting on every keystroke. Incomplete-but-safe data may be saved with warnings; only invalid values or broken structural relationships block Update with explicit causes. Imported v1/v2 records migrate to v3.
