@@ -158,7 +158,7 @@ export interface AuxiliaryAssignment {
   portId:string; purpose:'starter-voltage'|'battery-temperature'|'midpoint';
   targetComponentId:string|null; accessory:string; status:CommunicationStatus; notes:string;
 }
-export interface DiagramPosition { componentId:string; x:number; y:number }
+export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
 
 export interface Project {
   schemaVersion: 3; name: string; nominalBatteryVoltage: DcVoltage;
