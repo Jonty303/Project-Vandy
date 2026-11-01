@@ -12,8 +12,9 @@ A campervan electrical design assistant that starts with a reliable load calcula
 
 ## Entities
 - **Consumer / load**: distinct power draw, potentially multiple operating modes, evidence and per-profile run time / duty cycle. Example: toilet light and toilet flush are separate consumers.
-- **Circuit**: named logical grouping with a supply type, voltage and multiple consumers. Example: shared Toilet circuit. A source component/channel assignment is **informational only** in Iteration 01; it does not imply actual wiring.
+- **Circuit**: named logical grouping with a supply type, voltage and multiple consumers. Example: shared Toilet circuit. A source component/channel assignment remains **informational only**; it does not imply actual wiring.
 - **Equipment**: battery, Lynx, Blue Sea 5026 fuse block (12 outputs), generic six-channel remote box (6 outputs), Votronic switches, USB panels, chargers, converter, inverter/charger, appliances and monitoring. Components and loads are not necessarily 1:1.
+- **Iteration 02 logical ports and links**: each component can expose groups of AC L/N/PE or DC+/DC-/chassis interfaces, with proposed/reported/verified logical relationships. These are NOT individual conductor edges and cannot be used to certify installation. Two physically separate 230V consumer units have independent protection inventories; sockets have independently assignable positions.
 - **Future connection / cable**: distinct electrical edges with terminal identity, polarity, conductor cross-section, length, routing, installation environment, protective device and evidence. No such connections are modelled or validated in Iteration 01.
 - **Usage profile**: normal day, working from van, winter day; data associated per consumer operating mode.
 
@@ -27,16 +28,18 @@ A campervan electrical design assistant that starts with a reliable load calcula
 ## Reference Vandy inventory
 - WattCycle 280Ah LiFePO₄ battery; Victron Lynx Distributor, SmartShunt, Cerbo GX; SmartSolar MPPT 100/50; Orion XS 12/12-50; MultiPlus 12/500/20; ~400–480W roof solar (rating not verified).
 - Blue Sea ST Blade 5026 12-circuit fuse block; generic six-channel remote-controlled distribution box; two Votronic rocker switches; two four-port USB chargers (advertised 108W match not confirmed).
-- CR65X fridge (12/24V, 60W); VEVOR diesel air heater XMZ-F-D1 family (12V 40W listed; exact installed variant and transient draw unverified); unknown-brand LPG water heater (12V 5A electric input per manual); water pump, toilet light/flush, floor LED strip, roof extractor, Starlink, two laptop chargers.
+- CR65X fridge (12/24V, 60W); VEVOR diesel air heater XMZ-F-D1 family (12V 40W listed; exact installed variant and transient draw unverified); unknown-brand LPG water heater (12V 5A electric input per manual); water pump, toilet light/flush, floor LED strips, kitchen/main/outside/garage lights, Maxxair/Airxcel roof vent (specific variant unknown), Starlink on 230V via inverter, and one shared 80W-rated 230V laptop adapter.
+- Vandy also has two distinct 230V consumer units (one protecting incoming shore power and one protecting sockets), a double kitchen socket (gas hob igniter plugged in) and a single garage socket. Exact breaker types/ratings, supply wiring, AC earthing and circuit assignments remain unverified.
 - The toilet light and flush share a circuit. Other source channel/fuse assignments must not be guessed.
 
 ## Iteration roadmap
-1. **Load calculator**: typed model, named circuits/loads, operating profiles, LED strip and multi-state loads, explicit uncertainty, local persistence and tests.
-2. **System sizing**: deterministic battery, charging and solar estimates using fixed, selected reference products for V2; support 24V bus and intentional 12V converter design.
-3. **2D schematic**: ports, polarity, positive/negative/chassis bond/AC protective earth as different categories; branching, fuses, switches, wire lengths and sizes; optional auto-placement from logical circuit groupings.
-4. **Electrical validation**: voltage, current, voltage drop, protective-device rating/location, alternator/DC-DC and inverter/shore earthing considerations, with verified standards references, manufacturer constraints, and explicit manual-review states.
-5. **3D Vandy**: dimensioned vehicle geometry, component placement and physically routed cable lengths; diagram and 3D must share one underlying netlist.
-6. **Future utilities**: separate water and gas pipe networks, valves, pumps, venting, service points and physical separation requirements. Do not implement these in the electrical MVP.
+1. **Load calculator (completed baseline)**: typed named circuits/consumers, usage profiles, LED strips, multi-state loads, local persistence and tests.
+2. **Logical distribution & topology (current)**: AC/DC port groups, two consumer units and their protection records, socket accessories/positions, evidence-labelled logical links, read-only auto-generated block view; v1 data migration.
+3. **Interactive 2D schematic**: separate individual conductor terminal/netlist, switches, fuses, branching, cable lengths and cross sections; optional auto-placement from logical groupings.
+4. **Electrical validation**: conductor sizing, voltage drop, protective-device placement and limits, inverter/shore protection/earthing and verified UK/EU standards, with manual inspection states.
+5. **System sizing**: deterministic battery, charging and solar recommendations using selected equipment, including 24V and intentional 12V conversion.
+6. **3D Vandy**: physical placement and routed cable/pipe lengths using the same netlist.
+7. **Future utilities**: distinct water, LPG and heating networks with hazard separation and service access.
 
 ## Safety / standards / commercial boundaries
 - Engineering software can flag design risks; it cannot certify BS 7671 / relevant EN requirements or substitute for a competent professional's installation, inspection, testing and risk assessment.
