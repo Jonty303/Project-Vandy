@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { seedProject } from '../src/data/vandy.ts';
 import { dcDcEstimate, autonomySettings, estimateSolarWh, projectAutonomy, solarFingerprint } from '../src/domain/autonomy.ts';
 import { resolveLogicalSupply } from '../src/domain/supply.ts';
+import { validateProject } from '../src/domain/storage.ts';
 
 const make=()=>structuredClone(seedProject);
 test('Vandy sample AC load derives MultiPlus as source via socket consumer unit',()=>{
@@ -68,4 +69,23 @@ test('A positive average daily surplus never receives a fabricated finite days v
  assert.equal(projection.stationaryStatus,'no-average-depletion');
  assert.equal(projection.stationaryDays,null);
  assert.ok(projection.incomplete);
+});
+
+test('A shore-only consumer must not inherit a path via MultiPlus inverter output',()=>{
+ const p=make();
+ const circuit=p.circuits.find(c=>c.id==='ac-sockets');
+ circuit.supply='ac-shore';
+ const source=resolveLogicalSupply(p,p.loads.find(l=>l.id==='laptop-shared'));
+ assert.equal(source.origin,'unresolved');
+ assert.ok(source.issues.some(x=>x.includes('shore-only')));
+});
+test('v2 JSON validation accepts good autonomy and rejects malformed PVGIS cache',()=>{
+ const p=make();
+ p.autonomy={...autonomySettings(p),solarManualWhPerDay:350};
+ assert.equal(validateProject(p),true);
+ p.autonomy.solarClimatology={source:'PVGIS-v5_3',requestedAt:'2026-11-01',description:'Test',queryFingerprint:'x',monthlyDailyWh:[100,200]};
+ assert.equal(validateProject(p),false);
+ p.autonomy.solarClimatology=undefined;
+ p.autonomy.dcDcEfficiency=1.3;
+ assert.equal(validateProject(p),false);
 });
