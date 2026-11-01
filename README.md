@@ -86,3 +86,5 @@ Vandy's seed shows the owner-described Lynx → main earth busbar → front vehi
 
 ### Physical terminal editor (working branch)
 Equipment cards and the 2D detail sidebar can define, rename and select discrete physical terminals. DC cables record source and destination terminal IDs, and AC L/N/PE can be recorded as independent conductor runs without guessing installation wiring. The original logical supply and communication layers remain distinct. Circuit switches, including individual channels of a controller, can be assigned in **Circuits & loads**; switches are not a property of loads. Existing v3 exports remain importable, and new fields are retained in JSON export. Safety and actual connectivity still require owner inspection; the diagram is not an electrical installation certificate.
+
+The two owner-confirmed MPPT and MultiPlus Lynx connections deliberately have **unassigned Lynx output terminal IDs**, pending fuse-position inspection. Remote and Votronic switch contacts remain **polarity unknown** until inspected.
