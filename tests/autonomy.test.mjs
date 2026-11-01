@@ -6,6 +6,16 @@ import { resolveLogicalSupply } from '../src/domain/supply.ts';
 import { validateProject } from '../src/domain/storage.ts';
 
 const make=()=>structuredClone(seedProject);
+test('Vandy default assumes one hour driving per day without inventing alternator capacity',()=>{
+ const p=make();
+ const settings=autonomySettings(p);
+ assert.equal(settings.hoursDrivingPerDay,1);
+ assert.equal(settings.availableAlternatorA,null);
+ assert.equal(dcDcEstimate(settings,12).wh,null);
+ p.autonomy={...settings,hoursDrivingPerDay:2.5,availableAlternatorA:30};
+ assert.equal(autonomySettings(p).hoursDrivingPerDay,2.5);
+ assert.ok((dcDcEstimate(autonomySettings(p),12).wh??0)>0);
+});
 test('Vandy sample AC load derives MultiPlus as source via socket consumer unit',()=>{
  const p=make(),starlink=p.loads.find(l=>l.id==='starlink');
  const source=resolveLogicalSupply(p,starlink);
@@ -95,7 +105,7 @@ test('Rating explicitly identifies every active unknown consumer rating and wher
  const a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.title.includes('Starlink') && r.action.includes('Circuits & loads')));
  assert.ok(a.ratingBlockers.some(r=>r.title.includes('Toilet flush')));
- assert.ok(a.ratingBlockers.some(r=>r.title.includes('Floor LED strips')));
+ assert.equal(a.ratingBlockers.some(r=>r.title.includes('Floor LED strips')),false); // length supplied; provisional W/m is noted separately
  assert.ok(a.ratingBlockers.some(r=>r.id==='solar-missing'));
  assert.equal(a.ratingBlockers.some(r=>r.id==='battery-capacity'),false);
  assert.equal(a.solarMonthName,'June');
@@ -141,11 +151,12 @@ test('Zero-duty unknown consumer is not considered an active missing wattage',()
  const a=projectAutonomy(p,'normal');
  assert.equal(a.ratingBlockers.some(r=>r.title.includes('Starlink')),false);
 });
-test('Unknown or zero battery capacity creates a specific rating blocker',()=>{
- const p=make();p.batteryCapacityAh=null;
+test('Unknown or zero capacity of the ACTIVE BATTERY BANK creates a specific rating blocker',()=>{
+ const p=make();p.batteryCapacityAh=999; // legacy scalar must not override the active battery bank
+ p.batteries[0].capacityAh=null;
  let a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
- p.batteryCapacityAh=0;
+ p.batteries[0].capacityAh=0;
  a=projectAutonomy(p,'working');
  assert.ok(a.ratingBlockers.some(r=>r.id==='battery-capacity'));
 });

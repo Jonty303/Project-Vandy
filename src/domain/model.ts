@@ -99,8 +99,120 @@ export interface AutonomySettings {
   };
 }
 
+
+/** Battery/BMS records are equipment facts; unknown specs stay null. */
+export type ThermalFeature = 'yes' | 'no' | 'unknown';
+export type CapabilityEvidence = 'documented' | 'verified' | 'unverified' | 'not-supported';
+export interface BatteryRecord {
+  id: string; componentId?: string; name: string; manufacturer: string; model: string;
+  chemistry: 'lifepo4' | 'agm' | 'gel' | 'lead-acid' | 'other' | 'unknown';
+  nominalVoltageV: number | null; capacityAh: number | null; weightKg: number | null;
+  dimensionsMm: { length:number|null; width:number|null; height:number|null };
+  maxChargeA: number | null; maxDischargeA: number | null;
+  chargeMinC: number | null; chargeMaxC: number | null;
+  dischargeMinC: number | null; dischargeMaxC: number | null;
+  bms: {
+    integrated: ThermalFeature; manufacturer:string; model:string;
+    bluetooth: ThermalFeature; vendorApp:string;
+    externalManagement: CapabilityEvidence;
+    protocol: string; documentationUrl: string;
+    cellVoltageMonitoring: ThermalFeature; balancing: ThermalFeature;
+    alarms: ThermalFeature; protectionNotes:string;
+  };
+  thermal: {
+    selfHeating: ThermalFeature; control: 'automatic'|'manual'|'bms'|'unknown';
+    onC:number|null; offC:number|null; heaterWatts:number|null;
+    source:'battery'|'external-charger'|'both'|'unknown';
+    lowTemperatureChargeCutoff:ThermalFeature; heatingStatusReported:ThermalFeature;
+  };
+  evidence:Evidence; documentationUrl:string; notes:string;
+}
+export interface BatteryBank {
+  id:string; name:string;
+  /** Each inner list is a series string; outer strings are parallel. */
+  strings:string[][];
+  notes:string;
+}
+export type CommunicationProtocol = 've-direct'|'ve-bus'|'ve-can'|'can'|'rs485'|'uart'|'usb'|'ethernet'|'bluetooth'|'aux-voltage'|'temperature'|'other';
+export type CommunicationRole = 'device'|'controller'|'sensor'|'app';
+export interface CommunicationPort {
+  id:string; componentId:string; name:string;
+  protocol:CommunicationProtocol; role:CommunicationRole;
+  /** One physical port per record; no implicit virtual expansion. */
+  documentationUrl:string; evidence:CapabilityEvidence;
+  functions:string[]; notes:string;
+}
+export type CommunicationStatus = 'proposed'|'reported'|'verified';
+export interface CommunicationConnection {
+  id:string; fromPortId:string; toPortId:string;
+  status:CommunicationStatus; cable:string; functions:string[];
+  evidence:CapabilityEvidence; notes:string;
+}
+export type MonitoringMetric = 'habitation-soc'|'starter-voltage'|'battery-temperature'|'cell-voltages'|'charging-state';
+export interface MonitoringAuthority {
+  metric:MonitoringMetric; componentId:string;
+  method:'gx'|'vendor-app'|'local'|'manual';
+  evidence:CapabilityEvidence; notes:string;
+}
+export interface AuxiliaryAssignment {
+  portId:string; purpose:'starter-voltage'|'battery-temperature'|'midpoint';
+  targetComponentId:string|null; accessory:string; status:CommunicationStatus; notes:string;
+}
+/** DC conductor sizing is a planning recommendation, never a cable certification. */
+export type DcCablePolarity = 'positive' | 'negative' | 'chassis';
+export type ProtectionPlacement = 'battery-end'|'distribution-end'|'equipment-end'|'integrated-in-distributor'|'unconfirmed';
+export type FuseConfidence = 'owner-checked'|'owner-reported'|'manufacturer-range'|'provisional'|'unknown';
+export interface DcFuseRecord {
+  id:string; label:string; holderComponentId:string|null; slot:number|null;
+  ratingA:number|null; fuseForm:'MEGA'|'ATO-ATC'|'inline'|'unknown';
+  placement:ProtectionPlacement;
+  /** Exact physical position relative to the source and destination, NOT power flow. */
+  nearComponentId:string|null;
+  /** Proposed safe source-side placement; never confused with the observed location. */
+  recommendedPlacement?:ProtectionPlacement;
+  recommendedNearComponentId?:string|null;
+  relativeElectricalOrder?:string;
+  status:'reported'|'proposed'|'unknown';
+  confidence:FuseConfidence; documentationUrl:string; notes:string;
+}
+export interface DcCableRun {
+  id:string; name:string; fromComponentId:string; toComponentId?:string;
+  toCircuitId?:string; polarity:DcCablePolarity;
+  /** Assumed one-way conductor length. Return run is a separate cable. */
+  lengthM:number; lengthEvidence:'assumed'|'reported'|'measured';
+  /** Design current only: null when genuine manufacturer/load current is unknown. */
+  designCurrentA:number|null;
+  /** Manufacturer recommended minimum cross-section when available. */
+  manufacturerMinMm2:number|null;
+  /** User-selectable nominal battery/system voltage for voltage-drop estimate. */
+  voltageV:number;
+  fuseId:string|null;
+  status:'reported'|'proposed'|'unknown'; notes:string;
+}
+export interface DcWiringPlan {
+  fuses:DcFuseRecord[];
+  cables:DcCableRun[];
+  notes:string;
+}
+/** A portable-device charge is an energy event, not charger nameplate wattage.
+ * An 80% charge means replacing 80 percentage points of battery capacity (0% to 80%).
+ * Source circuit identifies the socket/USB supply, not a separate double-counted appliance.
+ */
+export interface PortableCharge {
+  id:string; name:string; category:'iphone'|'ipad'|'other';
+  batteryWh:number|null; batteryEvidence:Evidence; specificationUrl:string;
+  rechargeFraction:number;
+  /** User-estimated end-to-end USB supply-to-device-battery efficiency. */
+  chargingEfficiency:number;
+  /** Fractional events allowed, e.g. 0.5 charges per day. */
+  chargesPerDay:Record<string,number>;
+  circuitId:string;
+  notes:string;
+}
+export interface DiagramPosition { componentId:string; layer:'ac'|'dc'|'communications'; x:number; y:number }
+
 export interface Project {
-  schemaVersion: 2; name: string; nominalBatteryVoltage: DcVoltage;
+  schemaVersion: 3; name: string; nominalBatteryVoltage: DcVoltage;
   batteryCapacityAh: number | null; inverterEfficiency: number;
   /** Optional to preserve existing v2 saved data; default behaviour is inverter. */
   acOperatingMode?: AcOperatingMode;
@@ -108,5 +220,13 @@ export interface Project {
   profiles: Profile[]; components: Component[]; circuits: Circuit[]; loads: Load[];
   topologyLinks: TopologyLink[]; protectionDevices: ProtectionDevice[];
   socketAssignments: SocketAssignment[];
+  batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
+  communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
+  monitoringAuthorities:MonitoringAuthority[]; auxiliaryAssignments:AuxiliaryAssignment[]; diagramPositions:DiagramPosition[];
+  /** Optional for backwards-compatible v3 saved projects; hydrated without deleting edits. */
+  dcWiring?:DcWiringPlan;
+  /** Optional v3 addition: per-device charging as daily energy events, not peak watts. */
+  portableCharges?:PortableCharge[];
 }
-export type ProjectV1 = Omit<Project, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
+export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'auxiliaryAssignments'|'diagramPositions'> & {schemaVersion:2};
+export type ProjectV1 = Omit<ProjectV2, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };

@@ -110,3 +110,137 @@
 .autonomy-provisional li span{color:#a3c2c9}
 .autonomy-diagnostic-panel li small,.autonomy-provisional li small{font-size:11px;color:#f0c791;line-height:1.45}
 .autonomy-provisional li small{color:#7de0d4}
+
+/* Iteration 03: editable battery records, GX communications, and 2D overview */
+.project-edit-bar{position:sticky;bottom:0;z-index:30;display:flex;justify-content:space-between;align-items:center;gap:16px;background:#0c2637eF;border:1px solid #3c6679;box-shadow:0 -6px 30px #060c15aa;border-radius:11px;padding:15px 18px;margin:20px 0;backdrop-filter:blur(10px)}
+.project-edit-bar>div:first-child{display:grid;gap:5px;min-width:0;flex:1}
+.project-edit-bar strong{font-size:13px;color:#d9f7fa}
+.project-edit-bar small{font-size:11px;color:#a7c1cd}
+.project-edit-actions{display:flex;gap:9px;flex-shrink:0}
+.project-edit-actions .button{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.project-edit-actions button:disabled{cursor:not-allowed;opacity:.45}
+.project-edit-errors{padding-left:18px;margin:6px 0 0;color:#ffc489;font-size:11px;line-height:1.6;max-height:120px;overflow:auto}
+.batteries-page,.connectivity-page,.system-2d{display:grid;gap:18px}
+.batteries-page .panel,.connectivity-page .panel{margin:0}
+.batteries-page .panel-head h2,.connectivity-page .panel-head h2{display:flex;align-items:center;gap:9px}
+.batteries-page .form-grid,.connectivity-page .form-grid{gap:11px}
+.batteries-page .field,.connectivity-page .field{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.batteries-page .field>span,.connectivity-page .field>span{font-size:11px;font-weight:700;color:#a6c4cf}
+.batteries-page .field>small,.connectivity-page .field>small{font-size:10px;color:#8aa6b3}
+.battery-list{display:flex;flex-wrap:wrap;gap:10px}
+.battery-list button{background:#152a3a;color:#c3dfdf;padding:10px 15px;border:1px solid #36556a;border-radius:9px;text-align:left;min-width:210px;display:flex;flex-direction:column;gap:6px}
+.battery-list button.selected{border-color:#65d7c2;box-shadow:inset 0 0 0 1px #65d7c2}
+.battery-list small{font-size:11px;color:#91b4bf}
+.battery-field-alerts{margin-top:12px;display:grid;gap:6px}
+.battery-field-alerts p,.field-warning,.field-blocker,.field-incomplete{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.5;margin:8px 0}
+.battery-field-alerts p svg,.field-warning svg,.field-blocker svg,.field-incomplete svg{flex-shrink:0;margin-top:2px}
+.battery-field-alerts .blocker,.field-blocker{color:#f5a59e}
+.battery-field-alerts .incomplete,.field-incomplete,.battery-field-alerts .warning,.field-warning{color:#eac58d}
+.locked-reason{display:flex;align-items:flex-start;gap:8px;padding:12px;border-radius:8px;background:#18313a;color:#afcfd4;font-size:12px;line-height:1.5}
+.locked-reason svg{flex-shrink:0;margin-top:2px}
+.bank-strings{display:grid;gap:12px;margin:14px 0}
+.bank-string{padding:14px;border-radius:9px;border:1px solid #365365;background:#13283a}
+.bank-string>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bank-series{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-top:10px}
+.bank-series label{display:grid;gap:5px;color:#9abac7;font-size:11px;min-width:145px}
+.bank-series select{max-width:250px}
+.bank-totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:14px 0}
+.bank-totals>div{padding:13px;border-radius:9px;background:#112c3c;border:1px solid #325465}
+.bank-totals small{font-size:10px;color:#9db9c4;display:block}
+.bank-totals strong{font-size:20px;color:#d9f9f2;display:block;margin-top:7px}
+.connection-recs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.connect-rec{padding:15px;border:1px solid #355a69;border-radius:10px;background:#122a37;display:grid;align-content:start;gap:9px}
+.connect-rec-head{display:flex;justify-content:space-between;gap:7px}
+.connect-rec-head strong{font-size:13px}
+.connect-rec-head span{font-size:10px;color:#83ded1;text-transform:uppercase}
+.connect-rec p{font-size:11px;line-height:1.6;color:#a6c6ca;margin:0}
+.connect-rec a,.port-line a{font-size:11px;color:#79decd;text-decoration:underline}
+.connect-rec .button{justify-self:start;margin-top:4px}
+.connection-port-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 21px}
+.connection-device{border:1px solid #335063;border-radius:8px;padding:12px;background:#112738;min-width:0}
+.connection-device>strong{display:block;font-size:13px;margin-bottom:9px}
+.port-line{display:grid;grid-template-columns:minmax(0,2fr) 1fr 1fr auto;gap:6px;border-top:1px solid #294555;padding:8px 0;color:#bbd0d8;font-size:11px;align-items:center}
+.port-line small{font-size:10px;color:#8eadba}
+.connect-edit,.authority-row{padding:14px;border:1px solid #365869;border-radius:8px;background:#102a39;margin:11px 0}
+.connect-edit .button{margin-top:9px}
+.aux-plan{background:#12353a;border-radius:8px;padding:12px;margin:8px 0}
+.aux-plan p{font-size:12px;margin:0 0 10px}
+.diagnostics{display:grid;gap:9px}
+.diagnostics p{display:flex;gap:8px;font-size:12px;line-height:1.5}
+.diagnostics .blocker{color:#f0a09c}.diagnostics .incomplete,.diagnostics .warning{color:#dfbd8f}
+.authority-row h3{font-size:13px;margin:0 0 9px}
+.overview-controls,.overview-legend{display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:10px}
+.overview-tabs,.overview-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.overview-tabs button{border:1px solid #385d70;border-radius:8px;padding:9px 13px;background:#10283b;color:#a5c1cd;font-weight:700;font-size:12px}
+.overview-tabs button.active{background:#205264;border-color:#72c5c7;color:#efffff}
+.overview-tools span{font-size:12px;min-width:36px;text-align:center;color:#afd3d9}
+.overview-tools .button{display:inline-flex;align-items:center;gap:6px}
+.overview-legend{justify-content:flex-start;gap:12px;color:#95b7c3;font-size:11px}
+.overview-legend span{display:flex;align-items:center;gap:5px}
+.overview-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:13px;min-width:0}
+.overview-svg-wrap{border:1px solid #375a6d;background:#091a2b;overflow:hidden;border-radius:10px;min-width:0}
+.overview-svg{display:block;width:100%;min-height:570px;touch-action:none;cursor:grab;user-select:none}
+.overview-svg:active{cursor:grabbing}
+.overview-node{touch-action:none;cursor:grab}
+.overview-node-body{fill:#143344;stroke:#497384;stroke-width:1.7}
+.overview-node-selected{fill:#1e5153;stroke:#6ce2d0;stroke-width:3}
+.overview-label{fill:#edfafa;font-family:Outfit,system-ui;font-size:14px;font-weight:700;pointer-events:none}
+.overview-detail{fill:#a1c2c7;font-family:system-ui;font-size:10.5px;pointer-events:none}
+.overview-detail-panel{background:#10283a;border:1px solid #395d70;border-radius:10px;padding:15px;overflow:auto;max-height:680px}
+.overview-detail-heading{display:flex;gap:8px;align-items:center}
+.overview-detail-heading h3{font-size:16px}
+.overview-detail-panel h4{margin:17px 0 8px;font-size:12px;color:#b1e7dc}
+.overview-detail-panel p{font-size:11px;color:#adc7d1;line-height:1.6;margin:8px 0}
+.overview-detail-panel>p strong{color:#e3f1f3}
+.overview-link-detail{display:flex;align-items:flex-start;gap:7px;border-top:1px solid #2b4d5d;padding:8px 0;color:#d0e6ea;font-size:11px}
+.overview-link-detail svg{flex-shrink:0;margin-top:2px}
+.overview-link-detail small{display:block;color:#9cb9c3;font-size:10px;margin-top:4px}
+.overview-metrics{border-top:1px solid #3a5869;margin-top:14px;padding-top:12px;display:flex;flex-wrap:wrap;gap:7px}
+.overview-metrics span{border-radius:6px;padding:6px;background:#183849;color:#a8d6d9;font-size:10px}
+@media(max-width:1100px){.overview-layout{grid-template-columns:1fr}.overview-detail-panel{max-height:none}.connection-recs{grid-template-columns:1fr}}
+@media(max-width:720px){.project-edit-bar{align-items:stretch;flex-direction:column;bottom:0}.project-edit-actions{justify-content:flex-end}.bank-totals{grid-template-columns:1fr}.connection-port-grid{grid-template-columns:1fr}.port-line{grid-template-columns:1.4fr 1fr}.overview-svg{min-height:430px}}
+
+/* Vandy as-installed DC power plan */
+.dc-wiring-page{display:grid;gap:18px}
+.dc-wiring-page .panel{margin:0}
+.dc-wiring-page .panel-head h2{display:flex;align-items:center;gap:9px}
+.dc-wiring-page .panel-head p{font-size:12px;color:#a2bec8;margin:8px 0 0}
+.wiring-mini-facts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wiring-mini-facts span{display:inline-flex;align-items:center;gap:7px;border:1px solid #315b65;background:#122e3d;color:#bfdfdf;border-radius:7px;padding:9px 11px;font-size:11px}
+.fuse-schedule,.dc-cable-list{display:grid;gap:13px}
+.fuse-row,.dc-cable-row{border:1px solid #355b68;background:#112c3b;border-radius:10px;padding:14px;display:grid;gap:12px}
+.fuse-title,.cable-name{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fuse-title strong,.cable-name strong{font-size:13px}
+.fuse-title small,.cable-name small{color:#9fbcc5;font-size:11px}
+.fuse-fields,.dc-cable-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.fuse-fields label,.dc-cable-fields label{min-width:0;color:#a2c5ca;font-size:11px;font-weight:700;display:flex;flex-direction:column;gap:6px}
+.fuse-fields input,.fuse-fields select,.dc-cable-fields input,.dc-cable-fields select{max-width:100%;min-width:0;width:100%;color:#e4f3f3}
+.fuse-notes,.cable-notes{font-size:11px;color:#a4c2ca;line-height:1.65;margin:0}
+.computed-size{min-height:37px;display:flex;align-items:center;padding:9px 11px;border-radius:6px;border:1px solid #31515e;background:#152e39;color:#d9f0e8;font-size:12px;font-weight:700;line-height:1.4}
+.fuse-row .field-warning,.dc-cable-row .field-warning{margin:0}
+@media(max-width:900px){.fuse-fields,.dc-cable-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.fuse-title,.cable-name{align-items:flex-start;flex-direction:column}.fuse-fields,.dc-cable-fields{grid-template-columns:1fr 1fr}.computed-size{font-size:11px}}
+
+/* Energy events from charging personal phones and tablets. */
+.portable-charging-page{display:grid;gap:18px}
+.portable-charging-page .panel{margin:0}
+.portable-charging-page .panel-head h2{display:flex;align-items:center;gap:9px}
+.portable-charging-page .field{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;min-width:0}
+.portable-charging-page .field>span{font-size:11px;font-weight:700;color:#a6c4cf}
+.portable-charging-page .field>small{font-size:10px;color:#95b4bb}
+.portable-charging-page input,.portable-charging-page select,.portable-charging-page textarea{width:100%;min-width:0}
+.portable-summary{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.portable-summary>div{padding:17px;border:1px solid #365867;border-radius:10px;background:#123044;display:grid;gap:9px}
+.portable-summary span{font-size:10px;color:#a3c9d1;font-weight:700}
+.portable-summary strong{font-family:Outfit,system-ui;font-size:26px;color:#edfafa}
+.portable-summary small{font-size:12px;font-weight:400;color:#a5ced1}
+.portable-add{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.portable-add>span{font-size:12px;color:#adc8d2;font-weight:700}
+.portable-add .button{display:flex;gap:7px;align-items:center}
+.portable-breakdown{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0}
+.portable-breakdown>div{background:#132e3b;border:1px solid #315461;border-radius:9px;padding:13px;display:grid;gap:7px}
+.portable-breakdown small{font-size:10px;color:#9fbec9}
+.portable-breakdown strong{font-size:16px;color:#e1f4ed}
+.portable-charging-page .field-warning{display:flex;align-items:flex-start;gap:7px}
+@media(max-width:800px){.portable-summary{grid-template-columns:1fr 1fr}.portable-summary>div:first-child{grid-column:1/-1}.portable-breakdown{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.portable-breakdown{grid-template-columns:1fr 1fr}.portable-summary strong{font-size:22px}}

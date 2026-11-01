@@ -50,3 +50,30 @@ On `iteration-02`, choose **Off-grid autonomy** for battery reserve, average dri
 The calculator displays stationary and daily-driving energy balances. Solar must be fetched or supplied manually; unknown consumer watts remain flagged. The EU PVGIS source provides historical averages, not a live weather forecast, and the UK composite is an illustrative five-city unweighted mean.
 
 In the **Circuits & loads** editor, choose the consumer input supply and inspect its derived upstream logical AC source. On the **Project settings** page, select the inverter or shore pass-through operating scenario. Off-grid autonomy always calculates as the inverter scenario.
+
+## Iteration 03 — Batteries, BMS, connectivity and 2D overview
+The `iteration-03` branch adds dedicated **Batteries & BMS**, **Connectivity**, and **2D system overview** navigation. Use the new **Update** and **Reset** bar to commit/discard edits; previous values are retained until Update. Leaving a page with unsaved changes prompts before discarding them.
+
+Batteries can be recorded individually, including unknown manufacturer specifications, BMS Bluetooth/protocol abilities, low-temperature protection and self-heating. Parallel strings and series members make up the active battery bank. The off-grid planner uses the active bank's derived capacity and flags missing battery ratings or voltage mismatch rather than guessing.
+
+Connectivity shows documented Victron GX recommendations for SmartShunt, SmartSolar MPPT, Orion XS and MultiPlus. Recommendations are *not automatically connected*; users may propose a cable and explicitly record installed evidence. SmartShunt AUX offers starter voltage **or** temperature **or** midpoint. Bluetooth-only batteries remain vendor-app-only unless manufacturer documentation proves otherwise.
+
+The 2D view supports AC/DC/communications layers, component inspection, drag-to-arrange and pan/zoom. **Drawing lines are logical relationships or claimed data links, not certified wire routes.**
+
+### Codespaces
+```bash
+git fetch origin
+git switch --track origin/iteration-03
+npm install
+npm run dev
+```
+If the local branch is already checked out, use `git pull --ff-only`. Open forwarded port 5173. Browser-local v2 projects migrate to v3; JSON import/export remains supported. CI runs `npm run check` on `iteration-03`.
+
+Manufacturer documentation links and the bounded acceptance criteria are in `docs/ITERATION_03.md`.
+
+### Portable USB-C charging
+The **Phones & tablets** section has two iPhones and one iPad in the Vandy test data. Specify the number of 80%-battery-capacity charges each device receives during Normal, Working or Winter days. Switch profiles directly from the page. Each device's battery Wh and estimated USB-C charging efficiency are editable; these represent energy usage, **not charger wattage**.
+
+For the illustrative modern devices, one 0–80% recharge per device per day adds about **56Wh/day** to the 12V USB charging circuit. The two iPhone capacities (15.5Wh each) and 85% efficiency are assumptions; the example 11-inch iPad 28.93Wh capacity is published by Apple. These charge events are included automatically in the project loads and autonomy calculation. Do not add the same power again via a generic USB charger load.
+
+- **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
