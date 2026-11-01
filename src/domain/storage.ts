@@ -160,7 +160,7 @@ function hydrateWiring(p:Project):Project{
   const components=p.components.map(c=>c.id==='battery'&&c.name==='WattCycle LiFePO₄ battery'?
     {...c,name:'WattCycle 280Ah Mini Bluetooth LiFePO₄',model:'280Ah Mini Bluetooth (revision unconfirmed)',
       notes:[c.notes,'Owner identified Mini Bluetooth variant; exact revision still unverified.'].filter(Boolean).join(' ')}:c);
-  for(const id of ['starter-battery','isolator']){
+  for(const id of ['starter-battery','isolator','pe-busbar']){
     const c=defaults.components.find(c=>c.id===id);
     if(c&&!components.some(x=>x.id===id))components.push(structuredClone(c));
   }
