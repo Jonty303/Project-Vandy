@@ -65,6 +65,8 @@ const components: Component[] = [
   {...component('kitchen-socket','Kitchen double socket','socket-outlet',undefined,'Two socket positions; gas hob igniter uses one','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'left',label:'Socket 1'},{id:'right',label:'Socket 2'}],hazards:['electric-shock']},
   {...component('garage-socket','Garage single socket','socket-outlet',undefined,'230V socket; circuit and protection unverified','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'only',label:'Socket 1'}],hazards:['electric-shock']},
   {...component('maxxair-vent','Maxxair / Airxcel roof vent','appliance',undefined,'Model and current still to confirm','reported'),voltage:12},
+  {...component('pe-busbar','Protective earth busbar (planning placeholder)','busbar',undefined,
+    'Unconnected placeholder for a possible 230V protective-earth termination bar. Its physical existence, terminal count, chassis bonding and connections are not confirmed. Never connect PE to DC negative automatically.','unknown'),busbarFunction:'PE',hazards:['electric-shock']},
 ];
 
 const circuits: Circuit[] = [
