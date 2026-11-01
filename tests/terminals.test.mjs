@@ -19,7 +19,11 @@ test('Vandy has named separate DC poles, SmartShunt sides and distribution outpu
  assert.equal(run(p,'battery-shunt').toTerminalId,'battery-minus');
  assert.equal(run(p,'shunt-lynx').fromTerminalId,'system-minus');
  assert.equal(run(p,'lynx-mppt').toTerminalId,'battery-positive');
+ assert.equal(run(p,'lynx-mppt').fromTerminalId,undefined);
+ assert.equal(run(p,'lynx-mppt').status,'reported');
  assert.equal(run(p,'lynx-multi').toTerminalId,'battery-positive');
+ assert.equal(run(p,'lynx-multi').fromTerminalId,undefined);
+ assert.equal(run(p,'lynx-multi').status,'reported');
  assert.equal(run(p,'orion-ground').toComponentId,undefined);
  assert.ok(comp(p,'orion').terminals.find(t=>t.id==='gnd'));
  assert.deepEqual(validateTerminals(p),[]);
