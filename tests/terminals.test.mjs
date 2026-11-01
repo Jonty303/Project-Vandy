@@ -16,6 +16,8 @@ test('Vandy has named separate DC poles, SmartShunt sides and distribution outpu
  assert.ok(comp(p,'lynx').terminals.find(t=>t.id==='output-4-positive'));
  assert.equal(comp(p,'blue-sea').terminals.filter(t=>t.id.startsWith('fuse-')).length,12);
  assert.equal(comp(p,'blue-sea').terminals.filter(t=>t.id.startsWith('return-')).length,12);
+ assert.equal(comp(p,'remote-six').terminals.filter(t=>t.kind==='switch-contact').length,6);
+ assert.ok(comp(p,'votronic-1').terminals.every(t=>t.kind==='switch-contact'));
  assert.equal(run(p,'battery-shunt').toTerminalId,'battery-minus');
  assert.equal(run(p,'shunt-lynx').fromTerminalId,'system-minus');
  assert.equal(run(p,'lynx-mppt').toTerminalId,'battery-positive');
