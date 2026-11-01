@@ -99,8 +99,65 @@ export interface AutonomySettings {
   };
 }
 
+
+/** Battery/BMS records are equipment facts; unknown specs stay null. */
+export type ThermalFeature = 'yes' | 'no' | 'unknown';
+export type CapabilityEvidence = 'documented' | 'verified' | 'unverified' | 'not-supported';
+export interface BatteryRecord {
+  id: string; componentId?: string; name: string; manufacturer: string; model: string;
+  chemistry: 'lifepo4' | 'agm' | 'gel' | 'lead-acid' | 'other' | 'unknown';
+  nominalVoltageV: number | null; capacityAh: number | null; weightKg: number | null;
+  dimensionsMm: { length:number|null; width:number|null; height:number|null };
+  maxChargeA: number | null; maxDischargeA: number | null;
+  chargeMinC: number | null; chargeMaxC: number | null;
+  dischargeMinC: number | null; dischargeMaxC: number | null;
+  bms: {
+    integrated: ThermalFeature; manufacturer:string; model:string;
+    bluetooth: ThermalFeature; vendorApp:string;
+    externalManagement: CapabilityEvidence;
+    protocol: string; documentationUrl: string;
+    cellVoltageMonitoring: ThermalFeature; balancing: ThermalFeature;
+    alarms: ThermalFeature; protectionNotes:string;
+  };
+  thermal: {
+    selfHeating: ThermalFeature; control: 'automatic'|'manual'|'bms'|'unknown';
+    onC:number|null; offC:number|null; heaterWatts:number|null;
+    source:'battery'|'external-charger'|'both'|'unknown';
+    lowTemperatureChargeCutoff:ThermalFeature; heatingStatusReported:ThermalFeature;
+  };
+  evidence:Evidence; documentationUrl:string; notes:string;
+}
+export interface BatteryBank {
+  id:string; name:string;
+  /** Each inner list is a series string; outer strings are parallel. */
+  strings:string[][];
+  notes:string;
+}
+export type CommunicationProtocol = 've-direct'|'ve-bus'|'ve-can'|'can'|'rs485'|'uart'|'usb'|'ethernet'|'bluetooth'|'aux-voltage'|'temperature'|'other';
+export type CommunicationRole = 'device'|'controller'|'sensor'|'app';
+export interface CommunicationPort {
+  id:string; componentId:string; name:string;
+  protocol:CommunicationProtocol; role:CommunicationRole;
+  /** One physical port per record; no implicit virtual expansion. */
+  documentationUrl:string; evidence:CapabilityEvidence;
+  functions:string[]; notes:string;
+}
+export type CommunicationStatus = 'proposed'|'reported'|'verified';
+export interface CommunicationConnection {
+  id:string; fromPortId:string; toPortId:string;
+  status:CommunicationStatus; cable:string; functions:string[];
+  evidence:CapabilityEvidence; notes:string;
+}
+export type MonitoringMetric = 'habitation-soc'|'starter-voltage'|'battery-temperature'|'cell-voltages'|'charging-state';
+export interface MonitoringAuthority {
+  metric:MonitoringMetric; componentId:string;
+  method:'gx'|'vendor-app'|'local'|'manual';
+  evidence:CapabilityEvidence; notes:string;
+}
+export interface DiagramPosition { componentId:string; x:number; y:number }
+
 export interface Project {
-  schemaVersion: 2; name: string; nominalBatteryVoltage: DcVoltage;
+  schemaVersion: 3; name: string; nominalBatteryVoltage: DcVoltage;
   batteryCapacityAh: number | null; inverterEfficiency: number;
   /** Optional to preserve existing v2 saved data; default behaviour is inverter. */
   acOperatingMode?: AcOperatingMode;
@@ -108,5 +165,9 @@ export interface Project {
   profiles: Profile[]; components: Component[]; circuits: Circuit[]; loads: Load[];
   topologyLinks: TopologyLink[]; protectionDevices: ProtectionDevice[];
   socketAssignments: SocketAssignment[];
+  batteries:BatteryRecord[]; batteryBanks:BatteryBank[]; activeBatteryBankId:string|null;
+  communicationPorts:CommunicationPort[]; communicationConnections:CommunicationConnection[];
+  monitoringAuthorities:MonitoringAuthority[]; diagramPositions:DiagramPosition[];
 }
-export type ProjectV1 = Omit<Project, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
+export type ProjectV2 = Omit<Project, 'schemaVersion'|'batteries'|'batteryBanks'|'activeBatteryBankId'|'communicationPorts'|'communicationConnections'|'monitoringAuthorities'|'diagramPositions'> & {schemaVersion:2};
+export type ProjectV1 = Omit<ProjectV2, 'schemaVersion' | 'topologyLinks' | 'protectionDevices' | 'socketAssignments'> & { schemaVersion: 1 };
