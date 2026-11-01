@@ -50,3 +50,23 @@ On `iteration-02`, choose **Off-grid autonomy** for battery reserve, average dri
 The calculator displays stationary and daily-driving energy balances. Solar must be fetched or supplied manually; unknown consumer watts remain flagged. The EU PVGIS source provides historical averages, not a live weather forecast, and the UK composite is an illustrative five-city unweighted mean.
 
 In the **Circuits & loads** editor, choose the consumer input supply and inspect its derived upstream logical AC source. On the **Project settings** page, select the inverter or shore pass-through operating scenario. Off-grid autonomy always calculates as the inverter scenario.
+
+## Iteration 03 — Batteries, BMS, connectivity and 2D overview
+The `iteration-03` branch adds dedicated **Batteries & BMS**, **Connectivity**, and **2D system overview** navigation. Use the new **Update** and **Reset** bar to commit/discard edits; previous values are retained until Update. Leaving a page with unsaved changes prompts before discarding them.
+
+Batteries can be recorded individually, including unknown manufacturer specifications, BMS Bluetooth/protocol abilities, low-temperature protection and self-heating. Parallel strings and series members make up the active battery bank. The off-grid planner uses the active bank's derived capacity and flags missing battery ratings or voltage mismatch rather than guessing.
+
+Connectivity shows documented Victron GX recommendations for SmartShunt, SmartSolar MPPT, Orion XS and MultiPlus. Recommendations are *not automatically connected*; users may propose a cable and explicitly record installed evidence. SmartShunt AUX offers starter voltage **or** temperature **or** midpoint. Bluetooth-only batteries remain vendor-app-only unless manufacturer documentation proves otherwise.
+
+The 2D view supports AC/DC/communications layers, component inspection, drag-to-arrange and pan/zoom. **Drawing lines are logical relationships or claimed data links, not certified wire routes.**
+
+### Codespaces
+```bash
+git fetch origin
+git switch --track origin/iteration-03
+npm install
+npm run dev
+```
+If the local branch is already checked out, use `git pull --ff-only`. Open forwarded port 5173. Browser-local v2 projects migrate to v3; JSON import/export remains supported. CI runs `npm run check` on `iteration-03`.
+
+Manufacturer documentation links and the bounded acceptance criteria are in `docs/ITERATION_03.md`.
