@@ -64,3 +64,13 @@ A distinct communications model stores individually available and occupied devic
 The interactive 2D overview has AC, DC and communications layers and operates on **the same saved logical connection model** as equipment editors. Node layouts are cosmetic and may be dragged independently by layer. It is explicitly not a wire-by-wire schematic.
 
 Manual field changes are staged with Reset/Update rather than silently persisting on every keystroke. Incomplete-but-safe data may be saved with warnings; only invalid values or broken structural relationships block Update with explicit causes. Imported v1/v2 records migrate to v3.
+
+## Device-centric connections and grounding (design refinement, 2026-11-01)
+
+One typed connection graph must underpin both device-side editing and the interactive 2D overview. Connections are editable from equipment terminals first; the eventual diagram will allow connecting or reconnecting terminal handles and will mutate the identical graph. Moving a symbol only changes its diagram position. Existing abstract topology links must not be mistaken for individual conductors.
+
+Model separately: 12/24V DC negative return, 230V protective earth, and vehicle chassis/bonding. Provide separately typed busbar/bonding nodes with named terminal positions; PE bar, Lynx/Blue Sea negative bus, and chassis grounding point are distinct unless an explicit, supported bond record joins them. Vandy's PE busbar existence/terminal count and actual chassis bonds remain unknown; the demonstration may show an **unconnected proposed placeholder**, not as-installed wiring.
+
+On devices, use **Connections** with terminal/port name and destination terminal, with Add, Change and Disconnect. Prefer **Current setting / Recommended setting** for configurable device properties. Hide confidence-scoring UI and retain technical evidence metadata only when needed internally for engineering integrity. Do not silently promote unknown, planned or manufacturer-recommended values to confirmed current settings.
+
+See `docs/ITERATION_03.md` for acceptance cases and backwards-compatibility requirements.
