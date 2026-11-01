@@ -76,6 +76,8 @@ export const terminal=(project:Project,componentId:string,terminalId:string)=>
   project.components.find(c=>c.id===componentId)?.terminals?.find(t=>t.id===terminalId);
 export const dcKind=(polarity:DcCablePolarity):TerminalKind=>
   polarity==='positive'?'dc-positive':polarity==='negative'?'dc-negative':'chassis';
+export const acKind=(conductor:'L'|'N'|'PE'):TerminalKind=>
+  conductor==='L'?'ac-line':conductor==='N'?'ac-neutral':'protective-earth';
 
 /** A legacy run receives endpoint IDs only when its original component endpoints match.
  * Edited wiring is never silently reconnected to a guessed terminal.
@@ -129,6 +131,20 @@ export function validateTerminals(project:Project):string[]{
    if(c.toTerminalId&&c.toComponentId&&terminal(project,c.toComponentId,c.toTerminalId)?.kind!==expected)
      issues.push(c.id+': destination terminal is absent or incompatible with '+c.polarity+'.');
    if(c.toComponentId===c.fromComponentId)issues.push(c.id+': cable cannot connect a device to itself.');
+ }
+ const seenAc=new Set<string>();
+ for(const c of project.acConductors??[]){
+   const kind=acKind(c.conductor);
+   const from=terminal(project,c.fromComponentId,c.fromTerminalId);
+   const to=terminal(project,c.toComponentId,c.toTerminalId);
+   if(!from||from.kind!==kind)issues.push(c.id+': AC source terminal is missing or not '+c.conductor+'.');
+   if(!to||to.kind!==kind)issues.push(c.id+': AC destination terminal is missing or not '+c.conductor+'.');
+   if(c.fromComponentId===c.toComponentId)issues.push(c.id+': AC conductor cannot join a device to itself.');
+   if((c.fromComponentId&&c.toComponentId)&&(c.fromComponentId===c.toComponentId&&c.fromTerminalId===c.toTerminalId))
+     issues.push(c.id+': AC self-loop.');
+   const key=[c.fromComponentId+'/'+c.fromTerminalId,c.toComponentId+'/'+c.toTerminalId].sort().join('~');
+   if(seenAc.has(key))issues.push(c.id+': duplicate AC conductor between the same terminals.');
+   seenAc.add(key);
  }
  for(const c of project.circuits){
    const seen=new Set<string>();
