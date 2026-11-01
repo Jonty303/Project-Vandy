@@ -73,7 +73,7 @@ test('invalid polarity/terminal reference is rejected without guessing a substit
 
 test('switch assignments belong to circuit and persist without changing load profiles',()=>{
  const p=clone();
- const prior=structuredClone(p.loads);
+ const prior=JSON.parse(JSON.stringify(p.loads));
  const circuit=p.circuits.find(c=>c.id==='floor-lighting');
  circuit.switchAssignments=[{id:'switch-a',componentId:'votronic-1'},
    {id:'switch-b',componentId:'remote-six',outputId:'remote-3'}];
