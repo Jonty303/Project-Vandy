@@ -1,4 +1,6 @@
 import type { Circuit, Component, ElectricalPort, Evidence, Load, ModeUsage, OperatingMode, Project } from '../domain/model.ts';
+import { newBattery } from '../domain/batteries.ts';
+import { vandyCommunicationPorts, vandyAuthorities } from '../domain/connectivity.ts';
 
 const profiles = [
   { id: 'normal', name: 'Normal day', description: 'Evening lighting, refrigeration and routine use' },
@@ -100,7 +102,7 @@ const loads: Load[] = [
 ];
 
 export const seedProject: Project = {
-  schemaVersion:2,
+  schemaVersion:3,
   name:'Vandy — existing electrical installation',
   nominalBatteryVoltage:12,
   batteryCapacityAh:280,
@@ -129,4 +131,21 @@ export const seedProject: Project = {
   socketAssignments:[
     {id:'hob-kitchen',socketComponentId:'kitchen-socket',positionId:'left',loadId:'hob-igniter',evidence:'reported'},
   ],
+  batteries:[{
+    ...newBattery('battery-wattcycle'),
+    name:'WattCycle 280Ah habitation battery',
+    componentId:'battery',manufacturer:'WattCycle',model:'280Ah LiFePO₄ (exact variant unconfirmed)',
+    chemistry:'lifepo4',nominalVoltageV:12,capacityAh:280,evidence:'reported',
+    bms:{...newBattery('x').bms,integrated:'yes',bluetooth:'yes',vendorApp:'WattCycle app',
+      cellVoltageMonitoring:'yes',externalManagement:'unverified',
+      protectionNotes:'Owner-reported Bluetooth BMS and cell readings. No documented external Cerbo management interface.'},
+    thermal:{...newBattery('x').thermal,selfHeating:'unknown',lowTemperatureChargeCutoff:'unknown'},
+    notes:'Exact manufacturer variant, terminal layout and thermal/heating capabilities need documentation. Bluetooth is vendor-app-only by default.'
+  }],
+  batteryBanks:[{id:'habitation-bank',name:'Habitation bank',strings:[['battery-wattcycle']],notes:'One owner-reported 12V 280Ah battery. Physical cabling/series/parallel configuration remains unverified.'}],
+  activeBatteryBankId:'habitation-bank',
+  communicationPorts:vandyCommunicationPorts,
+  communicationConnections:[],
+  monitoringAuthorities:vandyAuthorities,
+  diagramPositions:[],
 };
