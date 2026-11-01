@@ -12,12 +12,14 @@ import { BatteriesPage } from './Batteries.tsx';
 import { ConnectivityPage } from './Connectivity.tsx';
 import { SystemOverviewPage } from './SystemOverview.tsx';
 import { DcWiringPage } from './DcWiring.tsx';
+import { PortableChargingPage } from './PortableCharging.tsx';
+import { portableChargingIssues } from '../domain/portableCharging.ts';
 import { validateWiring, effectiveWiring } from '../domain/dcWiring.ts';
 import { validateProject } from '../domain/storage.ts';
 import { validateBattery, summarizeBank, activeBankSummary, batteryCapacityForPlanning } from '../domain/batteries.ts';
 import { validateCommunicationDraft } from '../domain/connectivity.ts';
 
-type Page = 'overview' | 'system-2d' | 'dc-wiring' | 'loads' | 'topology' | 'autonomy' | 'batteries' | 'connectivity' | 'equipment' | 'settings';
+type Page = 'overview' | 'system-2d' | 'dc-wiring' | 'portable-charging' | 'loads' | 'topology' | 'autonomy' | 'batteries' | 'connectivity' | 'equipment' | 'settings';
 const fmt = (value: number, digits = 0) => value.toLocaleString('en-GB', { maximumFractionDigits: digits });
 const makeId = () => crypto.randomUUID();
 const toNullable = (value: string) => value.trim() === '' ? null : Math.max(0, Number(value));
@@ -62,6 +64,7 @@ export function App() {
     ...project.batteries.flatMap(b=>validateBattery(b).filter(d=>d.level==='blocker').map(d=>`${b.name||'Unnamed battery'} — ${d.message}`)),
     ...project.batteryBanks.flatMap(b=>summarizeBank(project,b).diagnostics.filter(d=>d.level==='blocker').map(d=>`${b.name||'Unnamed bank'} — ${d.message}`)),
     ...validateCommunicationDraft(project).map(d=>d.message),
+    ...portableChargingIssues(project),
     ...validateWiring(effectiveWiring(project)).filter(i=>i.severity==='blocker').map(d=>`DC wiring — ${d.message}`),
     ...(!validateProject(project)?['Project data is structurally invalid. Check field values and referenced components before updating.']:[])
   ];
@@ -157,13 +160,13 @@ export function App() {
       <div className="nav-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
         {([
-          ['overview','Dashboard',Gauge],['system-2d','2D system overview',GitBranch],['dc-wiring','DC cables & fuses',Cable],['batteries','Batteries & BMS',BatteryFull],['connectivity','Connectivity',Cable],['loads','Circuits & loads',Layers],['topology','Logical topology',Network],['autonomy','Off-grid autonomy',CloudSun],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
+          ['overview','Dashboard',Gauge],['system-2d','2D system overview',GitBranch],['dc-wiring','DC cables & fuses',Cable],['portable-charging','Phones & tablets',BatteryCharging],['batteries','Batteries & BMS',BatteryFull],['connectivity','Connectivity',Cable],['loads','Circuits & loads',Layers],['topology','Logical topology',Network],['autonomy','Off-grid autonomy',CloudSun],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
         ] as const).map(([id,label,Icon])=><button key={id} className={`nav-item ${page===id?'active':''}`} onClick={()=>navigate(id)}><Icon size={18}/>{label}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="supply-pill"><span className="status-dot"/> ENGINE ONLINE <span>v0.3</span></div><p>12V / 24V ready<br/>Iteration 03 · Batteries & 2D</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'DASHBOARD':page==='system-2d'?'2D OVERVIEW':page==='dc-wiring'?'CABLES & FUSES':page==='batteries'?'BATTERIES & BMS':page==='connectivity'?'CONNECTIVITY':page==='loads'?'CIRCUITS & LOADS':page==='topology'?'TOPOLOGY':page==='autonomy'?'CHARGING & AUTONOMY':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 03</Tag></div></header>
+      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'DASHBOARD':page==='system-2d'?'2D OVERVIEW':page==='dc-wiring'?'CABLES & FUSES':page==='portable-charging'?'PHONES & TABLETS':page==='batteries'?'BATTERIES & BMS':page==='connectivity'?'CONNECTIVITY':page==='loads'?'CIRCUITS & LOADS':page==='topology'?'TOPOLOGY':page==='autonomy'?'CHARGING & AUTONOMY':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 03</Tag></div></header>
       <div className="content">
         {page==='overview' && <>
           <div className="hero"><div className="eyebrow"><span className="eyebrow-line"/> ENERGY PLANNING / VANDY V1</div><div className="hero-row"><div><h1>Know your power.<br/><em>Before you need it.</em></h1><p>Understand consumption, identify missing measurements and organise every appliance into its electrical circuit.</p></div><div className="voltage-card"><span>SYSTEM VOLTAGE</span><strong>{project.nominalBatteryVoltage}<small>V</small></strong><p>Habitation battery</p></div></div></div>
@@ -172,12 +175,12 @@ export function App() {
             <div className="metric"><div className="metric-top"><span>BATTERY DEMAND</span><BatteryCharging size={19}/></div><strong>{fmt(totals.batteryWh)} <small>Wh/day</small></strong><p>Partial estimate at battery terminals</p></div>
             <div className="metric"><div className="metric-top"><span>EQUIVALENT CHARGE</span><Activity size={19}/></div><strong>{fmt(totals.equivalentAh,1)} <small>Ah/day</small></strong><p>At {project.nominalBatteryVoltage}V nominal</p></div>
             <div className="metric"><div className="metric-top"><span>CONNECTED MAXIMUM</span><Gauge size={19}/></div><strong>{fmt(totals.worstCaseConnectedWatts)} <small>W</small></strong><p>Sum of known load maxima only</p></div>
-            <div className="metric incomplete"><div className="metric-top"><span>INCOMPLETE LOADS</span><AlertTriangle size={19}/></div><strong>{totals.incompleteLoads.length} <small>/ {project.loads.length}</small></strong><p>Need ratings or conversion details</p></div>
+            <div className="metric incomplete"><div className="metric-top"><span>INCOMPLETE LOADS</span><AlertTriangle size={19}/></div><strong>{totals.incompleteLoads.length} <small>/ {project.loads.length+(project.portableCharges?.length??0)}</small></strong><p>Need ratings or conversion details</p></div>
           </div>
           <div className="notice"><AlertTriangle size={20}/><div><strong>Planning estimates — not an electrical safety certificate</strong><p>Totals are partial while any active load has unknown electrical demand. Power figures do not establish safe conductor sizes, overcurrent protection, electrical compliance or actual battery autonomy.</p></div></div>
-          <div className="section-heading table-title"><div><h2>Circuits at a glance</h2><p>{project.circuits.length} named circuits · {project.loads.length} individual consumers</p></div><button className="button primary" onClick={()=>setPage('loads')}><Layers size={16}/> Manage circuits</button></div>
+          <div className="section-heading table-title"><div><h2>Circuits at a glance</h2><p>{project.circuits.length} named circuits · {project.loads.length} electrical consumers · {project.portableCharges?.length??0} portable devices</p></div><button className="button primary" onClick={()=>setPage('loads')}><Layers size={16}/> Manage circuits</button></div>
           <div className="table-wrap"><table><thead><tr><th>Electrical circuit</th><th>Supply</th><th>Consumers</th><th>Battery Wh/day</th><th>Status</th></tr></thead><tbody>{totals.circuitResults.map(c=>{const source=project.circuits.find(x=>x.id===c.circuitId)!;return <tr key={c.circuitId} onClick={()=>{setSelectedCircuit(c.circuitId);setSelectedLoad(null);setPage('loads')}} className="clickable"><td><strong>{c.name}</strong></td><td>{supplyLabels[source.supply]} · {source.voltage}V</td><td>{c.loads.length}</td><td className="num">{fmt(c.batteryWh,1)}</td><td>{c.incomplete?<Tag tone="warn">Needs data</Tag>:<Tag tone="good">Calculated</Tag>}</td></tr>})}</tbody></table></div>
-          <p className="footer-note">Battery capacity: {project.batteryCapacityAh===null?'not provided':`${fmt(project.batteryCapacityAh)} Ah nominal`} · Inverter efficiency: {fmt(project.inverterEfficiency*100)}% assumed · This snapshot does not predict usable battery runtime.</p>
+          <p className="footer-note">Active battery bank: {batteryCapacityForPlanning(project)===null?'capacity unknown':`${fmt(batteryCapacityForPlanning(project)!)} Ah nominal`} · Inverter efficiency: {fmt(project.inverterEfficiency*100)}% assumed · This snapshot does not predict usable battery runtime.</p>
         </>}
         {page==='loads' && <>
           <div className="section-heading heading-top"><div><div className="eyebrow">BUILD YOUR ELECTRICAL INVENTORY</div><h1>Circuits & loads</h1><p>Define the groups that will become your future electrical schematic.</p></div><button className="button primary" onClick={addCircuit}><Plus size={16}/> New circuit</button></div>
@@ -220,6 +223,7 @@ export function App() {
           navigate(id.startsWith('circuit:')?'loads':c?.kind==='battery'?'batteries':project.communicationPorts.some(p=>p.componentId===id)?'connectivity':'equipment');
         }}/>}
         {page==='dc-wiring' && <DcWiringPage project={project} change={patchProject}/>}
+        {page==='portable-charging' && <PortableChargingPage project={project} profileId={activeProfileId} change={patchProject}/>}
         {page==='batteries' && <BatteriesPage project={project} change={patchProject}/>}
         {page==='connectivity' && <ConnectivityPage project={project} change={patchProject}/>}
         {page==='topology' && <TopologyPage project={project} change={patchProject}/>}
