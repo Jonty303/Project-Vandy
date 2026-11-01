@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Project, GroundingConnection, DcCableRun, TopologyLink, CommunicationConnection, TerminalKind } from '../domain/model.ts';
+import type { Project, Component, GroundingConnection, DcCableRun, TopologyLink, CommunicationConnection, TerminalKind } from '../domain/model.ts';
 import { effectiveWiring } from '../domain/dcWiring.ts';
 import { groundingTerminal } from '../domain/grounding.ts';
 import { dcKind } from '../domain/terminals.ts';
@@ -24,7 +24,7 @@ export function DeviceConnections({project,change,componentId}:Props){
   const [dataFrom,setDataFrom]=useState('');
   const [dataTo,setDataTo]=useState('');
   if(!component)return null;
-  const asGround=(c:typeof component)=>(c.terminals??[]).filter(t=>t.kind==='chassis'||t.kind==='protective-earth')
+  const asGround=(c:Component)=>(c.terminals??[]).filter(t=>t.kind==='chassis'||t.kind==='protective-earth')
     .map(t=>({id:t.id,label:t.label,kind:t.kind==='chassis'?'chassis' as const:'pe' as const}));
   const allTerminals=project.components.flatMap(c=>asGround(c).map(t=>({key:pair(c.id,t.id),componentId:c.id,terminalId:t.id,kind:t.kind,label:c.name+' — '+t.label})));
   const ownGround=asGround(component);
