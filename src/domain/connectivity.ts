@@ -49,9 +49,11 @@ export function connectionDiagnostics(project:Project):ConnectionDiagnostic[]{
        results.push({id:c.id,level:'warning',message:'CAN connector shape alone does not prove Victron protocol/BMS-DVCC compatibility.'});
   }
   for(const a of project.monitoringAuthorities){
-    if(!project.components.some(c=>c.id===a.componentId))
+    if(!a.componentId)
+      results.push({id:a.metric,level:'incomplete',message:`${a.metric}: measurement authority is not assigned.`});
+    else if(!project.components.some(c=>c.id===a.componentId))
       results.push({id:a.metric,level:'blocker',message:'Monitoring authority references a missing device.'});
-    if(a.method==='gx'&&!project.communicationConnections.some(c=>{
+    if(a.componentId && a.method==='gx'&&!project.communicationConnections.some(c=>{
       const left=project.communicationPorts.find(p=>p.id===c.fromPortId);
       const right=project.communicationPorts.find(p=>p.id===c.toPortId);
       return [left?.componentId,right?.componentId].includes(a.componentId)&&[left?.componentId,right?.componentId].includes('cerbo');
