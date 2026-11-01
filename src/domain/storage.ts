@@ -1,6 +1,7 @@
 import type { Component, Load, Project, ProjectV1, ProjectV2 } from './model.ts';
 import { seedProject } from '../data/vandy.ts';
 import { initialWiringPlan } from './dcWiring.ts';
+import { vandyPortableCharging } from './portableCharging.ts';
 
 export const STORAGE_KEY = 'project-vandy:project:v3';
 export const V2_STORAGE_KEY = 'project-vandy:project:v2';
@@ -113,6 +114,15 @@ export function validateProject(x: unknown): x is Project {
     ['proposed','reported','verified'].includes(String(v.status))&&validString(v.notes)))return false;
   if(!x.diagramPositions.every((v:unknown)=>isRecord(v)&&validString(v.componentId)&&
     validNumber(v.x)&&validNumber(v.y)))return false;
+  if('portableCharges' in x && x.portableCharges!==undefined){
+    if(!Array.isArray(x.portableCharges))return false;
+    if(!x.portableCharges.every((d:unknown)=>isRecord(d)&&validString(d.id)&&validString(d.name)&&
+      ['iphone','ipad','other'].includes(String(d.category))&&validNullableNum(d.batteryWh)&&
+      validEvidence(d.batteryEvidence)&&validString(d.specificationUrl)&&
+      validNumber(d.rechargeFraction)&&validNumber(d.chargingEfficiency)&&
+      isRecord(d.chargesPerDay)&&Object.values(d.chargesPerDay).every(validNonnegative)&&
+      validString(d.circuitId)&&validString(d.notes)))return false;
+  }
   if('dcWiring' in x && x.dcWiring!==undefined){
     const w=x.dcWiring;
     if(!isRecord(w)||!Array.isArray(w.fuses)||!Array.isArray(w.cables)||!validString(w.notes))return false;
@@ -180,7 +190,22 @@ function hydrateWiring(p:Project):Project{
     {...b,name:'WattCycle 280Ah Mini Bluetooth habitation battery',
       model:'280Ah Mini Bluetooth LiFePO₄ (revision unconfirmed)',
       notes:[b.notes,'Owner confirmed Mini Bluetooth version; exact revision and self-heating still unverified.'].filter(Boolean).join(' ')}:b);
-  return {...p,components,circuits,loads,batteries,dcWiring:p.dcWiring??structuredClone(initialWiringPlan)};
+  // Legacy USB panel placeholder usage may be the energy of the same devices.
+  // Only neutralise factory-default placeholders, never a user's changed values.
+  const adaptedLoads=p.portableCharges===undefined?loads.map(l=>{
+    if(!['usb-1','usb-2'].includes(l.id)||l.kind!=='standard'||l.modes.length!==1)return l;
+    const m=l.modes[0];
+    const factory=Object.entries({normal:60,working:120,winter:60}).every(([id,minutes])=>
+      m.usage[id]?.minutesPerDay===minutes && m.watts===null);
+    return factory?{...l,modes:[{...m,usage:Object.fromEntries(Object.entries(m.usage).map(([id,u])=>
+      [id,{...u,minutesPerDay:0}]))}],
+      notes:[l.notes,'Factory USB placeholder usage reset because portable charges now model device energy.'].filter(Boolean).join(' ')}:l;
+  }):loads;
+  const userHasUSBPlaceholder=adaptedLoads.some(l=>['usb-1','usb-2'].includes(l.id)&&
+    l.modes.some(m=>Object.values(m.usage).some(u=>u.minutesPerDay>0)));
+  const devices=p.portableCharges??(userHasUSBPlaceholder?[]:structuredClone(vandyPortableCharging));
+  return {...p,components,circuits,loads:adaptedLoads,batteries,dcWiring:p.dcWiring??structuredClone(initialWiringPlan),
+    portableCharges:devices};
 }
 /** Merge new reference entries without overwriting changed user objects or profiles. */
 export function migrateProject(x: unknown): Project | null {
@@ -208,7 +233,7 @@ export function migrateProject(x: unknown): Project | null {
       activeBatteryBankId:'habitation-bank',
       communicationPorts:vandy.communicationPorts.filter(p=>componentIds.has(p.componentId)),
       communicationConnections:[],monitoringAuthorities:vandy.monitoringAuthorities.filter(a=>componentIds.has(a.componentId)),
-      auxiliaryAssignments:[],diagramPositions:[]});
+      auxiliaryAssignments:[],diagramPositions:[],portableCharges:[]});
   }
   if(!isLegacyProject(x)) return null;
   const old=x as ProjectV1;
