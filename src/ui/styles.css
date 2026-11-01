@@ -199,3 +199,24 @@
 .overview-metrics span{border-radius:6px;padding:6px;background:#183849;color:#a8d6d9;font-size:10px}
 @media(max-width:1100px){.overview-layout{grid-template-columns:1fr}.overview-detail-panel{max-height:none}.connection-recs{grid-template-columns:1fr}}
 @media(max-width:720px){.project-edit-bar{align-items:stretch;flex-direction:column;bottom:0}.project-edit-actions{justify-content:flex-end}.bank-totals{grid-template-columns:1fr}.connection-port-grid{grid-template-columns:1fr}.port-line{grid-template-columns:1.4fr 1fr}.overview-svg{min-height:430px}}
+
+/* Vandy as-installed DC power plan */
+.dc-wiring-page{display:grid;gap:18px}
+.dc-wiring-page .panel{margin:0}
+.dc-wiring-page .panel-head h2{display:flex;align-items:center;gap:9px}
+.dc-wiring-page .panel-head p{font-size:12px;color:#a2bec8;margin:8px 0 0}
+.wiring-mini-facts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.wiring-mini-facts span{display:inline-flex;align-items:center;gap:7px;border:1px solid #315b65;background:#122e3d;color:#bfdfdf;border-radius:7px;padding:9px 11px;font-size:11px}
+.fuse-schedule,.dc-cable-list{display:grid;gap:13px}
+.fuse-row,.dc-cable-row{border:1px solid #355b68;background:#112c3b;border-radius:10px;padding:14px;display:grid;gap:12px}
+.fuse-title,.cable-name{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fuse-title strong,.cable-name strong{font-size:13px}
+.fuse-title small,.cable-name small{color:#9fbcc5;font-size:11px}
+.fuse-fields,.dc-cable-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.fuse-fields label,.dc-cable-fields label{min-width:0;color:#a2c5ca;font-size:11px;font-weight:700;display:flex;flex-direction:column;gap:6px}
+.fuse-fields input,.fuse-fields select,.dc-cable-fields input,.dc-cable-fields select{max-width:100%;min-width:0;width:100%;color:#e4f3f3}
+.fuse-notes,.cable-notes{font-size:11px;color:#a4c2ca;line-height:1.65;margin:0}
+.computed-size{min-height:37px;display:flex;align-items:center;padding:9px 11px;border-radius:6px;border:1px solid #31515e;background:#152e39;color:#d9f0e8;font-size:12px;font-weight:700;line-height:1.4}
+.fuse-row .field-warning,.dc-cable-row .field-warning{margin:0}
+@media(max-width:900px){.fuse-fields,.dc-cable-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.fuse-title,.cable-name{align-items:flex-start;flex-direction:column}.fuse-fields,.dc-cable-fields{grid-template-columns:1fr 1fr}.computed-size{font-size:11px}}
