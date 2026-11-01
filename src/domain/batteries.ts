@@ -50,8 +50,10 @@ export function summarizeBank(project:Project,bank:BatteryBank):BankSummary{
   if(lengths.size>1)diagnostics.push({field:'strings',level:'blocker',message:'Parallel strings must have matching series counts.'});
   const strings=bank.strings.map((string,index)=>{
     const batteries=string.map(id=>{
-      if(used.has(id))diagnostics.push({field:'strings',level:'blocker',message:`Battery ${id} is used more than once in this bank.`});
-      used.add(id);
+      if(id){
+        if(used.has(id))diagnostics.push({field:'strings',level:'blocker',message:`Battery ${id} is used more than once in this bank.`});
+        used.add(id);
+      }
       const found=project.batteries.find(b=>b.id===id);
       if(!found)diagnostics.push({field:'strings',level:id===''?'incomplete':'blocker',
         message:id===''?'A series position is unassigned; this draft bank can be saved but not rated.':`Bank references missing battery ${id}.`});
