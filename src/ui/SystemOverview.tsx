@@ -68,8 +68,14 @@ function networkData(project:Project,layer:Layer){
       // Draw positive and negative paths separately, including the confirmed shunt return.
       if(c.polarity==='negative'&&c.toCircuitId)continue;
       const fuse=wiring.fuses.find(f=>f.id===c.fuseId);
+      const terminalName=(componentId:string,terminalId?:string)=>
+        project.components.find(x=>x.id===componentId)?.terminals?.find(t=>t.id===terminalId)?.label??
+        (terminalId??'terminal unassigned');
+      const endpoints=terminalName(c.fromComponentId,c.fromTerminalId)+' → '+
+        (c.toCircuitId?'Circuit '+(project.circuits.find(x=>x.id===c.toCircuitId)?.name??c.toCircuitId):
+          terminalName(c.toComponentId??'',c.toTerminalId));
       edges.push({id:c.id,from:c.fromComponentId,to:dest,status:c.status==='reported'?'reported':'proposed',
-        description:`${c.name} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
+        description:`${c.name} · ${endpoints} · ${c.lengthM}m (${c.lengthEvidence}) · ${c.polarity}${fuse?` · ${fuse.ratingA??'?'}A ${fuse.status} fuse, ${fuse.placement} near ${fuse.nearComponentId??'unconfirmed'}`:''}`});
     }
   }
   const count=new Map<number,number>();
