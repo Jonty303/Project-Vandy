@@ -61,9 +61,12 @@ export function DcWiringPage({project,change}:Props){
     </div>)}</div>
   </section>
   <section className="panel"><div className="panel-head"><div><h2><Cable size={19}/> Cable lengths & conductor sizing</h2>
-    <p>Update a length to recalculate the suggested cable size and estimated voltage drop. Each positive or negative conductor is an independent run.</p></div></div>
+    <p>Update a length to recalculate the provisional conductor size and an indicative voltage drop assuming an equal-length return. Actual positive and negative lengths may differ and must be checked together.</p></div></div>
     <div className="dc-cable-list">{shownCables.map(c=>{
-      const result=sizeCable(c);const linkedFuse=plan.fuses.find(f=>f.id===c.fuseId);
+      const linkedFuse=plan.fuses.find(f=>f.id===c.fuseId)??(c.toCircuitId?
+        plan.fuses.find(f=>f.holderComponentId==='blue-sea'&&
+          project.circuits.find(t=>t.id===c.toCircuitId)?.sourceOutputId==='fuse-'+f.slot):undefined);
+      const result=sizeCable(c,linkedFuse?.ratingA??null);
       return <div key={c.id} className="dc-cable-row">
        <div className="cable-name"><strong>{c.name}</strong><small>{componentName(c.fromComponentId)} → {c.toCircuitId?circuitName(c.toCircuitId):componentName(c.toComponentId)} · {c.polarity}</small></div>
        <div className="dc-cable-fields">
@@ -81,7 +84,7 @@ export function DcWiringPage({project,change}:Props){
        </div>
        <p className="cable-notes">{c.notes}</p>
        {c.lengthEvidence==='assumed'&&<p className="field-warning"><AlertTriangle size={14}/> 1m planning assumption, not measured.</p>}
-       {c.designCurrentA===null&&<p className="field-warning"><AlertTriangle size={14}/> Load current is unknown; wire size cannot be finalised. You can save this incomplete circuit.</p>}
+       {c.designCurrentA===null&&<p className="field-warning"><AlertTriangle size={14}/> Load current is unknown. The indicated wire size uses the proposed fuse rating as a conservative sizing envelope, not a measured device demand. You may save this incomplete circuit.</p>}
        {issues.filter(i=>i.id===c.id&&i.severity==='blocker').map((i,index)=><p className="field-blocker" key={index}><AlertTriangle size={14}/>{i.message}</p>)}
       </div>;
     })}</div>
