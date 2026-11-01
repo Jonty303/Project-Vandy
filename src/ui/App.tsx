@@ -217,7 +217,7 @@ export function App() {
         </>}
         {page==='system-2d' && <SystemOverviewPage project={project} change={patchProject} onOpenDevice={id=>{
           const c=project.components.find(c=>c.id===id);
-          navigate(c?.kind==='battery'?'batteries':project.communicationPorts.some(p=>p.componentId===id)?'connectivity':'equipment');
+          navigate(id.startsWith('circuit:')?'loads':c?.kind==='battery'?'batteries':project.communicationPorts.some(p=>p.componentId===id)?'connectivity':'equipment');
         }}/>}
         {page==='dc-wiring' && <DcWiringPage project={project} change={patchProject}/>}
         {page==='batteries' && <BatteriesPage project={project} change={patchProject}/>}
