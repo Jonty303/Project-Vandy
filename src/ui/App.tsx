@@ -11,11 +11,13 @@ import { seedProject } from '../data/vandy.ts';
 import { BatteriesPage } from './Batteries.tsx';
 import { ConnectivityPage } from './Connectivity.tsx';
 import { SystemOverviewPage } from './SystemOverview.tsx';
+import { DcWiringPage } from './DcWiring.tsx';
+import { validateWiring, effectiveWiring } from '../domain/dcWiring.ts';
 import { validateProject } from '../domain/storage.ts';
 import { validateBattery, summarizeBank, activeBankSummary, batteryCapacityForPlanning } from '../domain/batteries.ts';
 import { validateCommunicationDraft } from '../domain/connectivity.ts';
 
-type Page = 'overview' | 'system-2d' | 'loads' | 'topology' | 'autonomy' | 'batteries' | 'connectivity' | 'equipment' | 'settings';
+type Page = 'overview' | 'system-2d' | 'dc-wiring' | 'loads' | 'topology' | 'autonomy' | 'batteries' | 'connectivity' | 'equipment' | 'settings';
 const fmt = (value: number, digits = 0) => value.toLocaleString('en-GB', { maximumFractionDigits: digits });
 const makeId = () => crypto.randomUUID();
 const toNullable = (value: string) => value.trim() === '' ? null : Math.max(0, Number(value));
@@ -60,6 +62,7 @@ export function App() {
     ...project.batteries.flatMap(b=>validateBattery(b).filter(d=>d.level==='blocker').map(d=>`${b.name||'Unnamed battery'} — ${d.message}`)),
     ...project.batteryBanks.flatMap(b=>summarizeBank(project,b).diagnostics.filter(d=>d.level==='blocker').map(d=>`${b.name||'Unnamed bank'} — ${d.message}`)),
     ...validateCommunicationDraft(project).map(d=>d.message),
+    ...validateWiring(effectiveWiring(project)).filter(i=>i.severity==='blocker').map(d=>`DC wiring — ${d.message}`),
     ...(!validateProject(project)?['Project data is structurally invalid. Check field values and referenced components before updating.']:[])
   ];
   function resetPageEdits(){setProject(structuredClone(savedProject));setSaveErrors([]);setMessage('Changes discarded; last saved values restored.');}
@@ -154,13 +157,13 @@ export function App() {
       <div className="nav-label">WORKSPACE</div>
       <nav aria-label="Main navigation">
         {([
-          ['overview','Dashboard',Gauge],['system-2d','2D system overview',GitBranch],['batteries','Batteries & BMS',BatteryFull],['connectivity','Connectivity',Cable],['loads','Circuits & loads',Layers],['topology','Logical topology',Network],['autonomy','Off-grid autonomy',CloudSun],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
+          ['overview','Dashboard',Gauge],['system-2d','2D system overview',GitBranch],['dc-wiring','DC cables & fuses',Cable],['batteries','Batteries & BMS',BatteryFull],['connectivity','Connectivity',Cable],['loads','Circuits & loads',Layers],['topology','Logical topology',Network],['autonomy','Off-grid autonomy',CloudSun],['equipment','Equipment library',Cpu],['settings','Project settings',Settings]
         ] as const).map(([id,label,Icon])=><button key={id} className={`nav-item ${page===id?'active':''}`} onClick={()=>navigate(id)}><Icon size={18}/>{label}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="supply-pill"><span className="status-dot"/> ENGINE ONLINE <span>v0.3</span></div><p>12V / 24V ready<br/>Iteration 03 · Batteries & 2D</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'DASHBOARD':page==='system-2d'?'2D OVERVIEW':page==='batteries'?'BATTERIES & BMS':page==='connectivity'?'CONNECTIVITY':page==='loads'?'CIRCUITS & LOADS':page==='topology'?'TOPOLOGY':page==='autonomy'?'CHARGING & AUTONOMY':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 03</Tag></div></header>
+      <header className="topbar"><div className="breadcrumb">PROJECTS <span>/</span> VANDY <span>/</span> <b>{page==='overview'?'DASHBOARD':page==='system-2d'?'2D OVERVIEW':page==='dc-wiring'?'CABLES & FUSES':page==='batteries'?'BATTERIES & BMS':page==='connectivity'?'CONNECTIVITY':page==='loads'?'CIRCUITS & LOADS':page==='topology'?'TOPOLOGY':page==='autonomy'?'CHARGING & AUTONOMY':page==='equipment'?'EQUIPMENT':'SETTINGS'}</b></div><div className="top-actions"><Tag tone={persisted?'good':'warn'}><Save size={12}/>{persisted?' Saved locally':' Storage unavailable'}</Tag><Tag tone="accent">ITERATION 03</Tag></div></header>
       <div className="content">
         {page==='overview' && <>
           <div className="hero"><div className="eyebrow"><span className="eyebrow-line"/> ENERGY PLANNING / VANDY V1</div><div className="hero-row"><div><h1>Know your power.<br/><em>Before you need it.</em></h1><p>Understand consumption, identify missing measurements and organise every appliance into its electrical circuit.</p></div><div className="voltage-card"><span>SYSTEM VOLTAGE</span><strong>{project.nominalBatteryVoltage}<small>V</small></strong><p>Habitation battery</p></div></div></div>
@@ -216,6 +219,7 @@ export function App() {
           const c=project.components.find(c=>c.id===id);
           navigate(c?.kind==='battery'?'batteries':project.communicationPorts.some(p=>p.componentId===id)?'connectivity':'equipment');
         }}/>}
+        {page==='dc-wiring' && <DcWiringPage project={project} change={patchProject}/>}
         {page==='batteries' && <BatteriesPage project={project} change={patchProject}/>}
         {page==='connectivity' && <ConnectivityPage project={project} change={patchProject}/>}
         {page==='topology' && <TopologyPage project={project} change={patchProject}/>}
