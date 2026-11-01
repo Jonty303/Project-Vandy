@@ -2,6 +2,7 @@ import type { Circuit, Component, ElectricalPort, Evidence, Load, ModeUsage, Ope
 import { newBattery } from '../domain/batteries.ts';
 import { vandyCommunicationPorts, vandyAuthorities } from '../domain/connectivity.ts';
 import { initialWiringPlan } from '../domain/dcWiring.ts';
+import { defaultTerminals, hydrateCableTerminals } from '../domain/terminals.ts';
 import { vandyPortableCharging } from '../domain/portableCharging.ts';
 
 const profiles = [
@@ -57,7 +58,7 @@ const portMap: Record<string,ElectricalPort[]> = {
   'blue-sea':[dc('dc-in','Fuse-block DC input','input')],
   multiplus:[ac('ac-in','AC shore input','input'),ac('ac-out','AC output','output'),dc('dc-in','DC inverter input','input')]
 };
-const components: Component[] = [
+const seededComponents: Component[] = [
   ...originalComponents.map(c=>portMap[c.id] ? {...c,ports:portMap[c.id]} : c),
   {...component('front-earth-busbar','Main equipment earth busbar','bonding-busbar',undefined,'Common earth busbar serving the main electrical equipment area; each individual equipment connection can be recorded separately.','reported'),groundingTerminals:[{id:'bond',label:'Bonding busbar',kind:'chassis'}]},
   {...component('front-chassis-ground','Main equipment vehicle ground point','ground-point',undefined,'Vehicle chassis ground point connected to the main equipment earth busbar. Precise fixing/location not recorded.','reported'),groundingTerminals:[{id:'stud',label:'Chassis ground stud',kind:'chassis'}]},
@@ -69,6 +70,8 @@ const components: Component[] = [
   {...component('garage-socket','Garage single socket','socket-outlet',undefined,'230V socket; circuit and protection unverified','reported'),voltage:'230',ports:[ac('ac-in','230V supply','input')],socketPositions:[{id:'only',label:'Socket 1'}],hazards:['electric-shock']},
   {...component('maxxair-vent','Maxxair / Airxcel roof vent','appliance',undefined,'Model and current still to confirm','reported'),voltage:12},
 ];
+
+const components:Component[]=seededComponents.map(c=>({...c,terminals:defaultTerminals(c)}));
 
 const circuits: Circuit[] = [
   {id:'refrigeration',name:'Refrigeration',supply:'dc',voltage:12},
@@ -177,6 +180,6 @@ export const seedProject: Project = {
   monitoringAuthorities:vandyAuthorities,
   auxiliaryAssignments:[],
   diagramPositions:[],
-  dcWiring:structuredClone(initialWiringPlan),
+  dcWiring:{...structuredClone(initialWiringPlan),cables:initialWiringPlan.cables.map(hydrateCableTerminals)},
   portableCharges:structuredClone(vandyPortableCharging),
 };
