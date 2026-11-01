@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { Project, Component, GroundingConnection, DcCableRun, TopologyLink, CommunicationConnection, TerminalKind } from '../domain/model.ts';
+import type { Project, Component, GroundingConnection, DcCableRun, AcConductorRun, TopologyLink, CommunicationConnection, TerminalKind } from '../domain/model.ts';
 import { effectiveWiring } from '../domain/dcWiring.ts';
 import { groundingTerminal } from '../domain/grounding.ts';
-import { dcKind } from '../domain/terminals.ts';
+import { dcKind, acKind } from '../domain/terminals.ts';
 
 type Props={project:Project;change:(fn:(p:Project)=>Project)=>void;componentId:string};
 const pair=(a:string,b:string)=>JSON.stringify([a,b]);
@@ -19,6 +19,9 @@ export function DeviceConnections({project,change,componentId}:Props){
   const [dcFromTerminal,setDcFromTerminal]=useState('');
   const [dcToTerminal,setDcToTerminal]=useState('');
   const [newTerminalKind,setNewTerminalKind]=useState<TerminalKind>('dc-positive');
+  const [acConductor,setAcConductor]=useState<AcConductorRun['conductor']>('L');
+  const [acLocal,setAcLocal]=useState('');
+  const [acPeer,setAcPeer]=useState('');
   const [logicalFrom,setLogicalFrom]=useState('');
   const [logicalTo,setLogicalTo]=useState('');
   const [dataFrom,setDataFrom]=useState('');
@@ -84,6 +87,9 @@ export function DeviceConnections({project,change,componentId}:Props){
   }
   const ownPhysical=component.terminals??[];
   const referenced=(terminalId:string)=>
+    (project.acConductors??[]).some(c=>
+      (c.fromComponentId===componentId&&c.fromTerminalId===terminalId)||
+      (c.toComponentId===componentId&&c.toTerminalId===terminalId))||
     effectiveWiring(project).cables.some(c=>
       (c.fromComponentId===componentId&&c.fromTerminalId===terminalId)||
       (c.toComponentId===componentId&&c.toTerminalId===terminalId))||
@@ -102,6 +108,23 @@ export function DeviceConnections({project,change,componentId}:Props){
       return {...p,components:p.components.map(c=>c.id===componentId?
         {...c,terminals:[...(c.terminals??[]),{id:n,label:'New terminal',kind:newTerminalKind}]}:c)};
     });
+  }
+
+  const ac=(project.acConductors??[]).filter(c=>c.fromComponentId===componentId||c.toComponentId===componentId);
+  const acLocalOptions=(component.terminals??[]).filter(t=>t.kind===acKind(acConductor));
+  const acPeers=project.components.flatMap(c=>c.id!==componentId?(c.terminals??[])
+    .filter(t=>t.kind===acKind(acConductor)).map(t=>({value:pair(c.id,t.id),label:c.name+' — '+t.label})):[]);
+  function patchAc(runId:string,patch:Partial<AcConductorRun>){
+    change(p=>({...p,acConductors:(p.acConductors??[]).map(c=>c.id===runId?{...c,...patch}:c)}));
+  }
+  function addAc(){
+    if(!acLocal||!acPeer)return;
+    const [toComponentId,toTerminalId]=unpack(acPeer);
+    const entry:AcConductorRun={id:id(),fromComponentId:componentId,fromTerminalId:acLocal,
+      toComponentId,toTerminalId,conductor:acConductor,status:'proposed',
+      notes:'Individual conductor added in device editor; physical endpoints and AC protection to be verified.'};
+    change(p=>({...p,acConductors:[...(p.acConductors??[]),entry]}));
+    setAcLocal('');setAcPeer('');
   }
   const ownPorts=component.ports??[];
   const selectedPort=ownPorts.find(p=>p.id===logicalFrom)??ownPorts[0];
@@ -242,7 +265,48 @@ export function DeviceConnections({project,change,componentId}:Props){
           </select></label>}
         <button className="button small" disabled={!dcTo} onClick={addDc}>Add DC conductor</button></div>
     </details>}
-    {ownPorts.length>0&&<details><summary>Logical AC/DC supply links ({logicalLinks.length})</summary>
+    {(component.ports?.some(p=>p.system==='ac')||ac.length>0)&&
+      <details><summary>Physical 230V conductors ({ac.length})</summary>
+        <small>AC line, neutral and protective earth are separate records. A logical supply link never creates these wires. Use Earth & chassis for bonds to vehicle grounding points.</small>
+        {ac.map(c=>{
+          const localFrom=c.fromComponentId===componentId;
+          const kind=acKind(c.conductor);
+          const local=localFrom?c.fromTerminalId:c.toTerminalId;
+          const peer=pair(localFrom?c.toComponentId:c.fromComponentId,localFrom?c.toTerminalId:c.fromTerminalId);
+          const localOpts=(component.terminals??[]).filter(t=>t.kind===kind);
+          const peerOpts=project.components.flatMap(other=>other.id!==componentId?(other.terminals??[])
+            .filter(t=>t.kind===kind).map(t=>({value:pair(other.id,t.id),label:other.name+' — '+t.label})):[]);
+          return <div key={c.id} className="connect-edit">
+            <strong>{c.conductor} — {c.status} conductor</strong>
+            <label className="field"><span>Local terminal</span><select value={local}
+              onChange={e=>patchAc(c.id,localFrom?{fromTerminalId:e.target.value}:{toTerminalId:e.target.value})}>
+              {localOpts.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
+            <label className="field"><span>Other terminal</span><select value={peer} onChange={e=>{
+              const [target,terminalId]=unpack(e.target.value);
+              patchAc(c.id,localFrom?{toComponentId:target,toTerminalId:terminalId}:{fromComponentId:target,fromTerminalId:terminalId});
+            }}>{peerOpts.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
+            <label className="field"><span>Installation state</span><select value={c.status}
+              onChange={e=>patchAc(c.id,{status:e.target.value as AcConductorRun['status']})}>
+              <option value="proposed">Proposed</option><option value="reported">Owner-reported</option><option value="verified">User-marked verified</option>
+            </select></label>
+            <button className="button small" onClick={()=>change(p=>({...p,acConductors:(p.acConductors??[]).filter(x=>x.id!==c.id)}))}>Remove conductor</button>
+          </div>;
+        })}
+        <div className="form-grid">
+          <label className="field"><span>New AC conductor</span><select value={acConductor}
+            onChange={e=>{setAcConductor(e.target.value as AcConductorRun['conductor']);setAcLocal('');setAcPeer('');}}>
+            <option value="L">Line (L)</option><option value="N">Neutral (N)</option><option value="PE">Protective earth (PE)</option>
+          </select></label>
+          <label className="field"><span>Local terminal</span><select value={acLocal} onChange={e=>setAcLocal(e.target.value)}>
+            <option value="">Choose local terminal…</option>{acLocalOptions.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+          </select></label>
+          <label className="field"><span>Connect to</span><select value={acPeer} onChange={e=>setAcPeer(e.target.value)}>
+            <option value="">Choose compatible terminal…</option>{acPeers.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+          </select></label>
+          <button className="button small" disabled={!acLocal||!acPeer} onClick={addAc}>Add AC conductor</button>
+        </div>
+      </details>}
+        {ownPorts.length>0&&<details><summary>Logical AC/DC supply links ({logicalLinks.length})</summary>
       {logicalLinks.map(l=>{
         const localFrom=l.fromComponentId===componentId;
         const own=ownPorts.find(p=>p.id===(localFrom?l.fromPortId:l.toPortId));
@@ -276,6 +340,6 @@ export function DeviceConnections({project,change,componentId}:Props){
         <label className="field"><span>Available compatible port</span><select value={dataTo} onChange={e=>setDataTo(e.target.value)}><option value="">Choose port…</option>{dataCandidates.map(p=><option key={p.id} value={p.id}>{pname(p.id)}</option>)}</select></label>
         <button className="button small" disabled={!dataTo} onClick={addData}>Add data connection</button></div>
     </details>}
-    {!earths.length&&!dc.length&&!logicalLinks.length&&!existingData.length&&<small>No connections yet. Use an available terminal or port to add one.</small>}
+    {!earths.length&&!dc.length&&!ac.length&&!logicalLinks.length&&!existingData.length&&<small>No connections yet. Use an available terminal or port to add one.</small>}
   </div>;
 }
