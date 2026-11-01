@@ -37,6 +37,21 @@ export function sizeCable(run:DcCableRun, fuseDesignEnvelopeA:number|null=null){
  if(i===null)return {mm2:null,awg:null,voltageDropPct:null,
    note:'Both load/design current and fuse envelope are unknown. No meaningful conductor estimate.'};
 
+ // Manufacturer-specific cable/terminal limits override generic planning floors.
+ // For Orion XS 12/12-50A, Victron accepts 16mm² OR AWG6 under 5m, then AWG4
+ // (21.2mm²) for 5–10m; the terminal maximum is AWG4. These are NOT equal areas.
+ if(['starter-orion','orion-battery','orion-ground'].includes(run.id)){
+   if(run.lengthM<5 && i<=70)
+     return {mm2:16,awg:{awg:'6',actualMm2:13.3},
+       voltageDropPct:voltageDropPct(run.lengthM,i,16,run.voltageV),
+       note:'Victron manufacturer alternatives: 16mm² or 6AWG for <5m, with 60–70A external fusing. They are accepted alternatives, not exact area equivalents.'};
+   if(run.lengthM>=5&&run.lengthM<=10&&i<=70)
+     return {mm2:null,awg:{awg:'4',actualMm2:21.2},
+       voltageDropPct:voltageDropPct(run.lengthM,i,21.2,run.voltageV),
+       note:'Victron requires AWG4 (21.2mm²) for 5–10m. Do not automatically substitute 25mm² because the maximum Orion XS terminal size is AWG4.'};
+   return {mm2:null,awg:null,voltageDropPct:null,
+     note:'Orion XS run outside documented 60–70A / 0–10m cable table. Manual assessment needed.'};
+ }
  const base=i<=5?1.5:i<=10?2.5:i<=16?4:i<=25?6:i<=40?10:i<=60?16:i<=80?25:i<=110?35:i<=150?50:i<=200?70:95;
  const neededDrop=run.voltageV>0?(2*run.lengthM*i*.0175)/(run.voltageV*.03):Infinity;
  const wanted=Math.max(base,run.manufacturerMinMm2??0,neededDrop);
