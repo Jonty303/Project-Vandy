@@ -4,7 +4,12 @@ import type { GroundingConnection, GroundingTerminal, Project } from './model.ts
  * not a continuity test, an AC neutral-earth bond or a DC negative return.
  */
 export function groundingTerminal(project:Project, componentId:string, terminalId:string):GroundingTerminal|undefined {
-  return project.components.find(c=>c.id===componentId)?.groundingTerminals?.find(t=>t.id===terminalId);
+  const component=project.components.find(c=>c.id===componentId);
+  const t=component?.terminals?.find(t=>t.id===terminalId);
+  if(t)return t.kind==='chassis'?{id:t.id,label:t.label,kind:'chassis'}:
+    t.kind==='protective-earth'?{id:t.id,label:t.label,kind:'pe'}:undefined;
+  // Old v3 projects may not yet contain the new terminal catalogue.
+  return component?.terminals===undefined?component?.groundingTerminals?.find(t=>t.id===terminalId):undefined;
 }
 export function checkGroundingLink(project:Project, link:GroundingConnection):string[] {
   const a=groundingTerminal(project,link.fromComponentId,link.fromTerminalId);
