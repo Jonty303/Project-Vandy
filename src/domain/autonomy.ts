@@ -1,5 +1,6 @@
 import type { AutonomySettings, Project } from './model.ts';
 import { calculateProject } from './calculations.ts';
+import { activeBankSummary, batteryCapacityForPlanning } from './batteries.ts';
 
 export const DEFAULT_AUTONOMY: AutonomySettings = {
   startingSocPct: 90, reserveSocPct: 20,
@@ -181,6 +182,8 @@ function provisionalIssues(project:Project,profileId:string,cfg:AutonomySettings
 }
 export function projectAutonomy(project:Project,profileId:string):AutonomyProjection {
   const cfg=autonomySettings(project);
+  const bank=activeBankSummary(project);
+  const effectiveCapacityAh=batteryCapacityForPlanning(project);
   // Off-grid autonomy always assumes the inverter makes AC, regardless of dashboard shore scenario.
   const load=calculateProject({...project,acOperatingMode:'inverter'},profileId);
   const warnings:string[]=[];
@@ -190,18 +193,26 @@ export function projectAutonomy(project:Project,profileId:string):AutonomyProjec
   const solarMonthName=monthNames[cfg.solarMonth-1]??'Unknown month';
   if(load.incompleteLoads.length)warnings.push('Some active consumers lack verified ratings. Autonomy figures are incomplete and may be optimistic.');
   if(load.warnings.some(w=>/No valid logical path/.test(w)))warnings.push('AC supply path contains unresolved topology relationships.');
-  if(!valid(project.batteryCapacityAh))warnings.push('Battery capacity is unknown.');
+  if(!valid(effectiveCapacityAh))warnings.push('Active battery-bank capacity is unknown or invalid.');
   if(cfg.startingSocPct<cfg.reserveSocPct)warnings.push('Starting state of charge is below the configured minimum reserve.');
-  const usable=valid(project.batteryCapacityAh)?project.batteryCapacityAh*project.nominalBatteryVoltage*
+  const usable=valid(effectiveCapacityAh)?effectiveCapacityAh*project.nominalBatteryVoltage*
     Math.max(0,cfg.startingSocPct-cfg.reserveSocPct)/100:null;
   const solar=estimateSolarWh(cfg);
   const dc=dcDcEstimate(cfg,project.nominalBatteryVoltage);
   warnings.push(...dc.notes);
-  if(!valid(project.batteryCapacityAh) || project.batteryCapacityAh<=0)ratingBlockers.push({
+  if(!valid(effectiveCapacityAh) || effectiveCapacityAh<=0)ratingBlockers.push({
     id:'battery-capacity',category:'battery',title:'Usable battery capacity is not available',
-    detail:'Battery capacity must be a positive number of Ah before an endurance estimate is meaningful.',
-    action:'Project settings → enter the nominal battery capacity (Ah).'
+    detail:'The active battery bank must have sufficient battery voltage and Ah ratings for its series/parallel layout. Unknown is allowed in the battery inventory but not in an endurance rating.',
+    action:'Batteries & BMS → enter rated Ah and voltage for every battery in the active bank, or select no bank to use the legacy project capacity.'
   });
+  if(bank && (bank.nominalVoltageV===null||bank.nominalVoltageV!==project.nominalBatteryVoltage)){
+    ratingBlockers.push({id:'bank-voltage',category:'battery',
+      title:bank.nominalVoltageV===null?'Battery-bank voltage is unknown':'Battery bank and system voltage do not match',
+      detail:bank.nominalVoltageV===null?'At least one series battery has no rated voltage.':
+        `Bank ${bank.nominalVoltageV}V versus configured ${project.nominalBatteryVoltage}V system. Do not assume conversion.`,
+      action:'Batteries & BMS → confirm series-string voltages, then Project settings → confirm nominal system voltage.'
+    });
+  }
   if(!Number.isFinite(cfg.startingSocPct)||!Number.isFinite(cfg.reserveSocPct) ||
     cfg.startingSocPct<0||cfg.startingSocPct>100||cfg.reserveSocPct<0||cfg.reserveSocPct>100)ratingBlockers.push({
     id:'soc-invalid',category:'battery',title:'Battery SOC settings are invalid',
@@ -225,6 +236,11 @@ export function projectAutonomy(project:Project,profileId:string):AutonomyProjec
     });
   }
   const provisionalReasons=provisionalIssues(project,profileId,cfg,solar.source);
+  if(bank)provisionalReasons.push({
+    id:'bank-source',category:'battery',title:'Capacity comes from the active battery-bank record',
+    detail:`${bank.capacityAh??'Unknown'}Ah nominal; ${bank.nominalVoltageV??'Unknown'}V. Legacy project Ah is not used when an active bank is configured.`,
+    action:'Batteries & BMS → confirm the bank components and their evidence.'
+  });
   const stationaryNet=solar.wh===null?null:load.batteryWh-solar.wh;
   const drivingNet=stationaryNet===null||dc.wh===null?null:stationaryNet-dc.wh;
   const stationary=days(usable,stationaryNet),driving=days(usable,drivingNet);
