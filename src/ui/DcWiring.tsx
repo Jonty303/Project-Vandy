@@ -7,7 +7,6 @@ type Props={project:Project;change:(fn:(p:Project)=>Project)=>void};
 const asNumber=(value:string):number|null=>value.trim()===''?null:Number(value);
 const num=(value:number|null)=>value===null?'':String(value);
 const fuseStatuses=['proposed','reported','unknown'] as const;
-const fuseConfidence=['unknown','provisional','manufacturer-range','owner-reported','owner-checked'] as const;
 const placements=['unconfirmed','battery-end','distribution-end','equipment-end','integrated-in-distributor'] as const;
 export function DcWiringPage({project,change}:Props){
  const plan=effectiveWiring(project);
@@ -46,10 +45,9 @@ export function DcWiringPage({project,change}:Props){
     <div className="fuse-schedule">{shownFuses.map(f=><div className="fuse-row" key={f.id}>
       <div className="fuse-title"><strong>{f.label}</strong><small>{f.holderComponentId?componentName(f.holderComponentId):'Independent in-line fuse'}{f.slot!==null?` · position ${f.slot}`:''}</small></div>
       <div className="fuse-fields">
-       <label>Rated amps<input type="number" min="0" step="1" placeholder="Unknown" value={num(f.ratingA)} onChange={e=>patchFuse(f.id,{ratingA:asNumber(e.target.value)})}/></label>
+       <label>{f.status==='reported'?'Current fuse rating (A)':'Proposed fuse rating (A)'}<input type="number" min="0" step="1" placeholder="Unknown" value={num(f.ratingA)} onChange={e=>patchFuse(f.id,{ratingA:asNumber(e.target.value)})}/></label>
        <label>Fuse status<select value={f.status} onChange={e=>patchFuse(f.id,{status:e.target.value as DcFuseRecord['status']})}>{fuseStatuses.map(x=><option key={x}>{x}</option>)}</select></label>
-       <label>Confidence<select value={f.confidence} onChange={e=>patchFuse(f.id,{confidence:e.target.value as DcFuseRecord['confidence']})}>{fuseConfidence.map(x=><option key={x}>{x}</option>)}</select></label>
-       <label>Actual fuse location<select value={f.placement} onChange={e=>patchFuse(f.id,{placement:e.target.value as DcFuseRecord['placement']})}>{placements.map(x=><option key={x} value={x}>{x.replaceAll('-',' ')}</option>)}</select></label>
+       <label>Current fuse location<select value={f.placement} onChange={e=>patchFuse(f.id,{placement:e.target.value as DcFuseRecord['placement']})}>{placements.map(x=><option key={x} value={x}>{x.replaceAll('-',' ')}</option>)}</select></label>
        <label>Nearest device<select value={f.nearComponentId??''} onChange={e=>patchFuse(f.id,{nearComponentId:e.target.value||null})}><option value="">Unconfirmed</option>{project.components.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
        <label>Fuse form<select value={f.fuseForm} onChange={e=>patchFuse(f.id,{fuseForm:e.target.value as DcFuseRecord['fuseForm']})}>{(['unknown','inline','MEGA','ATO-ATC'] as const).map(x=><option key={x}>{x}</option>)}</select></label>
       </div>
