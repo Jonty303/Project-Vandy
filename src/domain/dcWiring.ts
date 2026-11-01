@@ -104,8 +104,8 @@ export const initialWiringPlan:DcWiringPlan={
   cable('orion-ground','Orion XS GND return — destination unconfirmed','orion',undefined,undefined,'negative',70,16,null,'unknown','Do not assume chassis or Lynx negative: the owner has not confirmed the GND path.'),
   cable('lynx-remote','Lynx slot 1 → six-channel remote controller','lynx','remote-six',undefined,'positive',null,null,'lynx-1','reported','Owner confirms remote now occupies the former Orion Lynx position; slot number 1 is provisional. Manufacturer current ratings absent.'),
   cable('lynx-blue-sea','Lynx slot 2 → Blue Sea 5026 positive bus','lynx','blue-sea',undefined,'positive',60,16,'lynx-2','proposed','Historical sketch supports a DC distributor branch, but exact Lynx slot and installed fuse not confirmed.'),
-  cable('lynx-mppt','Lynx slot 3 ↔ MPPT 100/50 battery connection','lynx','mppt',undefined,'positive',50,16,'lynx-3','proposed','Charging path is bidirectional electrically; fuse goes at battery/distribution source end. 60A fuse provisional.'),
-  cable('lynx-multi','Lynx slot 4 ↔ MultiPlus 12/500/20 DC connection','lynx','multiplus',undefined,'positive',100,25,'lynx-4','proposed','100A external fuse proposed, manufacturer internal fuse is separate. Actual current and cable to be checked.'),
+  cable('lynx-mppt','Lynx ↔ MPPT 100/50 battery connection (slot unknown)','lynx','mppt',undefined,'positive',50,16,'lynx-3','reported','Owner confirms MPPT is connected at Lynx; actual Lynx slot, fuse, cable and negative return are unverified. Fused slot 3 is only a proposed schedule entry.'),
+  cable('lynx-multi','Lynx ↔ MultiPlus 12/500/20 DC (slot unknown)','lynx','multiplus',undefined,'positive',100,25,'lynx-4','reported','Owner confirms MultiPlus is connected at Lynx; actual slot, fuse, cable and negative return are unverified. Slot 4 and 100A external fuse are provisional, not as-built facts.'),
  ],
 };
 // The owner checked fuse ratings and electrical order, not the exact distance
