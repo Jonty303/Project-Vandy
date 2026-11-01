@@ -32,17 +32,18 @@ export function voltageDropPct(lengthM:number,currentA:number,areaMm2:number,vol
  * installation method, upstream current limit, and fuse breaking-capacity checks.
  * Use a rough conservative design-current floor, manufacturer minimum, and 3% voltage-drop target.
  */
-export function sizeCable(run:DcCableRun){
- if(run.designCurrentA===null)return {mm2:null,awg:null,voltageDropPct:null,
-   note:'Current rating is unknown. Do not select a final conductor/fuse from this estimate.'};
- const i=run.designCurrentA;
+export function sizeCable(run:DcCableRun, fuseDesignEnvelopeA:number|null=null){
+ const i=run.designCurrentA??fuseDesignEnvelopeA;
+ if(i===null)return {mm2:null,awg:null,voltageDropPct:null,
+   note:'Both load/design current and fuse envelope are unknown. No meaningful conductor estimate.'};
+
  const base=i<=5?1.5:i<=10?2.5:i<=16?4:i<=25?6:i<=40?10:i<=60?16:i<=80?25:i<=110?35:i<=150?50:i<=200?70:95;
  const neededDrop=run.voltageV>0?(2*run.lengthM*i*.0175)/(run.voltageV*.03):Infinity;
  const wanted=Math.max(base,run.manufacturerMinMm2??0,neededDrop);
  const mm2=metricSeries.find(s=>s>=wanted)??null;
  const awg=awgForMm2(mm2);
  return {mm2,awg,voltageDropPct:mm2?voltageDropPct(run.lengthM,i,mm2,run.voltageV):null,
-   note:'Provisional planning size only. Verify real load, copper conductor, installed ampacity, terminals, thermal derating, fuse coordination and short-circuit breaking capacity.'};
+   note:run.designCurrentA===null?'Provisional conductor floor based on the planned fuse rating, NOT the measured device current or approved cable ampacity.':'Provisional planning size only. Verify real load, copper conductor, installed ampacity, terminals, thermal derating, fuse coordination and short-circuit breaking capacity.'};
 }
 const fuse=(id:string,label:string,holder:string|null,slot:number|null,rating:number|null,form:DcFuseRecord['fuseForm'],
   placement:DcFuseRecord['placement'],near:string|null,status:DcFuseRecord['status'],
