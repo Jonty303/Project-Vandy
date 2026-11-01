@@ -26,3 +26,9 @@
 - Keep JSX/UI separate from domain models and calculations. Future schematic and 3D features must reuse this engine and stable IDs.
 - Do not add telemetry, external accounts, remote AI, paid dependencies or publication/hosting without specific approval.
 - Build user-facing warnings that clearly distinguish planning output from installation verification.
+
+## In-iteration source and autonomy rules
+- For inverter-backed AC circuits, trace upstream through saved compatible AC port-group links. Distinguish shore power feeding the MultiPlus from a genuinely shore-only downstream circuit. An unresolved logical path must produce a warning.
+- The 12/12-50 DC-DC rating does **not** imply 50A available alternator input or 24V output. Alternator usable current is independently limited by estimated spare source current and input/output settings.
+- Monthly PVGIS results are historical typical yields, not forecasts; only server-side PVGIS requests are allowed. The Vite middleware is *development-only*. Preserve explicit source, location, date, loss assumptions and invalidation on configuration change.
+- Do not claim unlimited off-grid runtime for energy-positive averages or a reliable autonomy rating while material loads are unknown.
