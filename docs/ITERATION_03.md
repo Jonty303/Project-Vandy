@@ -101,3 +101,5 @@ This extends the same Iteration 03 branch and is a **test-data schedule**, not a
 - Empty device Wh is savable but produces an incomplete active-load rating; invalid percentages, duplicate identifiers, negative daily charge counts or missing source circuits block Update with an explicit explanation.
 - Profile switch is available directly in Phones & tablets and shares the global profile selection. Existing application-wide Reset/Update staging applies.
 - Verification: `tests/portableCharging.test.mjs` tests energy, duplicate prevention, battery/source losses, incomplete data, user-edited settings, JSON migration and profile handling.
+
+- **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
