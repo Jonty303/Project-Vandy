@@ -34,3 +34,19 @@ npm run build
 **This is planning software only.** It does not calculate conductor size, overcurrent protection, earthing/bonding, approved wiring, usable battery runtime or compliance with installation standards. CO detection, ventilation, combustion exhaust and LPG hazards must be assessed separately by competent installers. Component ratings and sample duty cycles may be owner-reported or provisional.
 
 See [DESIGN.md](DESIGN.md), [AGENTS.md](AGENTS.md), and the authoritative [Iteration 01 contract](docs/ITERATION_01.md).
+
+
+## Iteration 02 — review branch
+
+The `iteration-02` branch adds the logical topology view, two separate 230V consumer units, outlet assignments and protection-device metadata. It is *not* a physical wiring design or an electrical safety compliance assessment.
+
+Open the app on `iteration-02` with `npm install` and `npm run dev`, then choose **System topology** in the sidebar. The local browser project migrates from v1; export a backup if you have edited loads before testing a reset.
+
+The old `iteration-01` branch remains available. Iteration 02 is prepared as a draft pull request against `iteration-01` and has not been merged.
+
+## Charging & autonomy refinement
+On `iteration-02`, choose **Off-grid autonomy** for battery reserve, average driving hours/spare alternator current, Orion XS limits, PVGIS monthly solar reference and selected location estimates. PVGIS calls are proxied through the Vite development server: start with `npm run dev` in Codespaces. A **static Vite build alone does not serve `/api/solar-monthly`**; production needs a server endpoint. When unavailable, a manual daily PV energy estimate can be entered and is explicitly marked as user-sourced.
+
+The calculator displays stationary and daily-driving energy balances. Solar must be fetched or supplied manually; unknown consumer watts remain flagged. The EU PVGIS source provides historical averages, not a live weather forecast, and the UK composite is an illustrative five-city unweighted mean.
+
+In the **Circuits & loads** editor, choose the consumer input supply and inspect its derived upstream logical AC source. On the **Project settings** page, select the inverter or shore pass-through operating scenario. Off-grid autonomy always calculates as the inverter scenario.
