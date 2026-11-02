@@ -10,11 +10,13 @@ import {ChargingPage} from './ChargingPage.tsx';
 import {OffGridPage} from './OffGridPage.tsx';
 import {DistributionPage} from './DistributionPage.tsx';
 import {normaliseDistribution,distributionIssues} from '../domain/distribution.ts';
+import {normaliseConnections,connectionIssues,plannedConsumerUnits} from '../domain/connectionPoints.ts';
+import {CircuitSocketEditor,LoadSocketSelector} from './ConnectionPointEditor.tsx';
 import {monthRating,MONTHS,batteryChargeReview} from '../domain/offGrid.ts';
 import './loadPlanner.css';
 
-const KEY='vandy-load-planner-v8';
-const PRIOR_KEYS=['vandy-load-planner-v7','vandy-load-planner-v6','vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
+const KEY='vandy-load-planner-v9';
+const PRIOR_KEYS=['vandy-load-planner-v8','vandy-load-planner-v7','vandy-load-planner-v6','vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
 const UNGROUPED='ungrouped';
 type CalculatorTab='loads'|'circuits';
 const fmt=(n:number|null):string=>n===null?'Unknown':n.toLocaleString('en-GB',{maximumFractionDigits:2});
@@ -76,6 +78,8 @@ export function App(){
   const futureInverter=plannedInverter(p.charging);
   const currentMonthRating=monthRating(p,p.offGrid.month);
   const distributionAlerts=distributionIssues(p);
+  const socketAlerts=connectionIssues(p);
+  const consumerUnits=plannedConsumerUnits(p);
   const batteryMatches=batteries.filter(b=>
     (batteryVoltageFilter==='all'||b.systemVoltage===Number(batteryVoltageFilter))&&
     b.name.toLowerCase().includes(batterySearch.toLowerCase().trim()));
@@ -95,7 +99,7 @@ export function App(){
   },[dirty]);
 
   const patchLoad=(change:Partial<PlannerLoad>)=>
-    setP(old=>normaliseDistribution({...old,loads:old.loads.map(l=>l.id===selectedLoad?{...l,...change}:l)}));
+    setP(old=>normaliseConnections(normaliseDistribution({...old,loads:old.loads.map(l=>l.id===selectedLoad?{...l,...change}:l)})));
   const patchCircuit=(id:string,change:Partial<PlannerCircuit>)=>
     setP(old=>normaliseDistribution({...old,circuits:old.circuits.map(c=>c.id===id?{...c,...change}:c)}));
   // Device voltage is user-entered and never silently rewritten by circuit edits.
@@ -124,8 +128,8 @@ export function App(){
     setSelectedCircuit(c.id);setTab('circuits');
   };
   const deleteCircuit=(id:string)=>{
-    setP(old=>normaliseDistribution({...old,circuits:old.circuits.filter(c=>c.id!==id),
-      loads:old.loads.map(l=>l.circuitId===id?{...l,circuitId:''}:l)}));
+    setP(old=>normaliseConnections(normaliseDistribution({...old,circuits:old.circuits.filter(c=>c.id!==id),
+      loads:old.loads.map(l=>l.circuitId===id?{...l,circuitId:''}:l)})));
     setSelectedCircuit(UNGROUPED);
   };
   const editLoad=(id:string)=>{setSelectedLoad(id);setTab('loads');};
@@ -198,6 +202,12 @@ export function App(){
             {chargeAlerts.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
               {chargeAlerts.length} planned charging item(s) need review. Open Charging to see details.</p>}
             {futureInverter&&<p className="planner-note">Planned inverter/charger for 230 V distribution: {futureInverter.name}.</p>}
+            {consumerUnits.length>0&&<p className="planner-note">
+              Planned 230 V consumer-unit roles: {consumerUnits.map(c=>c.name).join(' and ')}.
+            </p>}
+            {socketAlerts.length>0&&<p className="planner-note">
+              {socketAlerts.length} socket/shore connection point(s) need review.
+            </p>}
             {distributionAlerts.length>0&&<p className="planner-note">
               {distributionAlerts.length} distribution association(s) awaiting review. Open Distribution for details.</p>}
             {currentMonthRating&&<p className="planner-note">
@@ -434,7 +444,7 @@ export function App(){
           {tab==='loads'?(load?<section className="panel planner-detail-panel planner-editor" key={load.id}>
             <div className="panel-head"><h2>{load.name||'Custom load'}</h2>
               <button className="icon-button danger" aria-label="Delete load"
-                onClick={()=>{setP(old=>normaliseDistribution({...old,loads:old.loads.filter(l=>l.id!==load.id)}));setSelectedLoad('');}}>
+                onClick={()=>{setP(old=>normaliseConnections(normaliseDistribution({...old,loads:old.loads.filter(l=>l.id!==load.id)})));setSelectedLoad('');}}>
                 <Trash2 size={18}/></button>
             </div>
             <div className="form-grid">
@@ -485,6 +495,8 @@ export function App(){
               <Field label="Your notes"><textarea rows={3} value={load.notes}
                 onChange={e=>patchLoad({notes:e.target.value})} placeholder="Measured value, label or estimate..."/></Field>
             </details>
+            <LoadSocketSelector planner={p}
+              onChange={connections=>setP(old=>({...old,connections}))} loadId={load.id}/>
             <p className="planner-note">At 230 V, amperage is only a nominal W/230 equivalent. Power factor, peak current, wiring and battery losses are outside this calculator.</p>
           </section>:<section className="panel planner-detail-panel planner-empty">
             <h2>Select a load</h2><p>Choose a row in the table to edit its average power and daily usage.</p>
@@ -528,7 +540,10 @@ export function App(){
                   <button className="button small" onClick={()=>editLoad(l.id)}>Edit load</button>
                 </div>):<p className="planner-note">Empty — no loads assigned.</p>}
               </div>
-              {circuit&&<p className="planner-note">Deleting a circuit moves its loads to Ungrouped loads; the loads are not deleted.</p>}
+              {circuit&&<CircuitSocketEditor
+                planner={p} circuitId={circuit.id}
+                onChange={connections=>setP(old=>({...old,connections}))}/>}
+              {circuit&&<p className="planner-note">Deleting a circuit moves its loads to Ungrouped loads; socket connection points attached to that circuit are removed, but loads are retained.</p>}
             </>}
           </section>}
         </>}
