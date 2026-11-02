@@ -174,6 +174,79 @@ export function App(){
             {endurance.bankVoltageLoads.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
               {endurance.bankVoltageLoads.length} DC load(s) have a different voltage from your selected battery.</p>}
           </section>
+        </>:page==='battery'?<>
+          <div className="section-heading heading-top"><div>
+            <div className="eyebrow">STORAGE CAPACITY & ENDURANCE</div>
+            <h1>Battery Selection</h1>
+            <p>Choose one WattCycle LiFePO₄ battery for a simple runtime estimate based on your daily loads.</p>
+          </div></div>
+          <section className="battery-options" aria-label="Available battery models">
+            {batteries.map(b=><button key={b.id} type="button"
+              className={'panel battery-option '+(p.batteryId===b.id?'selected':'')}
+              aria-pressed={p.batteryId===b.id}
+              onClick={()=>setP(old=>({...old,batteryId:b.id}))}>
+              <span className="battery-name">{b.name}</span>
+              <strong>{fmt(b.energyWh)} Wh</strong>
+              <span>{b.nominalVoltage} V nominal · {b.capacityAh} Ah · {b.bmsAmps} A BMS</span>
+              <small>{b.id==='mini-280'?'Your current 280Ah Mini':b.id==='ultra-628-12'?'Larger 12V upgrade':'24V battery · equivalent energy to 628Ah at 12V'}</small>
+            </button>)}
+          </section>
+          {battery?<section className="panel planner-detail-panel battery-detail">
+            <div className="panel-head"><h2>{battery.name}</h2>
+              <button className="button small" onClick={()=>setP(old=>({...old,batteryId:null}))}>Clear selection</button>
+            </div>
+            <div className="battery-metrics">
+              <div><span>Rated battery energy</span><strong>{fmt(battery.energyWh)} Wh</strong></div>
+              <div><span>Energy after 10% reserve</span><strong>{fmt(endurance.availableWh)} Wh</strong></div>
+              <div><span>Typical daily load</span><strong>{fmt(endurance.dailyWh)} Wh/day</strong></div>
+              <div><span>Estimated runtime, no charging</span>
+                <strong>{endurance.days===null?'—':fmt(endurance.days)+' days'}</strong>
+                <small>{endurance.days!==null?fmt(endurance.hours)+' hours at your average daily usage':'Add loads with positive daily energy'}</small>
+              </div>
+            </div>
+            {(issues.length>0||endurance.missing>0||endurance.bankVoltageLoads.length>0)&&
+              <div className="validation-warning battery-warning"><AlertTriangle size={17}/>
+                <div><strong>Review required — estimates are provisional</strong>
+                  {issues.length>0&&<p>{issues.length} load/circuit voltage mismatch(es) affect these totals.</p>}
+                  {endurance.missing>0&&<p>{endurance.missing} incomplete load(s) have no calculated daily energy.</p>}
+                  {endurance.bankVoltageLoads.length>0&&<p>
+                    {endurance.bankVoltageLoads.length} DC load(s) use a different voltage from the selected {battery.systemVoltage} V battery.
+                    The selected battery does not directly supply those loads at their stated voltages.</p>}
+                </div>
+              </div>}
+            <p className="planner-note">Formula: {fmt(battery.energyWh)} Wh × 90% ÷ {fmt(endurance.dailyWh)} Wh/day.
+              Assumes a fully charged, healthy battery, no charging and the same loads each day. It excludes inverter and DC conversion
+              losses, self-consumption, battery ageing and temperature effects. Treat this as an indicative upper-bound calculation,
+              not a verified real-world runtime.</p>
+            <div className="battery-specs">
+              <span><b>Chemistry:</b> LiFePO₄</span>
+              <span><b>Nominal voltage:</b> {battery.nominalVoltage} V</span>
+              <span><b>Rated capacity:</b> {battery.capacityAh} Ah</span>
+              <span><b>Continuous BMS:</b> {battery.bmsAmps} A</span>
+              <span><b>Weight:</b> {battery.weightKg} kg</span>
+              <span><b>Dimensions:</b> {battery.dimensionsMm} mm</span>
+              <span><b>Bluetooth:</b> Yes</span>
+            </div>
+            <p className="planner-note">{battery.notes}</p>
+            <a href={battery.sourceUrl} target="_blank" rel="noreferrer">WattCycle Europe specifications</a>
+            {issues.length>0&&<div className="battery-validation-list">
+              <h3>Circuit voltage mismatch warnings</h3>
+              {issues.map(i=><button className="battery-validation-link" key={i.loadId}
+                onClick={()=>{setPage('calculator');setTab('loads');setSelectedLoad(i.loadId);}}>
+                <AlertTriangle size={15}/>{i.loadName}: {i.loadVoltage} V load on {i.circuitVoltage} V circuit ({i.circuitName})
+              </button>)}
+            </div>}
+            {endurance.bankVoltageLoads.length>0&&<div className="battery-validation-list">
+              <h3>DC load and battery voltage differences</h3>
+              {endurance.bankVoltageLoads.map(l=><button className="battery-validation-link" key={l.id}
+                onClick={()=>{setPage('calculator');setTab('loads');setSelectedLoad(l.id);}}>
+                <AlertTriangle size={15}/>{l.name||'Unnamed load'}: {l.voltage} V load; {battery.systemVoltage} V battery
+              </button>)}
+            </div>}
+          </section>:<section className="panel planner-empty">
+            <BatteryCharging size={32}/><h2>Select a battery</h2>
+            <p>Pick one of the three WattCycle models to calculate a simple no-charge runtime from the Load Calculator.</p>
+          </section>}
         </>:<>
           <div className="section-heading heading-top"><div>
             <div className="eyebrow">YOUR DAILY ENERGY DEMAND</div>
