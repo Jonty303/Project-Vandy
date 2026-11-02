@@ -14,8 +14,8 @@ This branch deliberately exposes **Home** and **Load Calculator** only. Projects
 - Edit, Reset, Update, local browser storage, JSON import/export remain in this focused feature. Changing a circuit's voltage changes its load voltages to match.
 
 ## Saved data and previous seasonal design
-- Current data schema is v2, stored under \`vandy-load-planner-v2\` and exported as a standalone JSON planner. Previous v1 browser data is left intact.
-- If a v1 seasonal planner exists, the current import converts its **Summer** settings to a single typical day as a **reviewable migration**; the original per-season load record is preserved as \`legacySeasonal\` for future migration work.
+- Current data schema is v2, stored under `vandy-load-planner-v2` and exported as a standalone JSON planner. Previous v1 browser data is left intact.
+- If a v1 seasonal planner exists, the current import converts its **Summer** settings to a single typical day as a **reviewable migration**; the original per-season load record is preserved as `legacySeasonal` for future migration work.
 - The previous seasonal UI, cycle counts, profiles and startup/shutdown fields are not shown or used for calculation. This is deliberate scope control, not a conclusion that these states are technically irrelevant.
 
 ## Engineering limitations
@@ -27,4 +27,4 @@ This branch deliberately exposes **Home** and **Load Calculator** only. Projects
 - Direct control and six-gang remote are currently abstract control assignments. They produce no actual wire, channel, fuse or switch rating; such checks belong to later schematic and validation iterations.
 
 ## Validation expectations
-Run \`npm run check\` and \`npx tsc -p tsconfig.domain.json\` in Codespaces. Tests verify defaults, load conversion, LED lengths, separate mixed-voltage Ah, unknowns, physical-switch suppression, structural validation and legacy migration. Do not merge to main as part of this iteration.
+Run `npm run check` and `npx tsc -p tsconfig.domain.json` in Codespaces. Tests verify defaults, load conversion, LED lengths, separate mixed-voltage Ah, unknowns, physical-switch suppression, structural validation and legacy migration. Do not merge to main as part of this iteration.
