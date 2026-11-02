@@ -19,7 +19,7 @@ On `feature/load-calculator`, `docs/LOAD_CALCULATOR.md` is the active implementa
 - Do not infer fuses, conductor gauge, protective-earth topology or safety certifications.
 - In Iteration 02, component ports contain **logical conductor groups** only. A link is proposed/reported/verified *as user evidence*, never a verified L/N/PE cable connection or certified bond.
 - Keep distinct consumer units, protectors, socket positions and electrical loads; socket assignments must not double count energy.
-- Preserve previously saved v1 projects when migrating to the v2 schema, including user-edited appliance information.
+- Preserve user-edited appliance information and prior version backups on schema migrations. Historical v1→v2 logic remains supported; the focused load-calculator branch uses v3.
 - Distinguish manufacturer-sourced, owner-reported, measured, online listings, estimates and unknown evidence.
 - Safety hazards include electrical fire/shock, LPG, combustion exhaust, carbon monoxide and water leaks. Inclusion of a CO detector does not certify an installation.
 
