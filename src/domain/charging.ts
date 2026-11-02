@@ -130,9 +130,9 @@ export const panelArray=(p:SolarPanelPlan)=>({
   watts:p.watts===null?null:p.watts*p.quantity,
   voc:p.voc===null?null:p.voc*(p.connection==='series'?p.quantity:1),
   isc:p.isc===null?null:p.isc*(p.connection==='parallel'?p.quantity:1),
-  vmp:p.vmp===null?null:p.vmp*(p.connection==='series'?p.quantity:1),
-  imp:p.imp===null?null:p.imp*(p.connection==='parallel'?p.quantity:1),
-  coldVoc:p.voc===null||p.vocTempCoeffPct===null?null:
+  vmp:p.vmp==null?null:p.vmp*(p.connection==='series'?p.quantity:1),
+  imp:p.imp==null?null:p.imp*(p.connection==='parallel'?p.quantity:1),
+  coldVoc:p.voc==null||p.vocTempCoeffPct==null?null:
     p.voc*(p.connection==='series'?p.quantity:1)*(1+p.vocTempCoeffPct/100*(-10-25)),
 });
 export function chargingWarnings(c:ChargingPlan,batteryVoltage:SystemVoltage|null):ChargingWarning[]{
