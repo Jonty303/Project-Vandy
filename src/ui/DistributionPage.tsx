@@ -4,7 +4,7 @@ import {selectedBattery,voltageIssues,type Planner} from '../domain/loadPlanner.
 import {findModel} from '../domain/charging.ts';
 import {
   activeInverter,assignmentFor,busbarRequirements,dcSources,dcTargets,distributionIssues,
-  distributionModels,slotsFor,standaloneInverters,type DistributionPlan,
+  distributionModels,slotsFor,standaloneInverters,occupiedSlots,firstFreeSlot,type DistributionPlan,
   type DistributionNode,type NodeKind,type DcTarget,type DcAssignment,
 } from '../domain/distribution.ts';
 import './distribution.css';
@@ -47,7 +47,10 @@ export function DistributionPage({planner:p,onChange}:Props){
   if(!sourceId){change({dcAssignments:current});return;}
   const source=d.nodes.find(n=>n.id===sourceId);
   const slots=source?slotsFor(source.kind):0;
-  const occupied=new Set(current.filter(a=>a.sourceId===sourceId).map(a=>a.slot));
+  const occupied=new Set([
+   ...current.filter(a=>a.sourceId===sourceId).map(a=>a.slot),
+   ...d.chargerAssignments.filter(a=>a.destinationId===sourceId).map(a=>a.slot),
+  ]);
   let slot:number|null=null;
   if(slots){
    slot=Array.from({length:slots},(_,i)=>i+1).find(pos=>!occupied.has(pos))??null;
@@ -58,13 +61,31 @@ export function DistributionPage({planner:p,onChange}:Props){
  };
  const changeSlot=(id:string,newSlot:number)=>{
   const item=d.dcAssignments.find(a=>a.id===id);if(!item)return;
-  const occupied=d.dcAssignments.some(a=>a.id!==id&&a.sourceId===item.sourceId&&a.slot===newSlot);
-  if(occupied){setLocalMessage('That fused position is occupied.');return;}
+  const occupied=d.dcAssignments.some(a=>a.id!==id&&a.sourceId===item.sourceId&&a.slot===newSlot)||
+   d.chargerAssignments.some(a=>a.destinationId===item.sourceId&&a.slot===newSlot);
+  if(occupied){setLocalMessage('That fused position is occupied by another branch or charger.');return;}
   change({dcAssignments:d.dcAssignments.map(a=>a.id===id?{...a,slot:newSlot}:a)});
  };
  const assignCharge=(chargerId:string,destinationId:string)=>{
-  change({chargerAssignments:[...d.chargerAssignments.filter(a=>a.chargerId!==chargerId),
-   ...(destinationId?[{chargerId,destinationId}]:[])]});
+  const remaining=d.chargerAssignments.filter(a=>a.chargerId!==chargerId);
+  if(!destinationId){change({chargerAssignments:remaining});return;}
+  const node=d.nodes.find(n=>n.id===destinationId);
+  let slot:number|null=null;
+  if(node?.kind==='lynx'){
+   slot=firstFreeSlot({...d,chargerAssignments:remaining},destinationId);
+   if(slot===null){
+    setLocalMessage('All four Lynx fused positions are occupied. Free a position before assigning another charger.');
+    return;
+   }
+  }
+  change({chargerAssignments:[...remaining,{chargerId,destinationId,slot}]});
+ };
+ const changeChargeSlot=(chargerId:string,slot:number)=>{
+  const charger=d.chargerAssignments.find(a=>a.chargerId===chargerId);
+  if(!charger)return;
+  const taken=occupiedSlots({...d,chargerAssignments:d.chargerAssignments.filter(a=>a.chargerId!==chargerId)},charger.destinationId);
+  if(taken.has(slot)){setLocalMessage('Position '+slot+' is already occupied.');return;}
+  change({chargerAssignments:d.chargerAssignments.map(a=>a.chargerId===chargerId?{...a,slot}:a)});
  };
  const assignAc=(targetType:'circuit'|'load',targetId:string,enabled:boolean)=>{
   change({acAssignments:[...d.acAssignments.filter(a=>!(a.targetType===targetType&&a.targetId===targetId)),
@@ -150,7 +171,7 @@ export function DistributionPage({planner:p,onChange}:Props){
      <tbody>{nodes.map(n=>{
       const upstream=assignmentFor(d,'node',n.id);
       const slots=slotsFor(n.kind);
-      const used=d.dcAssignments.filter(a=>a.sourceId===n.id).length;
+      const used=occupiedSlots(d,n.id).size;
       const req=busbarRequirements(p,n.id);
       return <tr key={n.id} className={'planner-select-row '+(selectedId===n.id?'selected':'')}
        onClick={()=>setSelectedId(n.id)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelectedId(n.id);}}}
@@ -199,17 +220,27 @@ export function DistributionPage({planner:p,onChange}:Props){
       <div className="dist-slot-grid">
        {Array.from({length:slotsFor(chosen.kind)},(_,i)=>i+1).map(slot=>{
         const a=d.dcAssignments.find(a=>a.sourceId===chosen.id&&a.slot===slot);
-        return <div key={slot} className={'dist-slot '+(a?'occupied':'')}>
+        const charger=chosen.kind==='lynx'?
+          d.chargerAssignments.find(c=>c.destinationId===chosen.id&&c.slot===slot):undefined;
+        const modelUnit=charger?[...p.charging.dc2dc,...p.charging.mppt].find(u=>u.id===charger.chargerId):undefined;
+        const model=modelUnit?findModel(modelUnit.modelId):undefined;
+        const used=occupiedSlots({...d,
+          dcAssignments:d.dcAssignments.filter(x=>x.id!==a?.id),
+          chargerAssignments:d.chargerAssignments.filter(x=>x.chargerId!==charger?.chargerId)},chosen.id);
+        return <div key={slot} className={'dist-slot '+(a||charger?'occupied':'')}>
          <strong>Position {slot}</strong>
-         {a?<><span>{typeLabel(a.targetType)}: {destName(a)}</span>
+         {a||charger?<><span>{a?typeLabel(a.targetType)+': '+destName(a):
+           'Charging source: '+(model?.name||'Unknown charger')}</span>
           <div className="dist-slot-actions">
            <label className="field"><span>Move position</span>
-            <select value={slot} onChange={e=>changeSlot(a.id,Number(e.target.value))}>
+            <select value={slot} onChange={e=>a?changeSlot(a.id,Number(e.target.value)):
+              changeChargeSlot(charger!.chargerId,Number(e.target.value))}>
              {Array.from({length:slotsFor(chosen.kind)},(_,x)=>x+1).map(pos=>
-              <option key={pos} value={pos} disabled={d.dcAssignments.some(z=>z.id!==a.id&&z.sourceId===chosen.id&&z.slot===pos)}>{pos}</option>)}
+              <option key={pos} value={pos} disabled={used.has(pos)}>{pos}</option>)}
             </select>
            </label>
-           <button className="button small" onClick={()=>assignDc(a.targetType,a.targetId,'')}>Unassign</button>
+           <button className="button small" onClick={()=>a?assignDc(a.targetType,a.targetId,''):
+             assignCharge(charger!.chargerId,'')}>Unassign</button>
           </div></>:<span>Available · fuse not configured</span>}
         </div>;
        })}
@@ -243,7 +274,7 @@ export function DistributionPage({planner:p,onChange}:Props){
     <div className="panel-head"><h2>Charging outputs</h2>
      <small>MPPT and DC–DC equipment already selected in Charging</small></div>
     {charges.length?<div className="planner-list-scroll"><table className="planner-table">
-     <thead><tr><th>Charger</th><th>Output</th><th>Feeds</th></tr></thead>
+     <thead><tr><th>Charger</th><th>Output</th><th>Feeds</th><th>Lynx position</th></tr></thead>
      <tbody>{charges.map(u=>{
       const m=findModel(u.modelId)!;
       const current=d.chargerAssignments.find(a=>a.chargerId===u.id);
@@ -255,10 +286,18 @@ export function DistributionPage({planner:p,onChange}:Props){
         <option value="">Unassigned</option>
         {sourcesForCharge.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
        </select></td>
+       <td>{current&&nodes.find(n=>n.id===current.destinationId)?.kind==='lynx'
+        ?<select aria-label={'Lynx position for '+m.name} value={current.slot??''}
+          onChange={e=>changeChargeSlot(u.id,Number(e.target.value))}>
+          <option value="" disabled>Unallocated</option>
+          {[1,2,3,4].map(pos=><option key={pos} value={pos}
+            disabled={occupiedSlots({...d,chargerAssignments:d.chargerAssignments.filter(a=>a.chargerId!==u.id)},current.destinationId).has(pos)}>
+            Position {pos}</option>)}
+         </select>:<span>—</span>}</td>
       </tr>;
      })}</tbody>
     </table></div>:<p className="charging-empty">No compatible charging outputs selected for this voltage. Select an MPPT or DC–DC charger under Charging.</p>}
-    <p className="planner-note">Charging sources feed the planned battery system or DC distribution; they are not consumer loads. The actual fuse positions and DC return wiring will be designed later.</p>
+    <p className="planner-note">MPPT and DC–DC charging outputs use a Lynx fused position when assigned there, sharing its four slots with distribution branches. Fuse values and DC return conductors remain unmodelled.</p>
    </section>
   </div>:<div className="dist-sections">
    <section className="panel planner-detail-panel">
