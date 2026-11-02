@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {Plus,Trash2,AlertTriangle} from 'lucide-react';
 import type {Planner} from '../domain/loadPlanner.ts';
 import {
-  newSocket,socketName,connectedSocket,connectionIssues,type ConnectionPlan,
+  newSocket,socketName,connectedSocket,connectionIssues,blankUsbRatings,usbInputEstimate,type ConnectionPlan,type UsbElectricalRatings,
 } from '../domain/connectionPoints.ts';
 import './connectionPoints.css';
 
@@ -43,6 +43,14 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
    <div className="cp-socket-list">{sockets.map(socket=>{
     const attached=links.filter(a=>a.socketId===socket.id);
     const connectedDevices=attached.reduce((sum,a)=>sum+(planner.loads.find(l=>l.id===a.loadId)?.quantity??1),0);
+    const inputEstimate=socket.kind==='usb'?usbInputEstimate(socket,circuit.voltage===24?24:12):null;
+    const rated=socket.usbRatings??blankUsbRatings();
+    const setUsb=(change:Partial<UsbElectricalRatings>)=>onChange({...planner.connections,
+      sockets:planner.connections.sockets.map(s=>s.id===socket.id?{
+        ...s,usbRatings:{...rated,...change},
+      }:s)});
+    const updateNumber=(key:Exclude<keyof UsbElectricalRatings,'ratedOutputVoltages'>,value:string)=>
+      setUsb({[key]:value.trim()===''?null:Number(value)});
     return <div className="cp-socket" key={socket.id}>
      <div className="cp-socket-head">
       <strong>{socket.name||socketName(socket.kind,socket.positions)}</strong>
@@ -68,7 +76,44 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
        </select>
       </label>
      </div>
-     <small>{connectedDevices}/{socket.positions} linked device connection(s) · {socket.kind==='uk-3pin'?'230 V AC':'DC-to-USB conversion'} not yet specified</small>
+     <small>{connectedDevices}/{socket.positions} linked device connection(s)
+       {socket.kind==='usb'?' · Supply-side maximum current: '+
+         (inputEstimate?.amps===null?'not specified':
+          inputEstimate?.amps.toFixed(2)+' A ('+inputEstimate?.basis+')'):
+         ' · 230 V AC connection point'}
+     </small>
+     {socket.kind==='usb'&&<div className="cp-usb-electrical">
+       <h4>USB electrical ratings (for future cable sizing)</h4>
+       <p className="planner-note">Enter ratings from the socket manufacturer. Maximum USB output power is not the same as 12/24 V input current. A shared output power limit may be lower than the sum of individual port maxima.</p>
+       <div className="cp-fields">
+         <label className="field"><span>Max combined USB output (W)</span>
+           <input type="number" min="0" step="any" placeholder="Manufacturer total"
+             value={rated.maxCombinedOutputWatts??''}
+             onChange={e=>updateNumber('maxCombinedOutputWatts',e.target.value)}/>
+         </label>
+         <label className="field"><span>Max USB output current per port (A)</span>
+           <input type="number" min="0" step="any" placeholder="Per-port maximum"
+             value={rated.maxOutputAmpsPerPort??''}
+             onChange={e=>updateNumber('maxOutputAmpsPerPort',e.target.value)}/>
+         </label>
+         <label className="field"><span>Max 12/24 V input current (A)</span>
+           <input type="number" min="0" step="any" placeholder="Preferred for cable planning"
+             value={rated.maxInputAmps??''}
+             onChange={e=>updateNumber('maxInputAmps',e.target.value)}/>
+         </label>
+         <label className="field"><span>Max 12/24 V input power (W)</span>
+           <input type="number" min="0" step="any" placeholder="Optional datasheet figure"
+             value={rated.maxInputWatts??''}
+             onChange={e=>updateNumber('maxInputWatts',e.target.value)}/>
+         </label>
+         <label className="field"><span>USB output voltages / PD modes</span>
+           <input placeholder="e.g. 5 / 9 / 12 / 15 / 20 V"
+             value={rated.ratedOutputVoltages}
+             onChange={e=>setUsb({ratedOutputVoltages:e.target.value})}/>
+         </label>
+       </div>
+       <p className="planner-note">Input current shown above uses the stated maximum input A where supplied; otherwise input W divided by nominal DC voltage, then a provisional 90%-efficient estimate from output W. An estimate is not a cable-design rating.</p>
+     </div>}
      {attached.map(a=><div className="cp-attached" key={a.loadId}>
       {planner.loads.find(l=>l.id===a.loadId)?.name||'Unnamed device'}
       {(planner.loads.find(l=>l.id===a.loadId)?.quantity??1)>1&&
