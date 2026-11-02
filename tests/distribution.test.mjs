@@ -18,7 +18,7 @@ const setup=()=>{
 };
 test('empty projects do not imply distribution or inverter wiring',()=>{
  const p=blankPlanner();
- assert.equal(p.version,8);assert.ok(isPlanner(p));
+ assert.equal(p.version,9);assert.ok(isPlanner(p));
  assert.deepEqual(p.distribution.nodes,[]);
  assert.equal(p.distribution.standaloneInverterId,null);
  assert.equal(activeInverter(p),null);
@@ -144,7 +144,7 @@ test('v6 project imports unchanged equipment and receives empty distribution',()
   circuits:p.circuits,loads:p.loads};
  const next=importPlanner(prior);
  assert.ok(next&&isPlanner(next));
- assert.equal(next.version,8);
+ assert.equal(next.version,9);
  assert.equal(next.batteryId,p.batteryId);
  assert.equal(next.loads[0].name,'Lamp');
  assert.deepEqual(next.distribution.nodes,[]);
@@ -198,7 +198,7 @@ test('v7 charger destination migration fills spare Lynx slots and preserves the 
  const prior={...p,version:7};
  const next=importPlanner(prior);
  assert.ok(next&&isPlanner(next));
- assert.equal(next.version,8);
+ assert.equal(next.version,9);
  assert.deepEqual(next.distribution.chargerAssignments.map(x=>x.slot),[3,4]);
  assert.equal(next.distribution.dcAssignments[0].slot,1);
  assert.equal(next.distribution.dcAssignments[1].slot,2);
