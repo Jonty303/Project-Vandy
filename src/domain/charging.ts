@@ -69,7 +69,7 @@ export type ChargingPlan={
 };
 export const emptyCharging=():ChargingPlan=>({
   spareAlternatorAmps:30,alternatorVoltage:12,dc2dc:[],mppt:[],
-  panel:{watts:400,quantity:1,connection:'parallel',voc:null,isc:null},
+  panel:{watts:null,quantity:1,connection:'parallel',voc:null,isc:null},
   shoreModelId:null,
 });
 export const plannedInverter=(c:ChargingPlan):DeviceModel|null=>{
