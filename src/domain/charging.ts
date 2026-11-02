@@ -8,7 +8,7 @@ export type DeviceModel={
   chargeAmps:number;sourceUrl:string;details:string;
   inputVoltage?:SystemVoltage;pvMaxVoc?:number;pvMaxIsc?:number;
   pvPower12?:number;pvPower24?:number;inverterVA?:number;
-  inputLimitAdjustable?:boolean;outputLimitAdjustable?:boolean;
+  inputLimitAdjustable?:boolean;outputLimitAdjustable?:boolean;inverterEfficiency?:number;
 };
 const orion='https://www.victronenergy.com/media/pg/Orion-Tr_Smart_DC-DC_Charger_-_Non-Isolated/en/specifications--non-isolated-.html';
 const solar100='https://www.victronenergy.com/media/pg/Manual_SmartSolar_MPPT_100-30__100-50/en/technical-specifications.html';
@@ -50,13 +50,13 @@ export const deviceCatalogue:readonly DeviceModel[]=[
  {id:'ip22-24-16',name:'Blue Smart IP22 24/16 (230 V)',manufacturer:'Victron',kind:'shoreCharger',
   outputVoltages:[24],chargeAmps:16,sourceUrl:ip22,details:'230 V mains charger, nominal 24 V output at up to 16 A; no inverter.'},
  {id:'multiplus-12-500-20',name:'MultiPlus 12/500/20 (230 V)',manufacturer:'Victron',kind:'inverterCharger',
-  outputVoltages:[12],chargeAmps:20,inverterVA:500,sourceUrl:multiplus,details:'230 V AC inverter/charger, 500 VA inverter, 20 A battery charger.'},
+  outputVoltages:[12],chargeAmps:20,inverterVA:500,inverterEfficiency:0.9,sourceUrl:multiplus,details:'230 V AC inverter/charger, 500 VA inverter, 20 A battery charger.'},
  {id:'multiplus-12-800-35',name:'MultiPlus 12/800/35 (230 V)',manufacturer:'Victron',kind:'inverterCharger',
-  outputVoltages:[12],chargeAmps:35,inverterVA:800,sourceUrl:multiplus,details:'230 V AC inverter/charger, 800 VA inverter, 35 A battery charger.'},
+  outputVoltages:[12],chargeAmps:35,inverterVA:800,inverterEfficiency:0.92,sourceUrl:multiplus,details:'230 V AC inverter/charger, 800 VA inverter, 35 A battery charger.'},
  {id:'multiplus-24-800-16',name:'MultiPlus 24/800/16 (230 V)',manufacturer:'Victron',kind:'inverterCharger',
-  outputVoltages:[24],chargeAmps:16,inverterVA:800,sourceUrl:multiplus,details:'230 V AC inverter/charger, 800 VA inverter, 16 A battery charger.'},
+  outputVoltages:[24],chargeAmps:16,inverterVA:800,inverterEfficiency:0.94,sourceUrl:multiplus,details:'230 V AC inverter/charger, 800 VA inverter, 16 A battery charger.'},
  {id:'multiplus-24-1200-25',name:'MultiPlus 24/1200/25 (230 V)',manufacturer:'Victron',kind:'inverterCharger',
-  outputVoltages:[24],chargeAmps:25,inverterVA:1200,sourceUrl:multiplus,details:'230 V AC inverter/charger, 1200 VA inverter, 25 A battery charger.'},
+  outputVoltages:[24],chargeAmps:25,inverterVA:1200,inverterEfficiency:0.94,sourceUrl:multiplus,details:'230 V AC inverter/charger, 1200 VA inverter, 25 A battery charger.'},
 ];
 export const findModel=(id:string)=>deviceCatalogue.find(m=>m.id===id);
 export type PlannedUnit={id:string;modelId:string;inputLimitA?:number|null;outputLimitA?:number|null};
