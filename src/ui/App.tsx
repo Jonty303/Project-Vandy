@@ -1,7 +1,7 @@
-import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {useEffect,useRef,useState,type ReactNode,type DragEvent as ReactDragEvent,type KeyboardEvent as ReactKeyboardEvent} from 'react';
 import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw} from 'lucide-react';
 import {
-  blankPlanner,catalogue,importPlanner,isPlanner,loadEnergy,newCircuit,newLoad,plannerTotal,
+  blankPlanner,catalogue,importPlanner,isPlanner,loadEnergy,newCircuit,newLoad,plannerTotal,moveLoadToCircuit,
   type Planner,type PlannerLoad,type PlannerCircuit,type Voltage,
 } from '../domain/loadPlanner.ts';
 import './loadPlanner.css';
@@ -51,6 +51,8 @@ export function App(){
   const [selectedLoad,setSelectedLoad]=useState('');
   const [selectedCircuit,setSelectedCircuit]=useState(UNGROUPED);
   const [picker,setPicker]=useState(false);
+  const [draggedLoadId,setDraggedLoadId]=useState<string|null>(null);
+  const [dropTarget,setDropTarget]=useState('');
   const [message,setMessage]=useState(start.message);
   const file=useRef<HTMLInputElement>(null);
   const dirty=JSON.stringify(p)!==JSON.stringify(saved);
@@ -106,6 +108,30 @@ export function App(){
     setSelectedCircuit(UNGROUPED);
   };
   const editLoad=(id:string)=>{setSelectedLoad(id);setTab('loads');};
+  const editCircuit=(id:string)=>{setSelectedCircuit(id);setTab('circuits');};
+  const selectOnKey=(e:ReactKeyboardEvent<HTMLTableRowElement>,select:()=>void)=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}
+  };
+  const startLoadDrag=(e:ReactDragEvent<HTMLTableRowElement>,id:string)=>{
+    setDraggedLoadId(id);setDropTarget('');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',id);
+  };
+  const overCircuitGroup=(e:ReactDragEvent<HTMLTableSectionElement>,groupId:string)=>{
+    if(!draggedLoadId)return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    setDropTarget(current=>current===groupId?current:groupId);
+  };
+  const dropLoadInGroup=(e:ReactDragEvent<HTMLTableSectionElement>,groupId:string)=>{
+    e.preventDefault();
+    if(draggedLoadId){
+      setP(old=>moveLoadToCircuit(old,draggedLoadId,groupId===UNGROUPED?'':groupId));
+      setSelectedLoad(draggedLoadId);
+    }
+    setDraggedLoadId(null);setDropTarget('');
+  };
+  const endLoadDrag=()=>{setDraggedLoadId(null);setDropTarget('');};
 
   return <div className="shell">
     <aside className="sidebar">
@@ -182,29 +208,54 @@ export function App(){
             <div className="planner-list-scroll">
               {tab==='loads'?<table className="planner-table">
                 <thead><tr><th>Load</th><th>Voltage</th><th>Avg. W</th><th>Hours/day</th><th>Wh/day</th></tr></thead>
-                {groups.map(group=><tbody key={group.id}>
-                  <tr className="planner-group-row"><th colSpan={5}>{group.name} <span>({group.loads.length})</span></th></tr>
+                {groups.map(group=><tbody key={group.id}
+                  onDragOver={e=>overCircuitGroup(e,group.id)}
+                  onDragLeave={e=>{
+                    if(!e.currentTarget.contains(e.relatedTarget as Node))setDropTarget('');
+                  }}
+                  onDrop={e=>dropLoadInGroup(e,group.id)}>
+                  <tr className={'planner-group-row '+(dropTarget===group.id?'drop-target':'')}
+                    tabIndex={0} title={'Select '+group.name+' or drop a load here'}
+                    onClick={()=>editCircuit(group.id)}
+                    onKeyDown={e=>selectOnKey(e,()=>editCircuit(group.id))}>
+                    <th colSpan={5}>{group.name} <span>({group.loads.length})</span>
+                      {draggedLoadId&&<span className="planner-drop-hint">Drop here to assign</span>}
+                    </th>
+                  </tr>
                   {group.loads.length?group.loads.map(l=>{
                     const r=loadEnergy(l);
-                    return <tr key={l.id} className={selectedLoad===l.id?'selected':''}>
-                      <td><button className="planner-row-button" aria-pressed={selectedLoad===l.id}
-                        onClick={()=>setSelectedLoad(l.id)}>{l.name||'Unnamed load'}</button></td>
+                    return <tr key={l.id} draggable
+                      tabIndex={0} aria-selected={selectedLoad===l.id}
+                      title="Click to edit; drag this row to another circuit heading to move it"
+                      className={'planner-select-row planner-draggable-row '+
+                        (selectedLoad===l.id?'selected ':'')+
+                        (draggedLoadId===l.id?'dragging ':'')}
+                      onClick={()=>setSelectedLoad(l.id)}
+                      onKeyDown={e=>selectOnKey(e,()=>setSelectedLoad(l.id))}
+                      onDragStart={e=>startLoadDrag(e,l.id)}
+                      onDragEnd={endLoadDrag}>
+                      <td><span className="planner-row-label"><span className="load-drag-handle" aria-hidden="true">⋮⋮</span>{l.name||'Unnamed load'}</span></td>
                       <td>{l.voltage} V</td><td>{fmt(r.watts)}</td><td>{fmt(l.hours)}</td><td>{fmt(r.wh)}</td>
                     </tr>;
-                  }):<tr className="planner-empty-row"><td colSpan={5}>Empty — no loads assigned</td></tr>}
+                  }):<tr className="planner-empty-row"><td colSpan={5}>Empty — drop loads here</td></tr>}
                 </tbody>)}
               </table>:<table className="planner-table">
                 <thead><tr><th>Circuit</th><th>Voltage</th><th>Loads</th><th>Switch</th><th>Wh/day</th></tr></thead>
                 <tbody>
-                  <tr className={selectedCircuit===UNGROUPED?'selected':''}>
-                    <td><button className="planner-row-button" aria-pressed={selectedCircuit===UNGROUPED}
-                      onClick={()=>setSelectedCircuit(UNGROUPED)}>Ungrouped loads <small>Default container</small></button></td>
+                  <tr className={'planner-select-row '+(selectedCircuit===UNGROUPED?'selected':'')}
+                    tabIndex={0} aria-selected={selectedCircuit===UNGROUPED}
+                    onClick={()=>setSelectedCircuit(UNGROUPED)}
+                    onKeyDown={e=>selectOnKey(e,()=>setSelectedCircuit(UNGROUPED))}>
+                    <td><span className="planner-row-label">Ungrouped loads <small>Default container</small></span></td>
                     <td>Mixed</td><td>{ungrouped.length}</td><td>—</td>
                     <td>{fmt(plannerTotal({...p,loads:ungrouped}).wh)}</td>
                   </tr>
-                  {p.circuits.map(c=><tr key={c.id} className={selectedCircuit===c.id?'selected':''}>
-                    <td><button className="planner-row-button" aria-pressed={selectedCircuit===c.id}
-                      onClick={()=>setSelectedCircuit(c.id)}>{c.name||'Unnamed circuit'}</button></td>
+                  {p.circuits.map(c=><tr key={c.id}
+                    className={'planner-select-row '+(selectedCircuit===c.id?'selected':'')}
+                    tabIndex={0} aria-selected={selectedCircuit===c.id}
+                    onClick={()=>setSelectedCircuit(c.id)}
+                    onKeyDown={e=>selectOnKey(e,()=>setSelectedCircuit(c.id))}>
+                    <td><span className="planner-row-label">{c.name||'Unnamed circuit'}</span></td>
                     <td>{c.voltage} V</td><td>{p.loads.filter(l=>l.circuitId===c.id).length}</td>
                     <td>{c.physicalSwitch?'Yes':'No'}</td>
                     <td>{fmt(plannerTotal({...p,loads:p.loads.filter(l=>l.circuitId===c.id)}).wh)}</td>
