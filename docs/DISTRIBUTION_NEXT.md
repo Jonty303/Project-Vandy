@@ -90,3 +90,13 @@ Wiring terminals, actual DC positive/negative conductors, fuse values and holder
 The four Lynx fused slots are a single occupancy inventory shared by **outgoing consumer/distributor feeder associations** and **incoming charge outputs** (MPPT and DC–DC). Selecting a Lynx in a charger-output dropdown automatically reserves the next free fused position. Both the Lynx device cards and Charging outputs table display the chosen position, and users may move/unassign it without double-booking any slot. A fifth connection is rejected until one of the four is freed; no additional Lynx distributor is implied.
 
 Existing v7 exports or browser records with charging outputs previously associated to the Lynx, but without slot identities, migrate to v8. Existing distributor/inverter slots take priority and spare slots are assigned to chargers in their saved order. An excess charger keeps its destination but gets an explicit **unallocated fuse position** warning, rather than being lost or silently assumed protected. This is a planning association only: fuse ratings, terminal lug fit, conductor protection and actual DC+/DC− connections remain deferred.
+
+
+## DC equipment list improvement — 2026-11-02
+- The Distribution **DC equipment connections** table is a single location for battery-side association of DC–DC and MPPT outputs, selected standalone shore battery chargers, standalone inverters, and combined inverter/chargers.
+- A selected MultiPlus is **one shared bidirectional DC equipment identity**, already supplied by the Shore tab; it is neither duplicated as an extra charging output nor hidden under named load circuits. Its existing \`dcAssignments\` target \`inverter:inverter\` is retained for backwards compatibility, including previously occupied Lynx fuse slot and 230 V supply selection.
+- Standalone inverters likewise use one battery-side DC input assignment from battery, Lynx or generic busbar.
+- A **shore-only charger** (e.g. Blue Smart IP22) now appears as one stable charging-output entry \`SHORE_CHARGER_ID\` alongside Orion and MPPT. It may output to the battery, Lynx or busbar with one Lynx slot if applicable; it **never** becomes a 230 V inverter output.
+- Switching a shore-only charger to an inverter/charger removes the obsolete shore-only output association through normalisation, while leaving all planned circuits/loads and existing inverter DC assignment intact.
+- Lynx four fused positions remain shared, and a MultiPlus takes just one position for its battery-side DC connection. Busbar estimates already count inverter links as one downstream association and shore charger outputs as one incoming charger.
+- No schema bump is necessary: current v8 JSON retains the existing DC assignments and charging association arrays.
