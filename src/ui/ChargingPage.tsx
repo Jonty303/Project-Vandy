@@ -9,6 +9,7 @@ import {solarPanels,panelModel} from '../domain/solarPanels.ts';
 type Props={
   plan:ChargingPlan;
   batteryVoltage:SystemVoltage|null;
+  batteryWarnings?:string[];
   onChange:(next:ChargingPlan)=>void;
 };
 type Tab='dc2dc'|'solar'|'shore';
@@ -16,7 +17,7 @@ const fmt=(n:number|null)=>n===null?'Not entered':n.toLocaleString('en-GB',{maxi
 const numberValue=(v:string)=>v.trim()===''?null:Number(v);
 const source=(url:string)=><a href={url} rel="noreferrer" target="_blank">Manufacturer specification <ExternalLink size={12}/></a>;
 
-export function ChargingPage({plan,batteryVoltage,onChange}:Props){
+export function ChargingPage({plan,batteryVoltage,batteryWarnings=[],onChange}:Props){
   const [tab,setTab]=useState<Tab>('dc2dc');
   const [dcChoice,setDcChoice]=useState('');
   const [mpptChoice,setMpptChoice]=useState('');
@@ -101,6 +102,8 @@ export function ChargingPage({plan,batteryVoltage,onChange}:Props){
           <button className="icon-button danger" aria-label={'Remove '+model.name} onClick={()=>remove('dc2dc',unit.id)}><Trash2 size={18}/></button>
         </div>)}</div>}
       {warnTab('dc2dc')}
+      {batteryWarnings.map((warning,i)=><p className="validation-warning" key={i}>
+        <AlertTriangle size={16}/>{warning}</p>)}
       <p className="planner-note">Input current limits share the alternator allowance. Orion XS supports separate input/output limits; other models do not expose unsupported settings. The estimated charge contribution applies a shared source budget.</p>
     </section>}
     {tab==='solar'&&<section className="panel planner-detail-panel">
@@ -188,11 +191,9 @@ export function ChargingPage({plan,batteryVoltage,onChange}:Props){
       <h2>Shore power</h2>
       <p className="planner-note">Select a 230 V AC battery charger or a combined inverter/charger. One shore charging unit is modelled in this planning pass.</p>
       <div className="charging-form-grid">
-        <label className="field"><span>Available shore supply (A)</span>
-          <select value={plan.shoreSupplyAmps??''} onChange={e=>assign({shoreSupplyAmps:e.target.value===''?null:Number(e.target.value)})}>
-            <option value="">Unknown</option><option value={6}>6 A</option><option value={10}>10 A</option>
-            <option value={16}>16 A</option><option value={32}>32 A</option>
-          </select>
+        <label className="field"><span>Available shore supply current (A) — editable</span>
+          <input type="number" min="0" step="1" placeholder="e.g. 6, 10, 16" value={plan.shoreSupplyAmps??''}
+            onChange={e=>assign({shoreSupplyAmps:numberValue(e.target.value)})}/>
         </label>
         <label className="field"><span>Planned shore charging equipment</span>
           <select value={plan.shoreModelId??''} onChange={e=>assign({shoreModelId:e.target.value||null})}>
@@ -223,6 +224,8 @@ export function ChargingPage({plan,batteryVoltage,onChange}:Props){
         <p>{inverter.name} will be suggested automatically when the future 230 V inverter selection screen is added. This does not assign loads or create electrical connections now.</p>
       </div>}
       {warnTab('shore')}
+      {batteryWarnings.map((warning,i)=><p className="validation-warning" key={i}>
+        <AlertTriangle size={16}/>{warning}</p>)}
     </section>}
     <p className="planner-note">Planning only: selection and editable limits inform later off-grid estimates. Shore charging does not contribute to off-grid rating. Fuses, cables, source wiring and installed conditions remain unmodelled. Use Update to save.</p>
   </div>;
