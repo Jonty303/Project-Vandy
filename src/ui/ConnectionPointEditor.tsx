@@ -77,9 +77,9 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
       </label>
      </div>
      <small>{connectedDevices}/{socket.positions} linked device connection(s)
-       {socket.kind==='usb'?' · Supply-side maximum current: '+
-         (inputEstimate?.amps===null?'not specified':
-          inputEstimate?.amps.toFixed(2)+' A ('+inputEstimate?.basis+')'):
+       {socket.kind==='usb'?' · Supply-side planning current: '+
+         (inputEstimate&&inputEstimate.amps!==null?
+          inputEstimate.amps.toFixed(2)+' A ('+inputEstimate.basis+')':'not specified'):
          ' · 230 V AC connection point'}
      </small>
      {socket.kind==='usb'&&<div className="cp-usb-electrical">
