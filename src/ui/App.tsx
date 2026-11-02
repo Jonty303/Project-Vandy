@@ -322,6 +322,7 @@ export function App(){
           </section>}
         </>:page==='distribution'?<DistributionPage planner={p}
           onChange={distribution=>setP(old=>({...old,distribution}))}
+          onConnectionsChange={connections=>setP(old=>({...old,connections}))}
         />:page==='offgrid'?<OffGridPage planner={p}
           onChange={offGrid=>setP(old=>({...old,offGrid}))}
         />:page==='charging'?<ChargingPage
