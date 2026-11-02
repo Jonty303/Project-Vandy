@@ -4,7 +4,7 @@ import {selectedBattery,voltageIssues,type Planner} from '../domain/loadPlanner.
 import {findModel} from '../domain/charging.ts';
 import {
   activeInverter,assignmentFor,busbarRequirements,dcSources,dcTargets,distributionIssues,
-  distributionModels,slotsFor,standaloneInverters,occupiedSlots,firstFreeSlot,type DistributionPlan,
+  distributionModels,slotsFor,standaloneInverters,occupiedSlots,firstFreeSlot,chargeOutputUnits,type DistributionPlan,
   type DistributionNode,type NodeKind,type DcTarget,type DcAssignment,
 } from '../domain/distribution.ts';
 import './distribution.css';
@@ -119,7 +119,7 @@ export function DistributionPage({planner:p,onChange}:Props){
   ...(batteryV===tab?[{id:'battery',name:'Planned battery system'}]:[]),
   ...nodes.filter(n=>n.kind==='lynx'||n.kind==='busbar').map(n=>({id:n.id,name:n.name})),
  ];
- const charges=tab===230?[]:[...p.charging.mppt,...p.charging.dc2dc].filter(u=>{
+ const charges=tab===230?[]:chargeOutputUnits(p).filter(u=>{
   const m=findModel(u.modelId);return m?.outputVoltages.includes(tab);
  });
  const acTargets=[
@@ -229,7 +229,7 @@ export function DistributionPage({planner:p,onChange}:Props){
           chargerAssignments:d.chargerAssignments.filter(x=>x.chargerId!==charger?.chargerId)},chosen.id);
         return <div key={slot} className={'dist-slot '+(a||charger?'occupied':'')}>
          <strong>Position {slot}</strong>
-         {a||charger?<><span>{a?typeLabel(a.targetType)+': '+destName(a):
+         {a||charger?<><span>{a?(a.targetType==='inverter'&&inverter?.combined?'Inverter/charger DC connection':typeLabel(a.targetType))+': '+destName(a):
            'Charging source: '+(model?.name||'Unknown charger')}</span>
           <div className="dist-slot-actions">
            <label className="field"><span>Move position</span>
@@ -250,10 +250,10 @@ export function DistributionPage({planner:p,onChange}:Props){
    <section className="panel planner-list-panel">
     <div className="panel-head"><h2>Named circuits and ungrouped loads</h2>
      <small>Assign a whole named circuit or each individual ungrouped load</small></div>
-    {targets.filter(t=>t.targetType!=='node').length?<div className="planner-list-scroll">
+    {targets.filter(t=>t.targetType==='circuit'||t.targetType==='load').length?<div className="planner-list-scroll">
      <table className="planner-table dist-assignment-table">
       <thead><tr><th>Target</th><th>Type</th><th>Logical source</th><th>Slot</th></tr></thead>
-      <tbody>{targets.filter(t=>t.targetType!=='node').map(t=>{
+      <tbody>{targets.filter(t=>t.targetType==='circuit'||t.targetType==='load').map(t=>{
        const a=assignmentFor(d,t.targetType,t.targetId);
        return <tr key={t.targetType+':'+t.targetId}>
         <td><strong>{t.name}</strong>{t.targetType==='circuit'&&
@@ -271,15 +271,18 @@ export function DistributionPage({planner:p,onChange}:Props){
     </div>:<p className="charging-empty">No {tab} V circuits or ungrouped loads. Create these in Load Calculator.</p>}
    </section>
    <section className="panel planner-list-panel">
-    <div className="panel-head"><h2>Charging outputs</h2>
-     <small>MPPT and DC–DC equipment already selected in Charging</small></div>
-    {charges.length?<div className="planner-list-scroll"><table className="planner-table">
-     <thead><tr><th>Charger</th><th>Output</th><th>Feeds</th><th>Lynx position</th></tr></thead>
+    <div className="panel-head"><h2>DC equipment connections</h2>
+     <small>MPPT, DC–DC and shore chargers, alongside selected inverter or inverter/charger</small></div>
+    {(charges.length>0||inverter?.voltage===tab)?<div className="planner-list-scroll"><table className="planner-table">
+     <thead><tr><th>Equipment</th><th>DC side</th><th>Battery / DC distribution</th><th>Lynx position</th></tr></thead>
      <tbody>{charges.map(u=>{
       const m=findModel(u.modelId)!;
       const current=d.chargerAssignments.find(a=>a.chargerId===u.id);
       return <tr key={u.id}>
-       <td><strong>{m.name}</strong><small className="dist-small">{m.kind==='mppt'?'Solar MPPT':'DC–DC'} · {u.id.slice(0,8)}</small></td>
+       <td><strong>{m.name}</strong><small className="dist-small">
+         {m.kind==='mppt'?'Solar MPPT':m.kind==='shoreCharger'?'Shore battery charger':'DC–DC'}
+         {' · '}{m.kind==='shoreCharger'?'Selected in Shore Power':u.id.slice(0,8)}
+        </small></td>
        <td>{m.outputVoltages.join('/')} V</td>
        <td><select value={current?.destinationId||''} aria-label={'Output destination for '+m.name}
         onChange={e=>assignCharge(u.id,e.target.value)}>
@@ -295,9 +298,36 @@ export function DistributionPage({planner:p,onChange}:Props){
             Position {pos}</option>)}
          </select>:<span>—</span>}</td>
       </tr>;
-     })}</tbody>
-    </table></div>:<p className="charging-empty">No compatible charging outputs selected for this voltage. Select an MPPT or DC–DC charger under Charging.</p>}
-    <p className="planner-note">MPPT and DC–DC charging outputs use a Lynx fused position when assigned there, sharing its four slots with distribution branches. Fuse values and DC return conductors remain unmodelled.</p>
+     })}
+     {inverter?.voltage===tab&&(()=>{
+      const link=assignmentFor(d,'inverter','inverter');
+      const lynx=nodes.find(n=>n.id===link?.sourceId&&n.kind==='lynx');
+      return <tr key="inverter-battery-link">
+       <td><strong>{inverter.name}</strong>
+        <small className="dist-small">{inverter.combined?'Combined inverter / charger · bidirectional DC':'Standalone inverter · DC input'}
+         {' · '}selected for 230 V loads</small>
+       </td>
+       <td>{inverter.voltage} V {inverter.combined?'charge / discharge':'DC input'}</td>
+       <td><select value={link?.sourceId||''} aria-label={'DC battery-side association for '+inverter.name}
+         onChange={e=>assignDc('inverter','inverter',e.target.value)}>
+         <option value="">Unassigned</option>
+         {sourceOptions('inverter','inverter').map(source=>
+          <option key={source.id} value={source.id}>{source.name}</option>)}
+       </select></td>
+       <td>{lynx&&link?
+        <select value={link.slot??''} aria-label={'Lynx position for '+inverter.name}
+          onChange={e=>changeSlot(link.id,Number(e.target.value))}>
+          <option value="" disabled>Unallocated</option>
+          {[1,2,3,4].map(pos=><option key={pos} value={pos}
+            disabled={occupiedSlots({...d,
+              dcAssignments:d.dcAssignments.filter(a=>a.id!==link.id)},lynx.id).has(pos)}>
+             Position {pos}
+            </option>)}
+        </select>:<span>—</span>}</td>
+      </tr>;
+     })()}</tbody>
+    </table></div>:<p className="charging-empty">No battery-side charging or inverter equipment selected for this voltage. Select equipment in Charging or the 230 V Distribution tab.</p>}
+    <p className="planner-note">Every item uses one logical battery-side association. A combined inverter/charger draws DC when inverting and charges the battery over the same link, so it occupies only one Lynx position. Actual fuse ratings, terminals and return conductors are not yet designed.</p>
    </section>
   </div>:<div className="dist-sections">
    <section className="panel planner-detail-panel">
