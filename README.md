@@ -1,90 +1,19 @@
-# Project Vandy — Power Studio
+# Project Vandy — Load Calculator
 
-An early-stage, local-first campervan electrical-load calculator built around **named circuits, named consumers and explicit assumptions**. The first demonstration models Vandy's existing 12V equipment; the domain model can represent 12V and 24V projects without pretending a voltage converter exists.
+Focused workspace for daily electrical demand, with Home and Load Calculator navigation only. Add named circuits and appliances, then enter electrical ratings and seasonal usage. Initial projects are empty.
 
-## Quick start
+Requires Node 22.16 or newer.
 
-Requires Node.js **22.16+** and npm.
-
-```bash
+```sh
 npm install
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
-Open the URL printed by Vite. For production static assets, run `npm run build` and deploy `dist/`. Vite is configured with a relative base for subpath hosting. GitHub Pages deployment is **not** enabled automatically.
+Open the forwarded Vite port (normally 5173) in Codespaces. Use Update to save in this browser and Export JSON for backups.
 
-## Validation
-
-```bash
-npm test
-npm run typecheck
-npm run build
+```sh
+npm run check
+npx tsc -p tsconfig.domain.json
 ```
 
-`npm test` uses Node's built-in runner with TypeScript type stripping. Domain-only checks work with an existing global TypeScript install via `tsc -p tsconfig.domain.json` even before npm dependencies are installed.
-
-## What it can do
-- Keep consumers separate from their shared named electrical circuits (including toilet light and flush).
-- Estimate energy by normal, working-from-van and winter profiles; model compressors, LED strip length/brightness and multi-mode heaters.
-- Show battery-side Wh and approximate Ah while marking partial estimates and uncompensated voltage mismatches.
-- Assign circuit labels to Blue Sea fuse outputs or 6-way remote controller channels for future diagrams (**not verified wiring**).
-- Edit data locally and import/export versioned JSON. No backend or external AI service.
-
-## Important limitation
-**This is planning software only.** It does not calculate conductor size, overcurrent protection, earthing/bonding, approved wiring, usable battery runtime or compliance with installation standards. CO detection, ventilation, combustion exhaust and LPG hazards must be assessed separately by competent installers. Component ratings and sample duty cycles may be owner-reported or provisional.
-
-See [DESIGN.md](DESIGN.md), [AGENTS.md](AGENTS.md), and the authoritative [Iteration 01 contract](docs/ITERATION_01.md).
-
-
-## Iteration 02 — review branch
-
-The `iteration-02` branch adds the logical topology view, two separate 230V consumer units, outlet assignments and protection-device metadata. It is *not* a physical wiring design or an electrical safety compliance assessment.
-
-Open the app on `iteration-02` with `npm install` and `npm run dev`, then choose **System topology** in the sidebar. The local browser project migrates from v1; export a backup if you have edited loads before testing a reset.
-
-The old `iteration-01` branch remains available. Iteration 02 is prepared as a draft pull request against `iteration-01` and has not been merged.
-
-## Charging & autonomy refinement
-On `iteration-02`, choose **Off-grid autonomy** for battery reserve, average driving hours/spare alternator current, Orion XS limits, PVGIS monthly solar reference and selected location estimates. PVGIS calls are proxied through the Vite development server: start with `npm run dev` in Codespaces. A **static Vite build alone does not serve `/api/solar-monthly`**; production needs a server endpoint. When unavailable, a manual daily PV energy estimate can be entered and is explicitly marked as user-sourced.
-
-The calculator displays stationary and daily-driving energy balances. Solar must be fetched or supplied manually; unknown consumer watts remain flagged. The EU PVGIS source provides historical averages, not a live weather forecast, and the UK composite is an illustrative five-city unweighted mean.
-
-In the **Circuits & loads** editor, choose the consumer input supply and inspect its derived upstream logical AC source. On the **Project settings** page, select the inverter or shore pass-through operating scenario. Off-grid autonomy always calculates as the inverter scenario.
-
-## Iteration 03 — Batteries, BMS, connectivity and 2D overview
-The `iteration-03` branch adds dedicated **Batteries & BMS**, **Connectivity**, and **2D system overview** navigation. Use the new **Update** and **Reset** bar to commit/discard edits; previous values are retained until Update. Leaving a page with unsaved changes prompts before discarding them.
-
-Batteries can be recorded individually, including unknown manufacturer specifications, BMS Bluetooth/protocol abilities, low-temperature protection and self-heating. Parallel strings and series members make up the active battery bank. The off-grid planner uses the active bank's derived capacity and flags missing battery ratings or voltage mismatch rather than guessing.
-
-Connectivity shows documented Victron GX recommendations for SmartShunt, SmartSolar MPPT, Orion XS and MultiPlus. Recommendations are *not automatically connected*; users may propose a cable and explicitly record installed evidence. SmartShunt AUX offers starter voltage **or** temperature **or** midpoint. Bluetooth-only batteries remain vendor-app-only unless manufacturer documentation proves otherwise.
-
-The 2D view supports AC/DC/communications layers, component inspection, drag-to-arrange and pan/zoom. **Drawing lines are logical relationships or claimed data links, not certified wire routes.**
-
-### Codespaces
-```bash
-git fetch origin
-git switch --track origin/iteration-03
-npm install
-npm run dev
-```
-If the local branch is already checked out, use `git pull --ff-only`. Open forwarded port 5173. Browser-local v2 projects migrate to v3; JSON import/export remains supported. CI runs `npm run check` on `iteration-03`.
-
-Manufacturer documentation links and the bounded acceptance criteria are in `docs/ITERATION_03.md`.
-
-### Portable USB-C charging
-The **Phones & tablets** section has two iPhones and one iPad in the Vandy test data. Specify the number of 80%-battery-capacity charges each device receives during Normal, Working or Winter days. Switch profiles directly from the page. Each device's battery Wh and estimated USB-C charging efficiency are editable; these represent energy usage, **not charger wattage**.
-
-For the illustrative modern devices, one 0–80% recharge per device per day adds about **56Wh/day** to the 12V USB charging circuit. The two iPhone capacities (15.5Wh each) and 85% efficiency are assumptions; the example 11-inch iPad 28.93Wh capacity is published by Apple. These charge events are included automatically in the project loads and autonomy calculation. Do not add the same power again via a generic USB charger load.
-
-- **Default driving estimate (2026-11-01):** 1 hour/day in the editable Off-grid autonomy profile. This is a time assumption only; spare alternator current remains unknown, so no invented Orion XS charging energy. Existing user-saved driving hours remain unchanged.
-
-
-## Device connections & grounding — feature branch
-The `feature/device-connections-and-grounding` branch adds a Connections editor on equipment cards and on the 2D device-inspection panel. Changes to logical power links, data links, planned DC conductors and explicit grounding links update the corresponding diagrams; press **Update** to persist, or **Reset** to discard. The 2D view now offers a separate **Earth & chassis** layer.
-
-Vandy's seed shows the owner-described Lynx → main earth busbar → front vehicle chassis point, and PE from both consumer units to a separate rear-pillar chassis grounding point. This is a representation of reported topology, not tested continuity, a permitted bonding design or a BS 7671 approval. Directly dragging wire endpoints in the diagram is future work; dragging equipment still affects layout only.
-
-### Physical terminal editor (working branch)
-Equipment cards and the 2D detail sidebar can define, rename and select discrete physical terminals. DC cables record source and destination terminal IDs, and AC L/N/PE can be recorded as independent conductor runs without guessing installation wiring. The original logical supply and communication layers remain distinct. Circuit switches, including individual channels of a controller, can be assigned in **Circuits & loads**; switches are not a property of loads. Existing v3 exports remain importable, and new fields are retained in JSON export. Safety and actual connectivity still require owner inspection; the diagram is not an electrical installation certificate.
-
-The two owner-confirmed MPPT and MultiPlus Lynx connections deliberately have **unassigned Lynx output terminal IDs**, pending fuse-position inspection. Remote and Votronic switch contacts remain **polarity unknown** until inspected.
+See [the focused calculation contract](docs/LOAD_CALCULATOR.md) for formulas, assumptions and scope. Battery runtime is the next step.
