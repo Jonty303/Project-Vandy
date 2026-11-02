@@ -1,0 +1,32 @@
+.og-page{display:flex;flex-direction:column;gap:14px}
+.og-page .planner-detail-panel{padding:23px}
+.og-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin:16px 0}
+.og-region-field{display:grid;grid-column:span 2;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.og-gps{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 0}
+.og-gps small{color:#a7c5cb}
+.og-refresh{display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin-top:18px}
+.og-refresh a{color:#8cdece;font-size:12px}
+.og-success{color:#95eed5;font-size:12px;padding:12px 0}
+.og-graph-wrap{padding:8px 0 14px;margin:10px 0}
+.og-bar-graph{width:100%;max-height:290px;display:block}
+.og-legend{display:flex;flex-wrap:wrap;gap:17px;justify-content:center;color:#b4c6cf;font-size:11px}
+.og-legend span{display:flex;align-items:center;gap:7px}
+.og-legend i{display:inline-block;width:12px;height:10px;border-radius:2px}
+.og-legend i.demand{background:#d4b16e}
+.og-legend i.solar{background:#49cbb0}
+.og-legend i.driving{background:#6d96f0}
+.og-months{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;margin:18px 0}
+.og-months button{border:1px solid #345366;border-radius:6px;padding:9px 2px;background:#142b3b;
+ color:#b5c7ce;font-size:11px;cursor:pointer}
+.og-months button.active,.og-months button:hover{border-color:#69d2bd;background:#1d4a49;color:#dbfff3}
+.og-selected-heading{color:#def1f0;font-size:17px;font-weight:700;margin:20px 0 14px}
+.og-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.og-metrics>div,.og-ratings>div{background:#112d40;border:1px solid #36566a;border-radius:9px;
+ display:flex;flex-direction:column;gap:8px;padding:16px}
+.og-metrics span,.og-ratings span{font-size:11px;color:#a9c1ca}
+.og-metrics strong{font-size:22px;color:#e0f4f0}
+.og-ratings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 22px}
+.og-ratings strong{font-size:29px;color:#7be2ca}
+.og-page h3{font-size:15px;margin:20px 0 9px}
+@media(max-width:1100px){.og-months{grid-template-columns:repeat(6,minmax(0,1fr))}.og-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.og-fields,.og-region-field{grid-template-columns:1fr}.og-region-field{grid-column:auto}.og-months{grid-template-columns:repeat(4,minmax(0,1fr))}.og-metrics,.og-ratings{grid-template-columns:1fr}.og-page .planner-detail-panel{padding:14px}}
