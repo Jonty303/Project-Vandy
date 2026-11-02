@@ -1,13 +1,14 @@
 import {useEffect,useRef,useState,type ReactNode,type DragEvent as ReactDragEvent,type KeyboardEvent as ReactKeyboardEvent} from 'react';
-import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw} from 'lucide-react';
+import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw,AlertTriangle,BatteryCharging} from 'lucide-react';
 import {
   blankPlanner,catalogue,importPlanner,isPlanner,loadEnergy,newCircuit,newLoad,plannerTotal,moveLoadToCircuit,
+  batteries,selectedBattery,batteryRuntime,voltageIssues,circuitVoltageIssues,loadVoltageIssues,
   type Planner,type PlannerLoad,type PlannerCircuit,type Voltage,
 } from '../domain/loadPlanner.ts';
 import './loadPlanner.css';
 
-const KEY='vandy-load-planner-v3';
-const PRIOR_KEYS=['vandy-load-planner-v2','vandy-load-planner-v1'] as const;
+const KEY='vandy-load-planner-v4';
+const PRIOR_KEYS=['vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
 const UNGROUPED='ungrouped';
 type CalculatorTab='loads'|'circuits';
 const fmt=(n:number|null):string=>n===null?'Unknown':n.toLocaleString('en-GB',{maximumFractionDigits:2});
@@ -46,7 +47,7 @@ export function App(){
   const [start]=useState(initial);
   const [saved,setSaved]=useState<Planner>(start.saved);
   const [p,setP]=useState<Planner>(start.p);
-  const [page,setPage]=useState<'home'|'calculator'>('home');
+  const [page,setPage]=useState<'home'|'calculator'|'battery'>('home');
   const [tab,setTab]=useState<CalculatorTab>('loads');
   const [selectedLoad,setSelectedLoad]=useState('');
   const [selectedCircuit,setSelectedCircuit]=useState(UNGROUPED);
@@ -58,6 +59,9 @@ export function App(){
   const dirty=JSON.stringify(p)!==JSON.stringify(saved);
   const structural=isPlanner(p);
   const total=plannerTotal(p);
+  const issues=voltageIssues(p);
+  const battery=selectedBattery(p);
+  const endurance=batteryRuntime(p,battery);
   const load=p.loads.find(l=>l.id===selectedLoad);
   const circuit=p.circuits.find(c=>c.id===selectedCircuit);
   const ungrouped=p.loads.filter(l=>!l.circuitId);
@@ -77,17 +81,17 @@ export function App(){
     setP(old=>({...old,loads:old.loads.map(l=>l.id===selectedLoad?{...l,...change}:l)}));
   const patchCircuit=(id:string,change:Partial<PlannerCircuit>)=>
     setP(old=>({...old,circuits:old.circuits.map(c=>c.id===id?{...c,...change}:c)}));
+  // Device voltage is user-entered and never silently rewritten by circuit edits.
   const changeCircuitVoltage=(id:string,voltage:Voltage)=>
-    setP(old=>({...old,circuits:old.circuits.map(c=>c.id===id?{...c,voltage}:c),
-      loads:old.loads.map(l=>l.circuitId===id?{...l,voltage}:l)}));
+    setP(old=>({...old,circuits:old.circuits.map(c=>c.id===id?{...c,voltage}:c)}));
 
   const save=()=>{
-    if(!structural){setMessage('Correct invalid values or mismatched circuit voltages before updating.');return;}
+    if(!structural){setMessage('Correct invalid values before updating; voltage mismatches are allowed.');return;}
     try{localStorage.setItem(KEY,JSON.stringify(p));setSaved(structuredClone(p));setMessage('Daily load planner saved.');}
     catch{setMessage('Could not save in this browser. Export JSON to keep your work.');}
   };
   const exportData=()=>{
-    if(!structural){setMessage('Correct invalid values before exporting.');return;}
+    if(!structural){setMessage('Correct invalid values before exporting; voltage mismatches are allowed.');return;}
     const url=URL.createObjectURL(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download='vandy-daily-load-planner.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -141,11 +145,12 @@ export function App(){
       <nav>
         <button className={'nav-item '+(page==='home'?'active':'')} onClick={()=>setPage('home')}><Home size={19}/>Home</button>
         <button className={'nav-item '+(page==='calculator'?'active':'')} onClick={()=>setPage('calculator')}><Calculator size={19}/>Load Calculator</button>
+        <button className={'nav-item '+(page==='battery'?'active':'')} onClick={()=>setPage('battery')}><BatteryCharging size={19}/>Battery Selection</button>
       </nav>
       <div className="sidebar-bottom">Start with a typical day.<p>Load calculation · focused edition</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':'LOAD CALCULATOR'}</b></div>
+      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':page==='battery'?'BATTERY SELECTION':'LOAD CALCULATOR'}</b></div>
         <span className="tag">{dirty?'Unsaved changes':'Local project'}</span></header>
       <div className="content">
         {page==='home'?<>
@@ -157,11 +162,17 @@ export function App(){
           </section>
           <section className="panel planner-intro"><h2>A clean starting point</h2>
             <p>Your project begins with an empty Ungrouped loads container. Add appliances with editable starting values, then create circuits when you need them.</p>
-            <p>Just a typical-day estimate for now. Control assignments, battery sizing and seasonal usage can follow later.</p>
+            <p>Start with typical-day loads, then select a battery for simple endurance estimates. Control assignments, charging and wiring follow later.</p>
           </section>
           <section className="panel planner-intro"><div className="overline">TYPICAL DAILY LOAD-SIDE ENERGY</div>
             <strong className="planner-home-total">{fmt(total.wh)} Wh/day</strong>
             <p>{total.missing?total.missing+' load(s) need figures':p.loads.length?p.loads.length+' appliance(s) added':'No appliances added yet'}</p>
+            {(issues.length>0||total.missing>0)&&<p className="validation-warning">
+              <AlertTriangle size={16}/> {issues.length} voltage mismatch(es); {total.missing} incomplete load(s). Total is provisional.
+            </p>}
+            {battery&&<p><b>Battery:</b> {battery.name} · {endurance.days===null?'Add loads to calculate runtime':fmt(endurance.days)+' days of estimated use'+(endurance.provisional?' (provisional)':'')}</p>}
+            {endurance.bankVoltageLoads.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
+              {endurance.bankVoltageLoads.length} DC load(s) have a different voltage from your selected battery.</p>}
           </section>
         </>:<>
           <div className="section-heading heading-top"><div>
@@ -172,6 +183,8 @@ export function App(){
             <div className="overline">LOAD-SIDE DAILY ENERGY</div>
             <strong>{fmt(total.wh)} <small>Wh/day</small></strong>
             <p>{total.missing?'Partial total · '+total.missing+' load(s) incomplete':'Estimated typical-day appliance energy'}</p>
+            {issues.length>0&&<p className="validation-warning"><AlertTriangle size={15}/>
+              {issues.length} voltage mismatch(es). Totals are provisional.</p>
           </div><div>{total.byVoltage.filter(v=>p.loads.some(l=>l.voltage===v.voltage)).map(v=>
             <p key={v.voltage}><b>{v.voltage} V:</b> {fmt(v.ah)} Ah/day</p>)}
             <small>Ah values are per voltage, not combined.</small>
@@ -219,6 +232,8 @@ export function App(){
                     onClick={()=>editCircuit(group.id)}
                     onKeyDown={e=>selectOnKey(e,()=>editCircuit(group.id))}>
                     <th colSpan={5}>{group.name} <span>({group.loads.length})</span>
+                      {group.id!==UNGROUPED&&circuitVoltageIssues(p,group.id).length>0&&
+                        <span className="validation-row-warning"><AlertTriangle size={13}/> {circuitVoltageIssues(p,group.id).length} voltage mismatch(es)</span>}
                       {draggedLoadId&&<span className="planner-drop-hint">Drop here to assign</span>}
                     </th>
                   </tr>
@@ -234,7 +249,9 @@ export function App(){
                       onKeyDown={e=>selectOnKey(e,()=>setSelectedLoad(l.id))}
                       onDragStart={e=>startLoadDrag(e,l.id)}
                       onDragEnd={endLoadDrag}>
-                      <td><span className="planner-row-label"><span className="load-drag-handle" aria-hidden="true">⋮⋮</span>{l.name||'Unnamed load'}</span></td>
+                      <td><span className="planner-row-label"><span className="load-drag-handle" aria-hidden="true">⋮⋮</span>
+                        {l.name||'Unnamed load'}
+                        {loadVoltageIssues(p,l.id).length>0&&<span className="validation-row-warning" title="Load voltage differs from circuit"><AlertTriangle size={14}/></span>}</span></td>
                       <td>{l.voltage} V</td><td>{fmt(r.watts)}</td><td>{fmt(l.hours)}</td><td>{fmt(r.wh)}</td>
                     </tr>;
                   }):<tr className="planner-empty-row planner-select-row" tabIndex={0}
@@ -259,7 +276,8 @@ export function App(){
                     tabIndex={0} aria-selected={selectedCircuit===c.id}
                     onClick={()=>setSelectedCircuit(c.id)}
                     onKeyDown={e=>selectOnKey(e,()=>setSelectedCircuit(c.id))}>
-                    <td><span className="planner-row-label">{c.name||'Unnamed circuit'}</span></td>
+                    <td><span className="planner-row-label">{c.name||'Unnamed circuit'}
+                      {circuitVoltageIssues(p,c.id).length>0&&<span className="validation-row-warning"><AlertTriangle size={14}/> {circuitVoltageIssues(p,c.id).length}</span>}</span></td>
                     <td>{c.voltage} V</td><td>{p.loads.filter(l=>l.circuitId===c.id).length}</td>
                     <td>{c.physicalSwitch?'Yes':'No'}</td>
                     <td>{fmt(plannerTotal({...p,loads:p.loads.filter(l=>l.circuitId===c.id)}).wh)}</td>
@@ -282,14 +300,11 @@ export function App(){
                 <option value="standard">Standard appliance</option><option value="led">LED strip</option>
                 <option value="fridge">Fridge (average input)</option><option value="diesel">Diesel heater (average input)</option>
               </select></Field>
-              <Field label="Circuit"><select value={load.circuitId} onChange={e=>{
-                const c=p.circuits.find(c=>c.id===e.target.value);
-                patchLoad({circuitId:e.target.value,...(c?{voltage:c.voltage}:{})});
-              }}>
+              <Field label="Circuit"><select value={load.circuitId} onChange={e=>patchLoad({circuitId:e.target.value})}>
                 <option value="">Ungrouped loads</option>
                 {p.circuits.map(c=><option key={c.id} value={c.id}>{c.name||'Unnamed circuit'} · {c.voltage} V</option>)}
               </select></Field>
-              <Field label="Voltage"><select value={load.voltage} disabled={!!load.circuitId}
+              <Field label="Device voltage"><select value={load.voltage}
                 onChange={e=>patchLoad({voltage:Number(e.target.value) as Voltage})}>
                 {[12,24,230].map(v=><option key={v} value={v}>{v} V</option>)}
               </select></Field>
@@ -311,6 +326,11 @@ export function App(){
               {load.category==='led'&&<NumberField label="Strip length (metres)" value={load.length}
                 onChange={v=>patchLoad({length:v})}/>}
             </div>
+            {loadVoltageIssues(p,load.id).map(i=><div className="validation-warning" key={i.loadId}>
+              <AlertTriangle size={17}/><span><b>Voltage mismatch:</b> {i.loadName} is {i.loadVoltage} V,
+              but {i.circuitName} circuit is {i.circuitVoltage} V. Correct the load or circuit voltage;
+              you can still save the assignment.</span>
+            </div>)}
             <div className="planner-result">{(()=>{const r=loadEnergy(load);return <>
               <strong>{fmt(r.wh)} Wh/day · {fmt(r.ah)} Ah/day at {load.voltage} V</strong>
               {r.issues.map(i=><p key={i}>{i}</p>)}
@@ -350,10 +370,17 @@ export function App(){
                 <div><span>Daily energy</span><strong>{fmt(activeCircuitTotal.wh)} <small>Wh/day</small></strong></div>
               </div>
               {activeCircuitTotal.missing>0&&<p className="planner-note">{activeCircuitTotal.missing} incomplete load(s) — total is partial.</p>}
+              {circuit&&circuitVoltageIssues(p,circuit.id).length>0&&<div className="validation-warning">
+                <AlertTriangle size={17}/><span>{circuitVoltageIssues(p,circuit.id).length} voltage mismatch(es).
+                Circuit total is provisional; resolve them before engineering validation.</span>
+              </div>}
               <div className="planner-associated-loads">
                 <h3>Assigned loads</h3>
                 {activeCircuitLoads.length?activeCircuitLoads.map(l=><div className="associated-load-row" key={l.id}>
-                  <span>{l.name||'Unnamed load'} <small>{l.voltage} V · {fmt(loadEnergy(l).wh)} Wh/day</small></span>
+                  <span>{l.name||'Unnamed load'}
+                    {loadVoltageIssues(p,l.id).length>0&&<AlertTriangle size={14} className="warning-inline-icon"/>}
+                    <small>{l.voltage} V · {fmt(loadEnergy(l).wh)} Wh/day
+                      {circuit&&loadVoltageIssues(p,l.id).length>0?' · mismatch with '+circuit.voltage+' V circuit':''}</small></span>
                   <button className="button small" onClick={()=>editLoad(l.id)}>Edit load</button>
                 </div>):<p className="planner-note">Empty — no loads assigned.</p>}
               </div>
@@ -374,8 +401,8 @@ export function App(){
           }}/>
         <div className="project-edit-bar">
           <div><strong>{dirty?'Changes not saved':'Load planner up to date'}</strong>
-            <small>{structural?'All defaults are editable; check estimates against your equipment.':
-              'Correct invalid figures or mismatched circuit voltages.'}</small></div>
+            <small>{structural?issues.length+' voltage mismatch(es); these can be saved. Check equipment estimates.':
+              'Correct invalid figures. Voltage mismatches can be saved.'}</small></div>
           <div className="project-edit-actions">
             <button className="button" disabled={!dirty} onClick={()=>{
               setP(structuredClone(saved));setSelectedLoad('');setSelectedCircuit(UNGROUPED);setPicker(false);
