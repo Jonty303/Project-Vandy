@@ -122,7 +122,7 @@ export function isPlanner(x:unknown):x is Planner {
 }
 /** Legacy import converts the selected older Summer profile into a single typical day,
  * retaining all original seasons for future explicit re-introduction.
- * Do not overwrite a current v2 record when migrating local storage.
+ * v1 and v2 originals remain untouched in browser storage during v3 migration.
  */
 export function importPlanner(x:unknown):Planner|null {
   if(isPlanner(x))return x;
