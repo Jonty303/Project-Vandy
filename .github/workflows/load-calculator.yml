@@ -1,7 +1,7 @@
 name: Load calculator checks
 on:
   push:
-    branches: [feature/load-calculator]
+    branches: [feature/load-calculator, feature/socket-distribution]
   pull_request:
     branches: [main]
 jobs:
