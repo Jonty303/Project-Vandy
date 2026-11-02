@@ -112,6 +112,32 @@ export const solarArrayWh=(p:Planner,month:number):number|null=>{
  const factor=nominalCap>0?Math.min(1,nominalCap/watts):0;
  return data.monthlyKWhPerKwDay[month]*watts*factor;
 };
+/** Worst-case simultaneous charger output ratings; not a charging schedule.
+ * A higher sum than a recommended current is a review flag, not an assumption that
+ * solar, shore and driving chargers will always run together.
+ */
+export function batteryChargeReview(p:Planner):string[]{
+ const b=selectedBattery(p);if(!b||b.chargeMaximumA===null)return [];
+ const bankChargeVoltage=b.chargeVoltage??(b.systemVoltage===12?14.4:28.8);
+ const dc=dcChargePower(p)/bankChargeVoltage;
+ const solar=panelArray(p.charging.panel).watts===null?0:
+   p.charging.mppt.reduce((sum,u)=>{
+     const m=findModel(u.modelId);
+     return sum+(m?.outputVoltages.includes(b.systemVoltage)?m.chargeAmps:0);
+   },0);
+ const shore= p.charging.shoreModelId?findModel(p.charging.shoreModelId):null;
+ const shoreA=shore?.outputVoltages.includes(b.systemVoltage)
+   ?Math.min(shore.chargeAmps,p.charging.shoreChargeLimitA??shore.chargeAmps):0;
+ const combined=dc+solar+shoreA;
+ const warnings:string[]=[];
+ if(combined>b.chargeMaximumA)
+   warnings.push('Potential simultaneous charger current '+Math.round(combined)+' A exceeds the battery maximum '+b.chargeMaximumA+' A. Review charge limiting.');
+ else if(b.chargeRecommendedA!==null&&combined>b.chargeRecommendedA)
+   warnings.push('Potential simultaneous charge current '+Math.round(combined)+
+      ' A exceeds the battery standard/recommended '+b.chargeRecommendedA+
+      ' A. This is not necessarily unsafe, but charge settings and battery acceptance need review.');
+ return warnings;
+}
 export function monthRating(p:Planner,month:number):MonthlyRating|null{
  const b=selectedBattery(p);
  if(!b||month<0||month>11||!Number.isInteger(month)||plannerTotal(p).missing>0)return null;
