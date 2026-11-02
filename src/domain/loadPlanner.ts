@@ -203,7 +203,14 @@ export function importPlanner(x:unknown):Planner|null {
   const old=x as {version?:unknown;loads?:unknown;circuits?:unknown;batteryId?:unknown};
   if(old.version===5&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
     const prior=old as unknown as Planner;
-    const p:Planner={...prior,version:6,offGrid:emptyOffGrid()};
+    const base=emptyCharging();
+    const oldCharging=prior.charging;
+    if(!oldCharging||!oldCharging.panel)return null;
+    // The v5 charging record predates current limits and expanded panel fields.
+    // Preserve every entered value and supply only newly introduced defaults.
+    const charging:ChargingPlan={...base,...oldCharging,
+      panel:{...base.panel,...oldCharging.panel}};
+    const p:Planner={...prior,version:6,charging,offGrid:emptyOffGrid()};
     return isPlanner(p)?p:null;
   }
   if(old.version===4&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
