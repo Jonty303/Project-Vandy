@@ -18,7 +18,7 @@ The **Solar** charging tab now offers a searchable selection of model-specific R
 
 The 230 V distribution tab proposes the existing selected MultiPlus inverter/charger if present, otherwise allows a standalone 12 V or 24 V Victron Phoenix 500 VA inverter. A shore-only charger is not an inverter. Logical inverter assignments have no real 230 V consumer units, transfer switches or earth/neutral wiring at this stage.
 
-Distribution changes are staged until **Update**. Structural failures (occupied fuse slots, cycles, dangling IDs) block saving; incomplete/unassigned paths and voltage incompatibilities remain review warnings. **v7 JSON** imports older v1–v6 projects without adding any distribution equipment. The six-way remote remains deferred.
+Distribution changes are staged until **Update**. Structural failures (occupied fuse slots, cycles, dangling IDs) block saving; incomplete/unassigned paths and voltage incompatibilities remain review warnings. **v8 JSON** imports older v1–v7 projects without adding any distribution equipment. The six-way remote remains deferred.
 
 Seasonal profiles are intentionally hidden for this iteration. Previous v1 seasonal data is migrated to one typical day using its Summer profile; the original is preserved for a possible later reintroduction.
 
@@ -34,3 +34,7 @@ npm run dev -- --host 0.0.0.0
 Open the forwarded Vite port (normally 5173). Use **Update** to save to browser storage and **Export JSON** for a backup. Battery Selection retains a no-charge load-side runtime, while Off-grid rating models conversion losses and estimated solar/driving contributions. Shore is excluded.
 
 For formulas, safety assumptions, default sources and migration details see [the focused calculator contract](docs/LOAD_CALCULATOR.md).
+
+
+### Lynx charge-output slots
+The **Lynx Distributor's four fused positions are shared** by inverter or downstream distributor feeds, MPPT outputs and DC–DC charger outputs. Selecting Lynx as the destination automatically assigns the next available position; a full Lynx cannot receive another new charger link until a position is freed. Change or remove a charger position from the device list or Charging outputs table. Saved v7 setups migrate existing charger-to-Lynx links into unused slots without deleting the equipment; oversubscribed links remain visible and marked for review.
