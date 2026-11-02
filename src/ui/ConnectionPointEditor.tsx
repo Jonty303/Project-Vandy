@@ -91,6 +91,11 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
              value={rated.maxCombinedOutputWatts??''}
              onChange={e=>updateNumber('maxCombinedOutputWatts',e.target.value)}/>
          </label>
+         <label className="field"><span>Max USB output power per port (W)</span>
+           <input type="number" min="0" step="any" placeholder="USB-C PD port limit"
+             value={rated.maxOutputWattsPerPort??''}
+             onChange={e=>updateNumber('maxOutputWattsPerPort',e.target.value)}/>
+         </label>
          <label className="field"><span>Max USB output current per port (A)</span>
            <input type="number" min="0" step="any" placeholder="Per-port maximum"
              value={rated.maxOutputAmpsPerPort??''}
