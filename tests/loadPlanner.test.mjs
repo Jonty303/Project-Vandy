@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner,newCircuit,
+  newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner,newCircuit,moveLoadToCircuit,
   catalogue,importPlanner,
 } from '../src/domain/loadPlanner.ts';
 const template=(name)=>catalogue.find(t=>t.name===name);
@@ -22,10 +22,10 @@ test('each device has one daily average with correct W/A/Wh/Ah conversion',()=>{
   l.ratingUnit='A';l.rating=5;r=loadEnergy(l);assert.equal(r.wh,240);
 });
 test('LED strips use length and average watts per metre; no separate seasonal brightness',()=>{
-  const l=newLoad(template('Floor LED strip'));
-  assert.equal(l.rating,5);assert.equal(l.length,2);assert.equal(l.hours,5);
-  assert.equal(loadEnergy(l).wh,50);
-  l.length=3;assert.equal(loadEnergy(l).wh,75);
+  const l=newLoad(template('LED lights'));
+  assert.equal(l.rating,5);assert.equal(l.length,1);assert.equal(l.hours,3);
+  assert.equal(loadEnergy(l).wh,15);
+  l.length=3;assert.equal(loadEnergy(l).wh,45);
   l.length=null;assert.equal(loadEnergy(l).wh,null);
 });
 test('fridge runs 24 hours at averaged input; heater uses only the average and set hours',()=>{
@@ -115,4 +115,57 @@ test('v2 direct switch migrates and new model cannot persist controller fields',
   assert.ok(next&&isPlanner(next));
   assert.equal(next.circuits[0].physicalSwitch,true);
   assert.equal('control' in next.circuits[0],false);
+});
+
+test('Add load catalogue offers exactly one generic LED lights preset',()=>{
+  const lights=catalogue.filter(t=>/light|LED/i.test(t.name));
+  assert.deepEqual(lights.map(l=>l.name),['LED lights']);
+  const first=newLoad(template('LED lights'));
+  const second=newLoad(template('LED lights'));
+  assert.equal(first.category,'led');
+  assert.equal(first.circuitId,'');
+  assert.equal(first.name,'LED lights');
+  assert.notEqual(first.id,second.id,'multiple separate lighting instances supported');
+  first.name='Kitchen counter lights';
+  first.length=1.5;
+  first.hours=2;
+  assert.equal(loadEnergy(first).wh,15);
+  assert.equal(second.name,'LED lights','editing one entry must not rename another');
+});
+
+test('drag/drop domain assignment updates circuitId and circuit voltage without changing energy',()=>{
+  const p=blankPlanner();
+  const kitchen=newCircuit();kitchen.name='Kitchen';kitchen.voltage=12;
+  const mains=newCircuit();mains.name='Mains';mains.voltage=230;
+  p.circuits.push(kitchen,mains);
+  const light=newLoad(template('LED lights'));
+  p.loads.push(light);
+  const daily=plannerTotal(p).wh;
+  const inKitchen=moveLoadToCircuit(p,light.id,kitchen.id);
+  assert.notEqual(inKitchen,p);
+  assert.equal(inKitchen.loads[0].circuitId,kitchen.id);
+  assert.equal(inKitchen.loads[0].voltage,12);
+  assert.equal(plannerTotal(inKitchen).wh,daily);
+  const inMains=moveLoadToCircuit(inKitchen,light.id,mains.id);
+  assert.equal(inMains.loads[0].circuitId,mains.id);
+  assert.equal(inMains.loads[0].voltage,230);
+  assert.equal(inMains.loads[0].rating,5,'average watts per metre not rewritten');
+  assert.equal(plannerTotal(inMains).wh,daily);
+  const ungrouped=moveLoadToCircuit(inMains,light.id,'');
+  assert.equal(ungrouped.loads[0].circuitId,'');
+  assert.equal(ungrouped.loads[0].voltage,230,'ungrouping retains last voltage');
+  assert.ok(isPlanner(ungrouped));
+  assert.equal(p.loads[0].circuitId,'','original planner unchanged');
+});
+
+test('dropping on the same group or an unknown identifier is a safe no-op',()=>{
+  const p=blankPlanner();
+  const circuit=newCircuit();p.circuits.push(circuit);
+  const l=newLoad(template('LED lights'));p.loads.push(l);
+  assert.equal(moveLoadToCircuit(p,l.id,''),p);
+  assert.equal(moveLoadToCircuit(p,l.id,'no-such-circuit'),p);
+  assert.equal(moveLoadToCircuit(p,'no-such-load',circuit.id),p);
+  const next=moveLoadToCircuit(p,l.id,circuit.id);
+  assert.equal(moveLoadToCircuit(next,l.id,circuit.id),next);
+  assert.ok(isPlanner(next));
 });
