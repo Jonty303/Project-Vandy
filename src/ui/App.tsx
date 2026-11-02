@@ -13,8 +13,8 @@ import {normaliseDistribution,distributionIssues} from '../domain/distribution.t
 import {monthRating,MONTHS,batteryChargeReview} from '../domain/offGrid.ts';
 import './loadPlanner.css';
 
-const KEY='vandy-load-planner-v7';
-const PRIOR_KEYS=['vandy-load-planner-v6','vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
+const KEY='vandy-load-planner-v8';
+const PRIOR_KEYS=['vandy-load-planner-v7','vandy-load-planner-v6','vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
 const UNGROUPED='ungrouped';
 type CalculatorTab='loads'|'circuits';
 const fmt=(n:number|null):string=>n===null?'Unknown':n.toLocaleString('en-GB',{maximumFractionDigits:2});
