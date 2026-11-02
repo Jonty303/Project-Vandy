@@ -2,9 +2,9 @@
 
 A focused **typical-day** electrical load calculator. Only Home and Load Calculator are in the menu.
 
-Start with an empty project; add named circuits and loads from the reference catalogue (or a custom load). Every new appliance gets an editable power and daily usage estimate, including LED strip length where relevant. Manufacturer-confirmed ratings and rough assumptions are differentiated in the appliance's Technical basis section.
+Start with an empty project and the built-in **Ungrouped loads** container. Add named circuits and loads from the reference catalogue (or a custom load). Every new appliance starts ungrouped and gets an editable power and daily usage estimate, including LED strip length where relevant. Manufacturer-confirmed ratings and rough assumptions are differentiated in the Technical basis section.
 
-Each circuit has a **Physical on/off switch** checkbox and a Direct / 6-gang remote control setting. The physical switch only applies to directly controlled circuits; selecting the remote suppresses its effect in future wiring output. Switches are not entered as power-consuming devices.
+Under **Load Calculator**, use the **Loads** and **Circuits** tabs. Each has a compact list above the selected load/circuit details editor. Ungrouped loads is always shown, even when empty; it has no fixed voltage or switch. Named circuits retain a **Physical on/off switch** checkbox, but there is no control-assignment field. Remote-controller assignment belongs to a future wiring workflow. Deleting a named circuit moves its loads to Ungrouped instead of deleting them.
 
 Seasonal profiles are intentionally hidden for this iteration. Previous v1 seasonal data is migrated to one typical day using its Summer profile; the original is preserved for a possible later reintroduction.
 
