@@ -14,7 +14,7 @@ const base=()=>{
 };
 test('new off-grid plan defaults to 1h/day driving and honest PVGIS data',()=>{
  const p=blankPlanner();
- assert.equal(p.version,7);
+ assert.equal(p.version,8);
  assert.ok(isPlanner(p));
  assert.equal(p.offGrid.driveHours,1);
  assert.equal(p.offGrid.dataset,null);
@@ -114,7 +114,7 @@ test('v5 migration retains existing selected equipment and settings',()=>{
  mppt:[],panel:{watts:400,quantity:1,connection:'series',voc:40,isc:13},shoreModelId:null}};
  const upgraded=importPlanner(v5);
  assert.ok(upgraded&&isPlanner(upgraded));
- assert.equal(upgraded.version,7);
+ assert.equal(upgraded.version,8);
  assert.equal(upgraded.charging.panel.watts,400);
  assert.deepEqual(upgraded.distribution.nodes,[]);
  assert.equal(upgraded.charging.panel.connection,'series');
