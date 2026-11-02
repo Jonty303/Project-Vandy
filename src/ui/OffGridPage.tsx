@@ -68,7 +68,6 @@ function Trajectory({planner}:{planner:Planner}){
 export function OffGridPage({planner,onChange}:Props){
  const p=planner.offGrid;
  const battery=selectedBattery(planner);
- const ratings=allMonthRatings(planner);
  const chosen=monthRating(planner,p.month);
  const solarData=matchingSolar(p);
  const [regionsQuery,setRegionsQuery]=useState('');
