@@ -1,13 +1,86 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner} from '../src/domain/loadPlanner.ts';
-const load=(category='standard')=>{const l=newLoad({name:'Test',category,voltage:12});l.rating=60;l.usage.Summer={hours:2,duty:35,cycles:0};return l};
-test('starts empty; unknown inputs remain unknown and totals partial',()=>{const p=blankPlanner();assert.ok(isPlanner(p));assert.deepEqual(p.loads,[]);p.loads.push(newLoad({name:'Unknown',category:'standard',voltage:12}));assert.equal(loadEnergy(p.loads[0],'Summer').wh,null);assert.equal(plannerTotal(p,'Summer').missing,1)});
-test('watts and amps give the same energy; quantities included',()=>{const l=load();l.quantity=2;assert.equal(loadEnergy(l,'Summer').wh,240);l.ratingUnit='A';l.rating=5;assert.equal(loadEnergy(l,'Summer').wh,240);assert.equal(loadEnergy(l,'Summer').ah,20)});
-test('LED length, brightness and quantity; rated power excludes dimming',()=>{const l=load('led');l.rating=10;l.length=2;l.brightness=50;l.quantity=2;const r=loadEnergy(l,'Summer');assert.equal(r.watts,40);assert.equal(r.wh,40);l.length=null;assert.equal(loadEnergy(l,'Summer').wh,null)});
-test('fridge compressor duty vs already averaged power',()=>{const l=load('fridge');l.usage.Summer.hours=24;assert.ok(Math.abs(loadEnergy(l,'Summer').wh-504)<1e-9);l.fridgeMode='average';l.rating=21;assert.equal(loadEnergy(l,'Summer').wh,504)});
-test('heater sums running, startup and shutdown once per cycle',()=>{const l=load('diesel');l.rating=40;l.startupWatts=120;l.startupMinutes=5;l.shutdownWatts=60;l.shutdownMinutes=3;l.usage.Summer.cycles=2;assert.equal(loadEnergy(l,'Summer').wh,106);l.startupWatts=null;assert.equal(loadEnergy(l,'Summer').wh,null);l.usage.Summer={hours:0,duty:100,cycles:0};assert.equal(loadEnergy(l,'Summer').wh,0)});
-test('seasons are independent; incomplete winter is not summer zero',()=>{const l=load();assert.equal(loadEnergy(l,'Summer').wh,120);assert.equal(loadEnergy(l,'Winter').wh,null);l.usage.Winter.hours=8;assert.equal(loadEnergy(l,'Winter').wh,480)});
-test('mixed voltage Wh aggregates, Ah separated',()=>{const a=load();const b=load();b.id='second';b.voltage=230;const r=plannerTotal({version:1,circuits:[],loads:[a,b]},'Summer');assert.equal(r.wh,240);assert.equal(r.byVoltage[0].ah,10);assert.equal(r.byVoltage[2].ah,120/230)});
-test('invalid hours, duty, fractional cycles and overlong heater days rejected',()=>{const l=load('fridge');l.usage.Summer.hours=25;assert.equal(loadEnergy(l,'Summer').wh,null);l.usage.Summer.hours=24;l.usage.Summer.duty=101;assert.equal(loadEnergy(l,'Summer').wh,null);const h=load('diesel');h.usage.Summer.cycles=1.5;assert.equal(loadEnergy(h,'Summer').wh,null);h.usage.Summer.cycles=1;h.usage.Summer.hours=24;h.startupWatts=120;h.shutdownWatts=60;h.startupMinutes=1;h.shutdownMinutes=1;assert.equal(loadEnergy(h,'Summer').wh,null)});
-test('JSON validates nulls and rejects duplicates, dangling circuits and invalid numerics',()=>{const p=blankPlanner();const l=load();p.loads.push(l);assert.ok(isPlanner(JSON.parse(JSON.stringify(p))));l.quantity=0;assert.equal(isPlanner(p),false);l.quantity=1;l.circuitId='missing';assert.equal(isPlanner(p),false);l.circuitId='';p.loads.push({...l});assert.equal(isPlanner(p),false);p.loads.pop();l.rating=Infinity;assert.equal(isPlanner(p),false)});
+import {
+  newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner,newCircuit,effectivePhysicalSwitch,
+  catalogue,importPlanner,
+} from '../src/domain/loadPlanner.ts';
+const template=(name)=>catalogue.find(t=>t.name===name);
+const sample=()=>newLoad({name:'Test',category:'standard',voltage:12,watts:60,hours:2,basis:'Test'});
+test('empty planner and nonempty catalogue with defaults',()=>{
+  const p=blankPlanner();assert.ok(isPlanner(p));assert.deepEqual(p.loads,[]);
+  for(const t of catalogue){
+    const l=newLoad(t);
+    assert.ok(l.rating!==null&&l.hours!==null,'missing default: '+t.name);
+    assert.ok(loadEnergy(l).wh!==null,'invalid default: '+t.name);
+  }
+  assert.equal(plannerTotal(p).wh,0);
+});
+test('each device has one daily average with correct W/A/Wh/Ah conversion',()=>{
+  const l=sample();l.quantity=2;
+  let r=loadEnergy(l);
+  assert.equal(r.watts,120);assert.equal(r.amps,10);assert.equal(r.wh,240);assert.equal(r.ah,20);
+  l.ratingUnit='A';l.rating=5;r=loadEnergy(l);assert.equal(r.wh,240);
+});
+test('LED strips use length and average watts per metre; no separate seasonal brightness',()=>{
+  const l=newLoad(template('Floor LED strip'));
+  assert.equal(l.rating,5);assert.equal(l.length,2);assert.equal(l.hours,5);
+  assert.equal(loadEnergy(l).wh,50);
+  l.length=3;assert.equal(loadEnergy(l).wh,75);
+  l.length=null;assert.equal(loadEnergy(l).wh,null);
+});
+test('fridge runs 24 hours at averaged input; heater uses only the average and set hours',()=>{
+  const fridge=newLoad(template('CR65X fridge'));
+  assert.equal(fridge.rating,21);assert.equal(fridge.hours,24);
+  assert.equal(loadEnergy(fridge).wh,504);
+  const heater=newLoad(template('VEVOR diesel heater'));
+  assert.equal(heater.rating,40);assert.equal(heater.hours,4);
+  assert.equal(loadEnergy(heater).wh,160);
+});
+test('mixed-voltage energy aggregates while Ah stays separate',()=>{
+  const a=sample(),b=sample();b.id='second';b.voltage=230;
+  const t=plannerTotal({version:2,circuits:[],loads:[a,b]});
+  assert.equal(t.wh,240);assert.equal(t.byVoltage[0].ah,10);
+  assert.equal(t.byVoltage[2].ah,120/230);
+});
+test('unknown and invalid figures remain partial; no silent zero',()=>{
+  const l=sample();l.rating=null;
+  const p={version:2,circuits:[],loads:[l]};
+  assert.equal(loadEnergy(l).wh,null);assert.equal(plannerTotal(p).missing,1);
+  l.rating=60;l.hours=25;assert.equal(loadEnergy(l).wh,null);
+  assert.equal(isPlanner(p),false);l.hours=0;
+  assert.equal(loadEnergy(l).wh,0);assert.equal(isPlanner(p),true);
+});
+test('physical switch is circuit-level and ignored for 6-gang remote control',()=>{
+  const c=newCircuit();
+  c.physicalSwitch=true;assert.equal(effectivePhysicalSwitch(c),true);
+  c.control='remote6';assert.equal(effectivePhysicalSwitch(c),false);
+  assert.equal(c.physicalSwitch,true,'remember preference for direct control');
+  const p=blankPlanner();p.circuits=[c];p.loads=[{...sample(),circuitId:c.id}];
+  assert.ok(isPlanner(p));c.control='direct';assert.equal(effectivePhysicalSwitch(c),true);
+});
+test('validation rejects mismatched circuit voltages and duplicated IDs',()=>{
+  const p=blankPlanner();p.circuits=[newCircuit()];
+  const l=sample();l.circuitId=p.circuits[0].id;p.loads.push(l);
+  assert.ok(isPlanner(p));p.circuits[0].voltage=230;assert.equal(isPlanner(p),false);
+  p.circuits[0].voltage=12;p.loads.push({...l});assert.equal(isPlanner(p),false);
+});
+test('legacy version 1 project converts Summer usage without dropping other seasonal records',()=>{
+  const old={version:1,circuits:[{id:'c',name:'Lights',voltage:12}],loads:[{
+    id:'l',name:'Floor LED strip',circuitId:'c',voltage:12,category:'led',
+    ratingUnit:'W',rating:10,quantity:1,length:2,brightness:50,fridgeMode:'compressor',
+    startupWatts:null,startupMinutes:null,shutdownWatts:null,shutdownMinutes:null,
+    usage:{Spring:{hours:3,duty:100,cycles:0},Summer:{hours:4,duty:100,cycles:0},
+      Autumn:{hours:2,duty:100,cycles:0},Winter:{hours:6,duty:100,cycles:0}},notes:'Original',
+  }]};
+  const migrated=importPlanner(old);
+  assert.ok(migrated&&isPlanner(migrated));
+  assert.equal(migrated.loads[0].hours,4);
+  assert.equal(loadEnergy(migrated.loads[0]).wh,40);
+  assert.equal(migrated.loads[0].legacySeasonal.usage.Winter.hours,6);
+  assert.equal(migrated.circuits[0].physicalSwitch,false);
+  assert.equal(migrated.circuits[0].control,'direct');
+});
+test('reject malformed external imports',()=>{
+  assert.equal(importPlanner({version:2,circuits:[],loads:[{id:'broken'}]}),null);
+  assert.equal(importPlanner({version:1,circuits:null,loads:[]}),null);
+});
