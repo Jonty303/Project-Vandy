@@ -3,9 +3,11 @@
 This branch deliberately exposes **Home** and **Load Calculator** only. Projects start empty; the catalogue is a menu of optional loads, not a pre-populated project.
 
 ## This iteration
-- Add a named circuit (12, 24 or 230 V) and assign loads to it. Loads without a circuit retain their own voltage.
-- **Physical on/off switch** is a boolean property of a *circuit*, never a separate power-consuming load or a specified switch product. Its default is unchecked.
-- A circuit can be **Direct circuit** (default) or **6-gang remote** controlled. With the remote selected, the physical-switch checkbox is disabled and the physical-switch flag is **ignored** in future output. The stored checkbox preference may be restored if the circuit is changed back to direct. No remote channel mapping, polarity or actual wiring is inferred.
+- The calculator has **Loads** and **Circuits** tabs. Each tab shows a compact, scrollable table on top; selecting a row opens its edit/details panel below the table.
+- **Ungrouped loads** always appears first, including when empty. It is a built-in default virtual container, not a persisted physical circuit. New loads start here, have independent voltages, and can later be assigned to named circuits. Deleting a named circuit returns its loads to Ungrouped.
+- The Loads tab groups rows by Ungrouped and named circuits. The Circuits tab lists the Ungrouped container followed by named circuits with load counts, voltage, switch presence and Wh/day.
+- A named circuit has an editable name, a 12/24/230 V supply and a **Physical on/off switch** checkbox (default unchecked). The circuit editor shows its assigned loads and Wh/day; links open an appliance in the Loads tab.
+- **No "Controlled by" selector** or 6-gang remote assignment is exposed or stored in this planner schema. Selection of physical versus remote control will be part of the later wiring workflow. No controller wiring or channel mapping is inferred.
 - Adding a reference device creates a populated, editable **average electrical input** (W or A), typical hours per day, and quantity. LED strips additionally use estimated length and average power per metre; other devices never show length.
 - Fridges use average electrical power across a normal 24-hour day (compressor duty already incorporated). Diesel heaters use a simple representative average while operating, with startup/shutdown transients excluded from *energy* modelling at this stage, not declared safe for sizing cables or protection.
 - All supplied power/time defaults are planning inputs, not installation facts. The disclosure under **Technical basis & notes** explains whether a default comes from a manufacturer source, a reported rating, or an explicit estimate. Manufacturers' peak/nameplate ratings must not be presented as measured averages.
@@ -14,8 +16,9 @@ This branch deliberately exposes **Home** and **Load Calculator** only. Projects
 - Edit, Reset, Update, local browser storage, JSON import/export remain in this focused feature. Changing a circuit's voltage changes its load voltages to match.
 
 ## Saved data and previous seasonal design
-- Current data schema is v2, stored under `vandy-load-planner-v2` and exported as a standalone JSON planner. Previous v1 browser data is left intact.
-- If a v1 seasonal planner exists, the current import converts its **Summer** settings to a single typical day as a **reviewable migration**; the original per-season load record is preserved as `legacySeasonal` for future migration work.
+- Current data schema is v3, stored under `vandy-load-planner-v3`, exported as standalone JSON. Browser data under previous v1 and v2 keys remains untouched; opening it stages migration for review.
+- Legacy v1 seasonal planners convert **Summer** usage into a typical day; their full seasonal record is preserved as `legacySeasonal`.
+- Legacy v2 circuits lose their obsolete `control` property on import. If an old circuit was configured as 6-gang remote-controlled, its physical switch is conservatively set **unchecked** so the calculator does not introduce a physical switch that was formerly disabled. Direct circuits keep their tick setting. Users should review migrated switches before saving.
 - The previous seasonal UI, cycle counts, profiles and startup/shutdown fields are not shown or used for calculation. This is deliberate scope control, not a conclusion that these states are technically irrelevant.
 
 ## Engineering limitations
@@ -23,8 +26,8 @@ This branch deliberately exposes **Home** and **Load Calculator** only. Projects
 - The reported VEVOR XMZ-F-D1 12 V / 40 W family rating is provisional average in the simple UI; the actual consumption may vary with speed, startup and shutdown.
 - The Cerbo GX default of 2.8 W at 12 V (without GX Touch) is manufacturer-specified. A MaxxFan Deluxe current chart indicates 0.70 A at 50% speed; the van's variant is unverified.
 - The Starlink estimate of 85 W is suitable for a newer Standard 4/4X but depends on model and load. The laptop charger's 80 W nameplate rating is not a normal average.
-- All other catalogue values explicitly say when estimated; 6-gang remote switch *control* is distinct from its own standby/parasitic electrical consumption, which can be added as a load later if measured.
-- Direct control and six-gang remote are currently abstract control assignments. They produce no actual wire, channel, fuse or switch rating; such checks belong to later schematic and validation iterations.
+- All other catalogue values explicitly say when estimated. The future 6-gang remote controller may have standby/parasitic consumption, which can be added as a load later if measured.
+- The physical-switch checkbox is only a future topology hint: no actual wire, channel, fuse, remote-control assignment or switch rating is produced here.
 
 ## Validation expectations
-Run `npm run check` and `npx tsc -p tsconfig.domain.json` in Codespaces. Tests verify defaults, load conversion, LED lengths, separate mixed-voltage Ah, unknowns, physical-switch suppression, structural validation and legacy migration. Do not merge to main as part of this iteration.
+Run `npm run check` and `npx tsc -p tsconfig.domain.json` in Codespaces. Tests verify defaults, load conversion, LED lengths, separate mixed-voltage Ah, unknowns, implicit Ungrouped behaviour, circuit-level physical switches, structural validation and v1/v2 migration. Do not merge to main as part of this iteration.
