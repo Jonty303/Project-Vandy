@@ -112,7 +112,7 @@ test('v2 circuit with old remote setting migrates without inferring a physical s
     physicalSwitch:true,control:'remote6'}],loads:[]};
   const next=importPlanner(old);
   assert.ok(next&&isPlanner(next));
-  assert.equal(next.version,7);
+  assert.equal(next.version,8);
   assert.equal(next.circuits[0].physicalSwitch,false);
   assert.equal('control' in next.circuits[0],false);
   assert.equal(old.circuits[0].physicalSwitch,true,'source data remains untouched');
@@ -244,7 +244,7 @@ test('legacy v3 imports as v5 preserving voltage mismatches and not forcing a ba
   const legacy={version:3,circuits:p.circuits,loads:p.loads};
   const upgraded=importPlanner(legacy);
   assert.ok(upgraded&&isPlanner(upgraded));
-  assert.equal(upgraded.version,7);
+  assert.equal(upgraded.version,8);
   assert.equal(upgraded.batteryId,null);
   assert.equal(upgraded.loads[0].voltage,12);
   assert.equal(voltageIssues(upgraded).length,1);
@@ -265,7 +265,7 @@ test('legacy v4 preserves the battery selection and loads while adding empty pla
   const v4={version:4,batteryId:original.batteryId,circuits:original.circuits,loads:original.loads};
   const updated=importPlanner(v4);
   assert.ok(updated&&isPlanner(updated));
-  assert.equal(updated.version,7);
+  assert.equal(updated.version,8);
   assert.equal(updated.batteryId,'ultra-314-24');
   assert.deepEqual(updated.charging.dc2dc,[]);
   assert.deepEqual(updated.charging.mppt,[]);
