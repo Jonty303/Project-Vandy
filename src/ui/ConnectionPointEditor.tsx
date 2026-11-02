@@ -42,6 +42,7 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
   {sockets.length===0?<p className="charging-empty">No sockets added to this circuit.</p>:
    <div className="cp-socket-list">{sockets.map(socket=>{
     const attached=links.filter(a=>a.socketId===socket.id);
+    const connectedDevices=attached.reduce((sum,a)=>sum+(planner.loads.find(l=>l.id===a.loadId)?.quantity??1),0);
     return <div className="cp-socket" key={socket.id}>
      <div className="cp-socket-head">
       <strong>{socket.name||socketName(socket.kind,socket.positions)}</strong>
@@ -67,9 +68,11 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
        </select>
       </label>
      </div>
-     <small>{attached.length}/{socket.positions} linked device(s) · {socket.kind==='uk-3pin'?'230 V AC':'DC-to-USB conversion'} not yet specified</small>
+     <small>{connectedDevices}/{socket.positions} linked device connection(s) · {socket.kind==='uk-3pin'?'230 V AC':'DC-to-USB conversion'} not yet specified</small>
      {attached.map(a=><div className="cp-attached" key={a.loadId}>
       {planner.loads.find(l=>l.id===a.loadId)?.name||'Unnamed device'}
+      {(planner.loads.find(l=>l.id===a.loadId)?.quantity??1)>1&&
+        ' × '+planner.loads.find(l=>l.id===a.loadId)?.quantity}
       <button className="button small" onClick={()=>onChange({...planner.connections,
        loadSocketLinks:links.filter(l=>l.loadId!==a.loadId)})}>Disconnect</button>
      </div>)}
@@ -97,7 +100,8 @@ export function LoadSocketSelector({planner,onChange,loadId}:Props&{loadId:strin
   if(!socketId){onChange({...planner.connections,loadSocketLinks:remaining});return;}
   const socket=sockets.find(s=>s.id===socketId);
   if(!socket)return;
-  if(remaining.filter(l=>l.socketId===socketId).length>=socket.positions)return;
+  if(remaining.filter(l=>l.socketId===socketId).reduce((sum,l)=>
+    sum+(planner.loads.find(device=>device.id===l.loadId)?.quantity??1),0)+load.quantity>socket.positions)return;
   onChange({...planner.connections,loadSocketLinks:[...remaining,{loadId:load.id,socketId}]});
  };
  return <section className="cp-section cp-load-choice">
@@ -106,8 +110,9 @@ export function LoadSocketSelector({planner,onChange,loadId}:Props&{loadId:strin
    <select value={selected?.id??''} onChange={e=>attach(e.target.value)}>
     <option value="">No socket assigned (direct/unresolved)</option>
     {list.map(socket=>{
-     const taken=links.filter(a=>a.socketId===socket.id&&a.loadId!==load.id).length;
-     return <option key={socket.id} value={socket.id} disabled={taken>=socket.positions}>
+     const taken=links.filter(a=>a.socketId===socket.id&&a.loadId!==load.id).reduce((sum,a)=>
+       sum+(planner.loads.find(l=>l.id===a.loadId)?.quantity??1),0);
+     return <option key={socket.id} value={socket.id} disabled={taken+load.quantity>socket.positions}>
       {socket.name||socketName(socket.kind,socket.positions)}
       {' · '}{planner.circuits.find(c=>c.id===socket.circuitId)?.name||'Unnamed circuit'}
       {' · '}{taken}/{socket.positions} in use
@@ -115,7 +120,7 @@ export function LoadSocketSelector({planner,onChange,loadId}:Props&{loadId:strin
     })}
    </select>
   </label>
-  <p className="planner-note">Assigning a socket changes neither this load's hours nor its calculated Wh. Each device is linked to at most one outlet; socket capacity is a connection count, not a power rating.</p>
+  <p className="planner-note">Assigning a socket does not change Wh. Quantity represents physical devices: a load with quantity 2 needs two available USB ports or outlets. Port count is not a power rating.</p>
   {issues.map((issue,i)=><p className="validation-warning" key={i}><AlertTriangle size={14}/>{issue.message}</p>)}
  </section>;
 }
