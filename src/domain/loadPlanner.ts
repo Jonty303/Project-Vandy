@@ -1,4 +1,5 @@
 /** Focused load-side energy and simple battery endurance planner. No physical wiring inferred. */
+import {emptyCharging,validCharging,type ChargingPlan} from './charging.ts';
 export type Voltage = 12 | 24 | 230;
 export type Category = 'standard' | 'led' | 'fridge' | 'diesel';
 export type PlannerCircuit = {
@@ -14,7 +15,7 @@ export type PlannerLoad = {
   legacySeasonal?: unknown;
 };
 export type BatteryId='mini-280'|'ultra-628-12'|'ultra-314-24';
-export type Planner = { version: 4; batteryId:BatteryId|null; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
+export type Planner = { version: 5; batteryId:BatteryId|null; charging:ChargingPlan; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
 export type BatterySpec = {
   id:BatteryId;name:string;systemVoltage:12|24;nominalVoltage:number;capacityAh:number;
   energyWh:number;bmsAmps:number;weightKg:number;dimensionsMm:string;
@@ -29,7 +30,7 @@ export const batteries:readonly BatterySpec[]=[
    nominalVoltage:12.8,capacityAh:280,energyWh:3584,bmsAmps:200,weightKg:27,
    dimensionsMm:'384 × 194 × 248',bluetooth:true,
    sourceUrl:'https://eu.wattcycle.com/pages/12v-280ah-series-lifepo4-battery-comparison',
-   notes:'Your current battery; 280Ah Mini Bluetooth. Comparison specifications used; verify its label and condition.'},
+   notes:'Planning option: 280Ah Mini Bluetooth. Confirm suitability and variant specifications before purchase or installation.'},
   {id:'ultra-628-12',name:'WattCycle 12V 628Ah Ultra Bluetooth',systemVoltage:12,
    nominalVoltage:12.8,capacityAh:628,energyWh:8038.4,bmsAmps:300,weightKg:59.81,
    dimensionsMm:'480 × 362 × 242',bluetooth:true,
@@ -79,7 +80,7 @@ export type Template = {
   name: string; category: Category; voltage: Voltage; watts: number; hours: number;
   length?: number; quantity?: number; basis: string; sourceUrl?: string;
 };
-export const blankPlanner = (): Planner => ({version:4,batteryId:null,circuits:[],loads:[]});
+export const blankPlanner = (): Planner => ({version:5,batteryId:null,charging:emptyCharging(),circuits:[],loads:[]});
 export const uid = () => crypto.randomUUID();
 export const newCircuit = (): PlannerCircuit => ({
   id:uid(),name:'',voltage:12,physicalSwitch:false,
@@ -163,7 +164,8 @@ export function plannerTotal(p:Planner) {
 export function isPlanner(x:unknown):x is Planner {
   if(!x||typeof x!=='object')return false;
   const p=x as Planner;
-  if(p.version!==4||!Array.isArray(p.loads)||!Array.isArray(p.circuits)
+  if(p.version!==5||!Array.isArray(p.loads)||!Array.isArray(p.circuits)
+    ||!validCharging(p.charging)
     ||!(p.batteryId===null||batteries.some(b=>b.id===p.batteryId)))return false;
   const ids=new Set<string>();
   const numberOrNull=(n:unknown,max=Number.MAX_VALUE)=>n===null||valid(n,max);
@@ -188,14 +190,20 @@ export function isPlanner(x:unknown):x is Planner {
 }
 /** Legacy import converts the selected older Summer profile into a single typical day,
  * retaining all original seasons for future explicit re-introduction.
- * Previous v1/v2/v3 browser copies are preserved on v4 migration.
+ * Previous v1-v4 browser copies are preserved on v5 migration.
  */
 export function importPlanner(x:unknown):Planner|null {
   if(isPlanner(x))return x;
   if(!x||typeof x!=='object')return null;
-  const old=x as {version?:unknown;loads?:unknown;circuits?:unknown};
+  const old=x as {version?:unknown;loads?:unknown;circuits?:unknown;batteryId?:unknown};
+  if(old.version===4&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
+    const p:Planner={version:5,batteryId:old.batteryId as BatteryId|null,
+      charging:emptyCharging(),loads:old.loads as PlannerLoad[],
+      circuits:old.circuits as PlannerCircuit[]};
+    return isPlanner(p)?p:null;
+  }
   if(old.version===3&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
-    const p:Planner={version:4,batteryId:null,loads:old.loads as PlannerLoad[],
+    const p:Planner={version:5,batteryId:null,charging:emptyCharging(),loads:old.loads as PlannerLoad[],
       circuits:old.circuits as PlannerCircuit[]};
     return isPlanner(p)?p:null;
   }
@@ -209,7 +217,7 @@ export function importPlanner(x:unknown):Planner|null {
         return {id:c.id,name:c.name,voltage:c.voltage,
           physicalSwitch:c.control==='remote6'?false:c.physicalSwitch};
       });
-      const p:Planner={version:4,batteryId:null,circuits,loads:old.loads as PlannerLoad[]};
+      const p:Planner={version:5,batteryId:null,charging:emptyCharging(),circuits,loads:old.loads as PlannerLoad[]};
       return isPlanner(p)?p:null;
     } catch {return null;}
   }
@@ -243,7 +251,7 @@ export function importPlanner(x:unknown):Planner|null {
         notes:l.notes,basis:'Migrated average from legacy Summer usage. Review power, duty, startup and daily hours.',
         sourceUrl:'',legacySeasonal:l};
     });
-    const p:Planner={version:4,batteryId:null,circuits,loads};
+    const p:Planner={version:5,batteryId:null,charging:emptyCharging(),circuits,loads};
     return isPlanner(p)?p:null;
   } catch {return null;}
 }
