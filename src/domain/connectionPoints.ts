@@ -5,9 +5,43 @@ import type {Planner,PlannerCircuit,PlannerLoad} from './loadPlanner.ts';
 import {activeInverter,assignmentFor} from './distribution.ts';
 
 export type SocketKind='usb'|'uk-3pin';
+/** USB-A/USB-C PD devices may negotiate different output voltages.
+ * Keep output maximums separate from 12/24 V supply-side current ratings.
+ */
+export type UsbElectricalRatings={
+ maxCombinedOutputWatts:number|null;
+ maxOutputAmpsPerPort:number|null;
+ maxInputAmps:number|null;
+ maxInputWatts:number|null;
+ ratedOutputVoltages:string;
+};
+export const blankUsbRatings=():UsbElectricalRatings=>({
+ maxCombinedOutputWatts:null,maxOutputAmpsPerPort:null,
+ maxInputAmps:null,maxInputWatts:null,ratedOutputVoltages:'',
+});
 export type CircuitSocket={
  id:string;name:string;kind:SocketKind;circuitId:string;positions:1|2;
+ /** Optional to preserve previously saved v9 socket records. */
+ usbRatings?:UsbElectricalRatings;
 };
+export type UsbInputEstimate={
+ amps:number|null;basis:'manufacturer input current'|'manufacturer input power'|'estimated from USB output'|'unknown';
+};
+/** Planning comparison only: nominal voltage and illustrative 90% conversion efficiency.
+ * These estimates are NOT yet approved cable/fuse design currents; wiring requires
+ * verified worst-case operating current, battery voltage range and installation conditions.
+ */
+export function usbInputEstimate(socket:CircuitSocket,supplyVolts:12|24):UsbInputEstimate{
+ if(socket.kind!=='usb')return {amps:null,basis:'unknown'};
+ const r=socket.usbRatings;
+ if(!r)return {amps:null,basis:'unknown'};
+ if(r.maxInputAmps!==null)return {amps:r.maxInputAmps,basis:'manufacturer input current'};
+ if(r.maxInputWatts!==null)return {amps:r.maxInputWatts/supplyVolts,basis:'manufacturer input power'};
+ if(r.maxCombinedOutputWatts!==null)return {
+  amps:r.maxCombinedOutputWatts/(supplyVolts*0.9),basis:'estimated from USB output',
+ };
+ return {amps:null,basis:'unknown'};
+}
 export type ShoreInlet={id:string;name:string};
 export type LoadSocketLink={loadId:string;socketId:string};
 export type ConnectionPlan={
@@ -24,6 +58,7 @@ export const socketName=(kind:SocketKind,positions:1|2)=>
  (positions===2?'Double 3-pin socket':'Single 3-pin socket');
 export const newSocket=(kind:SocketKind,circuitId:string,positions:1|2,id:string):CircuitSocket=>({
  id,name:socketName(kind,positions),kind,circuitId,positions,
+ ...(kind==='usb'?{usbRatings:blankUsbRatings()}:{})
 });
 export function validConnections(data:unknown,context:ConnectionContext):data is ConnectionPlan{
  if(!data||typeof data!=='object')return false;
@@ -38,6 +73,15 @@ export function validConnections(data:unknown,context:ConnectionContext):data is
    typeof socket.name!=='string'||!['usb','uk-3pin'].includes(socket.kind)||
    ![1,2].includes(socket.positions)||
    !context.circuits.some(c=>c.id===socket.circuitId))return false;
+  if(socket.usbRatings!==undefined){
+   if(socket.kind!=='usb'||!socket.usbRatings||
+     typeof socket.usbRatings!=='object')return false;
+   const r=socket.usbRatings;
+   if(![
+      r.maxCombinedOutputWatts,r.maxOutputAmpsPerPort,r.maxInputAmps,r.maxInputWatts
+     ].every(v=>v===null||typeof v==='number'&&Number.isFinite(v)&&v>=0)||
+     typeof r.ratedOutputVoltages!=='string'||r.ratedOutputVoltages.length>120)return false;
+  }
   ids.add(socket.id);
  }
  if(p.shoreInlet){
@@ -104,6 +148,15 @@ export function connectionIssues(p:Planner):ConnectionIssue[]{
   if(socket.kind==='usb'&&!assignmentFor(p.distribution,'circuit',circuit.id))
    issues.push({kind:'review',id:socket.id,message:socket.name+
      ' is not yet associated with a DC distribution branch via its circuit.'});
+  if(socket.kind==='usb'){
+   const electrical=usbInputEstimate(socket,circuit.voltage===24?24:12);
+   if(electrical.amps===null)
+    issues.push({kind:'review',id:socket.id,message:socket.name+
+      ' has no specified maximum 12/24 V input current or power rating. Enter the USB socket specifications before cable/fuse sizing.'});
+   else if(electrical.basis==='estimated from USB output')
+    issues.push({kind:'review',id:socket.id,message:socket.name+
+      ' supply current is estimated from USB output watts assuming 90% efficiency and nominal DC voltage; verify the actual maximum input current before cable/fuse sizing.'});
+  }
   const requiredPositions=connectedTo(socket.id).reduce((sum,link)=>
     sum+(p.loads.find(l=>l.id===link.loadId)?.quantity??1),0);
   if(requiredPositions>socket.positions)
