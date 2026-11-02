@@ -1,5 +1,6 @@
 /** Focused load-side energy and simple battery endurance planner. No physical wiring inferred. */
 import {emptyCharging,validCharging,type ChargingPlan} from './charging.ts';
+import {emptyOffGrid,validOffGrid,type OffGridPlan} from './offGrid.ts';
 export type Voltage = 12 | 24 | 230;
 export type Category = 'standard' | 'led' | 'fridge' | 'diesel';
 export type PlannerCircuit = {
@@ -15,11 +16,12 @@ export type PlannerLoad = {
   legacySeasonal?: unknown;
 };
 export type BatteryId='mini-280'|'ultra-628-12'|'ultra-314-24';
-export type Planner = { version: 5; batteryId:BatteryId|null; charging:ChargingPlan; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
+export type Planner = { version: 6; batteryId:BatteryId|null; charging:ChargingPlan;offGrid:OffGridPlan; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
 export type BatterySpec = {
   id:BatteryId;name:string;systemVoltage:12|24;nominalVoltage:number;capacityAh:number;
   energyWh:number;bmsAmps:number;weightKg:number;dimensionsMm:string;
   bluetooth:boolean;sourceUrl:string;notes:string;
+  chargeRecommendedA:number|null;chargeMaximumA:number|null;chargeVoltage:number|null;minChargeTempC:number|null;
 };
 /** Verified against WattCycle Europe technical/comparison pages, November 2026.
  * All Wh are nominal voltage x rated Ah. Do not confuse capacity with delivered end-to-end
@@ -29,16 +31,19 @@ export const batteries:readonly BatterySpec[]=[
   {id:'mini-280',name:'WattCycle 12V 280Ah Mini Bluetooth',systemVoltage:12,
    nominalVoltage:12.8,capacityAh:280,energyWh:3584,bmsAmps:200,weightKg:27,
    dimensionsMm:'384 × 194 × 248',bluetooth:true,
+   chargeRecommendedA:null,chargeMaximumA:200,chargeVoltage:null,minChargeTempC:null,
    sourceUrl:'https://eu.wattcycle.com/pages/12v-280ah-series-lifepo4-battery-comparison',
    notes:'Planning option: 280Ah Mini Bluetooth. Confirm suitability and variant specifications before purchase or installation.'},
   {id:'ultra-628-12',name:'WattCycle 12V 628Ah Ultra Bluetooth',systemVoltage:12,
    nominalVoltage:12.8,capacityAh:628,energyWh:8038.4,bmsAmps:300,weightKg:59.81,
    dimensionsMm:'480 × 362 × 242',bluetooth:true,
+   chargeRecommendedA:125.6,chargeMaximumA:300,chargeVoltage:14.4,minChargeTempC:0,
    sourceUrl:'https://eu.wattcycle.com/products/12v-628ah-lithium-battery-with-bluetooth',
    notes:'Higher-capacity 12V option; 300A BMS, 8.04kWh. Model/variant certification depends on product option.'},
   {id:'ultra-314-24',name:'WattCycle 24V 314Ah Ultra Bluetooth',systemVoltage:24,
    nominalVoltage:25.6,capacityAh:314,energyWh:8038.4,bmsAmps:300,weightKg:69.85,
    dimensionsMm:'480 × 362 × 242',bluetooth:true,
+   chargeRecommendedA:62.8,chargeMaximumA:300,chargeVoltage:29.2,minChargeTempC:0,
    sourceUrl:'https://eu.wattcycle.com/products/24v-314ah-lifepo4-battery-with-bluetooth',
    notes:'Same nominal 8.04kWh as 12V 628Ah, but different system voltage and hardware requirements. Listed as out of stock when researched.'},
 ];
@@ -80,7 +85,7 @@ export type Template = {
   name: string; category: Category; voltage: Voltage; watts: number; hours: number;
   length?: number; quantity?: number; basis: string; sourceUrl?: string;
 };
-export const blankPlanner = (): Planner => ({version:5,batteryId:null,charging:emptyCharging(),circuits:[],loads:[]});
+export const blankPlanner = (): Planner => ({version:6,batteryId:null,charging:emptyCharging(),offGrid:emptyOffGrid(),circuits:[],loads:[]});
 export const uid = () => crypto.randomUUID();
 export const newCircuit = (): PlannerCircuit => ({
   id:uid(),name:'',voltage:12,physicalSwitch:false,
@@ -164,8 +169,8 @@ export function plannerTotal(p:Planner) {
 export function isPlanner(x:unknown):x is Planner {
   if(!x||typeof x!=='object')return false;
   const p=x as Planner;
-  if(p.version!==5||!Array.isArray(p.loads)||!Array.isArray(p.circuits)
-    ||!validCharging(p.charging)
+  if(p.version!==6||!Array.isArray(p.loads)||!Array.isArray(p.circuits)
+    ||!validCharging(p.charging)||!validOffGrid(p.offGrid)
     ||!(p.batteryId===null||batteries.some(b=>b.id===p.batteryId)))return false;
   const ids=new Set<string>();
   const numberOrNull=(n:unknown,max=Number.MAX_VALUE)=>n===null||valid(n,max);
@@ -190,20 +195,25 @@ export function isPlanner(x:unknown):x is Planner {
 }
 /** Legacy import converts the selected older Summer profile into a single typical day,
  * retaining all original seasons for future explicit re-introduction.
- * Previous v1-v4 browser copies are preserved on v5 migration.
+ * Previous v1-v5 browser copies are preserved on v6 migration.
  */
 export function importPlanner(x:unknown):Planner|null {
   if(isPlanner(x))return x;
   if(!x||typeof x!=='object')return null;
   const old=x as {version?:unknown;loads?:unknown;circuits?:unknown;batteryId?:unknown};
+  if(old.version===5&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
+    const prior=old as unknown as Planner;
+    const p:Planner={...prior,version:6,offGrid:emptyOffGrid()};
+    return isPlanner(p)?p:null;
+  }
   if(old.version===4&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
-    const p:Planner={version:5,batteryId:old.batteryId as BatteryId|null,
-      charging:emptyCharging(),loads:old.loads as PlannerLoad[],
+    const p:Planner={version:6,batteryId:old.batteryId as BatteryId|null,
+      charging:emptyCharging(),offGrid:emptyOffGrid(),loads:old.loads as PlannerLoad[],
       circuits:old.circuits as PlannerCircuit[]};
     return isPlanner(p)?p:null;
   }
   if(old.version===3&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
-    const p:Planner={version:5,batteryId:null,charging:emptyCharging(),loads:old.loads as PlannerLoad[],
+    const p:Planner={version:6,batteryId:null,charging:emptyCharging(),offGrid:emptyOffGrid(),loads:old.loads as PlannerLoad[],
       circuits:old.circuits as PlannerCircuit[]};
     return isPlanner(p)?p:null;
   }
@@ -217,7 +227,7 @@ export function importPlanner(x:unknown):Planner|null {
         return {id:c.id,name:c.name,voltage:c.voltage,
           physicalSwitch:c.control==='remote6'?false:c.physicalSwitch};
       });
-      const p:Planner={version:5,batteryId:null,charging:emptyCharging(),circuits,loads:old.loads as PlannerLoad[]};
+      const p:Planner={version:6,batteryId:null,charging:emptyCharging(),offGrid:emptyOffGrid(),circuits,loads:old.loads as PlannerLoad[]};
       return isPlanner(p)?p:null;
     } catch {return null;}
   }
@@ -251,7 +261,7 @@ export function importPlanner(x:unknown):Planner|null {
         notes:l.notes,basis:'Migrated average from legacy Summer usage. Review power, duty, startup and daily hours.',
         sourceUrl:'',legacySeasonal:l};
     });
-    const p:Planner={version:5,batteryId:null,charging:emptyCharging(),circuits,loads};
+    const p:Planner={version:6,batteryId:null,charging:emptyCharging(),offGrid:emptyOffGrid(),circuits,loads};
     return isPlanner(p)?p:null;
   } catch {return null;}
 }
