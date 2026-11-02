@@ -1,4 +1,4 @@
-/** Focused load-side daily planner. No battery, inverter, or wiring assumptions. */
+/** Focused load-side energy and simple battery endurance planner. No physical wiring inferred. */
 export type Voltage = 12 | 24 | 230;
 export type Category = 'standard' | 'led' | 'fridge' | 'diesel';
 export type PlannerCircuit = {
@@ -13,12 +13,73 @@ export type PlannerLoad = {
   /** Retained only for a possible future seasonal feature; not used in totals. */
   legacySeasonal?: unknown;
 };
-export type Planner = { version: 3; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
+export type BatteryId='mini-280'|'ultra-628-12'|'ultra-314-24';
+export type Planner = { version: 4; batteryId:BatteryId|null; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
+export type BatterySpec = {
+  id:BatteryId;name:string;systemVoltage:12|24;nominalVoltage:number;capacityAh:number;
+  energyWh:number;bmsAmps:number;weightKg:number;dimensionsMm:string;
+  bluetooth:boolean;sourceUrl:string;notes:string;
+};
+/** Verified against WattCycle Europe technical/comparison pages, November 2026.
+ * All Wh are nominal voltage x rated Ah. Do not confuse capacity with delivered end-to-end
+ * load-side energy; efficiency, age, temperature and discharge reserve affect runtime.
+ */
+export const batteries:readonly BatterySpec[]=[
+  {id:'mini-280',name:'WattCycle 12V 280Ah Mini Bluetooth',systemVoltage:12,
+   nominalVoltage:12.8,capacityAh:280,energyWh:3584,bmsAmps:200,weightKg:27,
+   dimensionsMm:'384 × 194 × 248',bluetooth:true,
+   sourceUrl:'https://eu.wattcycle.com/pages/12v-280ah-series-lifepo4-battery-comparison',
+   notes:'Your current battery; 280Ah Mini Bluetooth. Comparison specifications used; verify its label and condition.'},
+  {id:'ultra-628-12',name:'WattCycle 12V 628Ah Ultra Bluetooth',systemVoltage:12,
+   nominalVoltage:12.8,capacityAh:628,energyWh:8038.4,bmsAmps:300,weightKg:59.81,
+   dimensionsMm:'480 × 362 × 242',bluetooth:true,
+   sourceUrl:'https://eu.wattcycle.com/products/12v-628ah-lithium-battery-with-bluetooth',
+   notes:'Higher-capacity 12V option; 300A BMS, 8.04kWh. Model/variant certification depends on product option.'},
+  {id:'ultra-314-24',name:'WattCycle 24V 314Ah Ultra Bluetooth',systemVoltage:24,
+   nominalVoltage:25.6,capacityAh:314,energyWh:8038.4,bmsAmps:300,weightKg:69.85,
+   dimensionsMm:'480 × 362 × 242',bluetooth:true,
+   sourceUrl:'https://eu.wattcycle.com/products/24v-314ah-lifepo4-battery-with-bluetooth',
+   notes:'Same nominal 8.04kWh as 12V 628Ah, but different system voltage and hardware requirements. Listed as out of stock when researched.'},
+];
+export const selectedBattery=(p:Planner)=>batteries.find(b=>b.id===p.batteryId)??null;
+export type VoltageIssue={
+  code:'voltage-mismatch';severity:'error';loadId:string;circuitId:string;
+  loadName:string;circuitName:string;loadVoltage:Voltage;circuitVoltage:Voltage;
+};
+/** Central validation shared by calculator, Home, Battery and future 2D diagrams.
+ * A mismatch is an electrical error but does not make the project unsaveable.
+ */
+export function voltageIssues(p:Planner):VoltageIssue[]{
+  return p.loads.flatMap(load=>{
+    const circuit=p.circuits.find(c=>c.id===load.circuitId);
+    return circuit && circuit.voltage!==load.voltage?[{
+      code:'voltage-mismatch' as const,severity:'error' as const,loadId:load.id,
+      circuitId:circuit.id,loadName:load.name||'Unnamed load',
+      circuitName:circuit.name||'Unnamed circuit',loadVoltage:load.voltage,
+      circuitVoltage:circuit.voltage,
+    }]:[];
+  });
+}
+export const circuitVoltageIssues=(p:Planner,id:string)=>voltageIssues(p).filter(i=>i.circuitId===id);
+export const loadVoltageIssues=(p:Planner,id:string)=>voltageIssues(p).filter(i=>i.loadId===id);
+export function batteryRuntime(p:Planner,battery:BatterySpec|null=selectedBattery(p)){
+  const total=plannerTotal(p);
+  const reserveFraction=0.1; // Fixed 10% battery reserve for this simple test.
+  const availableWh=battery?battery.energyWh*(1-reserveFraction):null;
+  const days=availableWh!==null&&total.wh>0?availableWh/total.wh:null;
+  const voltageMismatch=voltageIssues(p);
+  const bankVoltageLoads=battery?p.loads.filter(l=>l.voltage!==230&&l.voltage!==battery.systemVoltage):[];
+  const acLoads=p.loads.filter(l=>l.voltage===230);
+  return {battery,availableWh,days,hours:days===null?null:days*24,
+    dailyWh:total.wh,missing:total.missing,circuitIssues:voltageMismatch,
+    bankVoltageLoads,acLoads,reserveFraction,
+    provisional:total.missing>0||voltageMismatch.length>0||bankVoltageLoads.length>0||acLoads.length>0};
+}
 export type Template = {
   name: string; category: Category; voltage: Voltage; watts: number; hours: number;
   length?: number; quantity?: number; basis: string; sourceUrl?: string;
 };
-export const blankPlanner = (): Planner => ({version:3,circuits:[],loads:[]});
+export const blankPlanner = (): Planner => ({version:4,batteryId:null,circuits:[],loads:[]});
 export const uid = () => crypto.randomUUID();
 export const newCircuit = (): PlannerCircuit => ({
   id:uid(),name:'',voltage:12,physicalSwitch:false,
@@ -68,18 +129,16 @@ export function newLoad(template:Template,circuitId=''):PlannerLoad {
 }
 const valid = (v:unknown,max=Number.MAX_VALUE):v is number =>
   typeof v==='number' && Number.isFinite(v) && v>=0 && v<=max;
-/** Reassign one load to a named circuit or '' (the permanent Ungrouped container).
- * A destination circuit imposes its voltage; ungrouping retains the current voltage.
- * Invalid identifiers never create dangling circuit references or mutate the planner.
+/** Reassign one load without ever rewriting the device voltage.
+ * Central voltageIssues() reports an incompatible circuit assignment, without blocking saves.
  */
 export function moveLoadToCircuit(p:Planner,loadId:string,circuitId:string):Planner {
   const load=p.loads.find(l=>l.id===loadId);
   if(!load)return p;
   const destination=circuitId?p.circuits.find(c=>c.id===circuitId):null;
   if(circuitId&&!destination)return p;
-  const voltage=destination?destination.voltage:load.voltage;
-  if(load.circuitId===circuitId&&load.voltage===voltage)return p;
-  return {...p,loads:p.loads.map(l=>l.id===loadId?{...l,circuitId,voltage}:l)};
+  if(load.circuitId===circuitId)return p;
+  return {...p,loads:p.loads.map(l=>l.id===loadId?{...l,circuitId}:l)};
 }
 export function loadEnergy(l:PlannerLoad) {
   const issues:string[]=[];
@@ -104,7 +163,8 @@ export function plannerTotal(p:Planner) {
 export function isPlanner(x:unknown):x is Planner {
   if(!x||typeof x!=='object')return false;
   const p=x as Planner;
-  if(p.version!==3||!Array.isArray(p.loads)||!Array.isArray(p.circuits))return false;
+  if(p.version!==4||!Array.isArray(p.loads)||!Array.isArray(p.circuits)
+    ||!(p.batteryId===null||batteries.some(b=>b.id===p.batteryId)))return false;
   const ids=new Set<string>();
   const numberOrNull=(n:unknown,max=Number.MAX_VALUE)=>n===null||valid(n,max);
   for(const c of p.circuits) {
@@ -119,7 +179,7 @@ export function isPlanner(x:unknown):x is Planner {
        ||!['standard','led','fridge','diesel'].includes(l.category)
        ||!['W','A'].includes(l.ratingUnit)||![12,24,230].includes(l.voltage)
        ||typeof l.circuitId!=='string'
-       ||(l.circuitId&&!p.circuits.some(c=>c.id===l.circuitId&&c.voltage===l.voltage))
+       ||(l.circuitId&&!p.circuits.some(c=>c.id===l.circuitId))
        ||!valid(l.quantity,10000)||l.quantity<1||!Number.isInteger(l.quantity))return false;
     ids.add(l.id);
     if(!numberOrNull(l.rating)||!numberOrNull(l.hours,24)||!numberOrNull(l.length))return false;
@@ -128,12 +188,17 @@ export function isPlanner(x:unknown):x is Planner {
 }
 /** Legacy import converts the selected older Summer profile into a single typical day,
  * retaining all original seasons for future explicit re-introduction.
- * v1 and v2 originals remain untouched in browser storage during v3 migration.
+ * Previous v1/v2/v3 browser copies are preserved on v4 migration.
  */
 export function importPlanner(x:unknown):Planner|null {
   if(isPlanner(x))return x;
   if(!x||typeof x!=='object')return null;
   const old=x as {version?:unknown;loads?:unknown;circuits?:unknown};
+  if(old.version===3&&Array.isArray(old.loads)&&Array.isArray(old.circuits)){
+    const p:Planner={version:4,batteryId:null,loads:old.loads as PlannerLoad[],
+      circuits:old.circuits as PlannerCircuit[]};
+    return isPlanner(p)?p:null;
+  }
   // Prior saved v2 planner data is accepted without requiring a remote-control decision.
   // A remote-assigned circuit in v2 did not activate its physical-switch checkbox;
   // migrate it conservatively as unchecked instead of inventing a physical switch.
@@ -144,7 +209,7 @@ export function importPlanner(x:unknown):Planner|null {
         return {id:c.id,name:c.name,voltage:c.voltage,
           physicalSwitch:c.control==='remote6'?false:c.physicalSwitch};
       });
-      const p:Planner={version:3,circuits,loads:old.loads as PlannerLoad[]};
+      const p:Planner={version:4,batteryId:null,circuits,loads:old.loads as PlannerLoad[]};
       return isPlanner(p)?p:null;
     } catch {return null;}
   }
@@ -164,7 +229,7 @@ export function importPlanner(x:unknown):Planner|null {
       let watts=l.rating===null?null:l.ratingUnit==='A'?l.rating*l.voltage:l.rating;
       let hours=u?.hours??null;
       if(l.category==='led'&&watts!==null)watts*=((l.brightness??100)/100);
-      if(l.category==='fridge'&&l.fridgeMode==='compressor'&&watts!==null)watts*=((u?.duty??0)/100);
+      if(l.category==='fridge'&&l.fridgeMode==='compressor'&&watts!==null)watts=u?.duty===null||u?.duty===undefined?null:watts*(u.duty/100);
       if(l.category==='diesel'&&watts!==null&&hours!==null) {
         const cycles=u?.cycles??0;
         const extra=cycles*((l.startupWatts??0)*(l.startupMinutes??0)+(l.shutdownWatts??0)*(l.shutdownMinutes??0))/60;
@@ -178,7 +243,7 @@ export function importPlanner(x:unknown):Planner|null {
         notes:l.notes,basis:'Migrated average from legacy Summer usage. Review power, duty, startup and daily hours.',
         sourceUrl:'',legacySeasonal:l};
     });
-    const p:Planner={version:3,circuits,loads};
+    const p:Planner={version:4,batteryId:null,circuits,loads};
     return isPlanner(p)?p:null;
   } catch {return null;}
 }
