@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner,newCircuit,effectivePhysicalSwitch,
+  newLoad,loadEnergy,plannerTotal,isPlanner,blankPlanner,newCircuit,
   catalogue,importPlanner,
 } from '../src/domain/loadPlanner.ts';
 const template=(name)=>catalogue.find(t=>t.name===name);
@@ -38,25 +38,38 @@ test('fridge runs 24 hours at averaged input; heater uses only the average and s
 });
 test('mixed-voltage energy aggregates while Ah stays separate',()=>{
   const a=sample(),b=sample();b.id='second';b.voltage=230;
-  const t=plannerTotal({version:2,circuits:[],loads:[a,b]});
+  const t=plannerTotal({version:3,circuits:[],loads:[a,b]});
   assert.equal(t.wh,240);assert.equal(t.byVoltage[0].ah,10);
   assert.equal(t.byVoltage[2].ah,120/230);
 });
 test('unknown and invalid figures remain partial; no silent zero',()=>{
   const l=sample();l.rating=null;
-  const p={version:2,circuits:[],loads:[l]};
+  const p={version:3,circuits:[],loads:[l]};
   assert.equal(loadEnergy(l).wh,null);assert.equal(plannerTotal(p).missing,1);
   l.rating=60;l.hours=25;assert.equal(loadEnergy(l).wh,null);
   assert.equal(isPlanner(p),false);l.hours=0;
   assert.equal(loadEnergy(l).wh,0);assert.equal(isPlanner(p),true);
 });
-test('physical switch is circuit-level and ignored for 6-gang remote control',()=>{
+test('physical switch belongs to a named circuit; no controller assignment in this stage',()=>{
   const c=newCircuit();
-  c.physicalSwitch=true;assert.equal(effectivePhysicalSwitch(c),true);
-  c.control='remote6';assert.equal(effectivePhysicalSwitch(c),false);
-  assert.equal(c.physicalSwitch,true,'remember preference for direct control');
-  const p=blankPlanner();p.circuits=[c];p.loads=[{...sample(),circuitId:c.id}];
-  assert.ok(isPlanner(p));c.control='direct';assert.equal(effectivePhysicalSwitch(c),true);
+  assert.equal(c.physicalSwitch,false);
+  assert.equal('control' in c,false);
+  c.physicalSwitch=true;
+  const p=blankPlanner();
+  p.circuits=[c];p.loads=[{...sample(),circuitId:c.id}];
+  assert.ok(isPlanner(p));assert.equal(p.circuits[0].physicalSwitch,true);
+});
+test('Ungrouped loads is implicit and can remain empty, independent of mixed voltage',()=>{
+  const p=blankPlanner();
+  assert.equal(p.circuits.length,0);
+  assert.equal(p.loads.length,0);
+  assert.ok(isPlanner(p));
+  const l=sample();const ac=sample();ac.id='ac';ac.voltage=230;
+  p.loads.push(l,ac);
+  assert.equal(p.loads.every(x=>x.circuitId===''),true);
+  assert.equal(p.circuits.length,0,'no placeholder circuit should be stored');
+  assert.equal(plannerTotal(p).wh,240);
+  assert.ok(isPlanner(p));
 });
 test('validation rejects mismatched circuit voltages and duplicated IDs',()=>{
   const p=blankPlanner();p.circuits=[newCircuit()];
@@ -78,9 +91,28 @@ test('legacy version 1 project converts Summer usage without dropping other seas
   assert.equal(loadEnergy(migrated.loads[0]).wh,40);
   assert.equal(migrated.loads[0].legacySeasonal.usage.Winter.hours,6);
   assert.equal(migrated.circuits[0].physicalSwitch,false);
-  assert.equal(migrated.circuits[0].control,'direct');
+  assert.equal('control' in migrated.circuits[0],false);
 });
 test('reject malformed external imports',()=>{
-  assert.equal(importPlanner({version:2,circuits:[],loads:[{id:'broken'}]}),null);
+  assert.equal(importPlanner({version:3,circuits:[],loads:[{id:'broken'}]}),null);
   assert.equal(importPlanner({version:1,circuits:null,loads:[]}),null);
+});
+
+test('v2 circuit with old remote setting migrates without inferring a physical switch',()=>{
+  const old={version:2,circuits:[{id:'remote',name:'Lights',voltage:12,
+    physicalSwitch:true,control:'remote6'}],loads:[]};
+  const next=importPlanner(old);
+  assert.ok(next&&isPlanner(next));
+  assert.equal(next.version,3);
+  assert.equal(next.circuits[0].physicalSwitch,false);
+  assert.equal('control' in next.circuits[0],false);
+  assert.equal(old.circuits[0].physicalSwitch,true,'source data remains untouched');
+});
+test('v2 direct switch migrates and new model cannot persist controller fields',()=>{
+  const old={version:2,circuits:[{id:'direct',name:'Outside lights',voltage:12,
+    physicalSwitch:true,control:'direct'}],loads:[]};
+  const next=importPlanner(old);
+  assert.ok(next&&isPlanner(next));
+  assert.equal(next.circuits[0].physicalSwitch,true);
+  assert.equal('control' in next.circuits[0],false);
 });
