@@ -1,4 +1,5 @@
-/** Planned charging equipment only. No electrical connections or recharge yield inferred. */
+/** Planned charging equipment, charger current limits, and PV compatibility checks. */
+import {customSolarPanel,panelModel} from './solarPanels.ts';
 export type SystemVoltage=12|24;
 export type DeviceKind='dc2dc'|'mppt'|'shoreCharger'|'inverterCharger';
 export type DeviceModel={
@@ -7,6 +8,7 @@ export type DeviceModel={
   chargeAmps:number;sourceUrl:string;details:string;
   inputVoltage?:SystemVoltage;pvMaxVoc?:number;pvMaxIsc?:number;
   pvPower12?:number;pvPower24?:number;inverterVA?:number;
+  inputLimitAdjustable?:boolean;outputLimitAdjustable?:boolean;
 };
 const orion='https://www.victronenergy.com/media/pg/Orion-Tr_Smart_DC-DC_Charger_-_Non-Isolated/en/specifications--non-isolated-.html';
 const solar100='https://www.victronenergy.com/media/pg/Manual_SmartSolar_MPPT_100-30__100-50/en/technical-specifications.html';
@@ -15,7 +17,7 @@ const ip22='https://www.victronenergy.com/media/pg/Blue_Smart_IP22_Charger_230V_
 const multiplus='https://www.victronenergy.com/upload/documents/Manual-MultiPlus-500VA-1200VA-EN-NL-FR-DE-ES-IT.pdf';
 export const deviceCatalogue:readonly DeviceModel[]=[
  {id:'orion-xs-12-12-50',name:'Orion XS 12/12-50',manufacturer:'Victron',kind:'dc2dc',
-  inputVoltage:12,outputVoltages:[12],chargeAmps:50,sourceUrl:'https://www.victronenergy.com/media/pg/Orion_XS_12-12-50A_DC-DC_battery_charger/en/technical-data.html',
+  inputVoltage:12,outputVoltages:[12],chargeAmps:50,inputLimitAdjustable:true,outputLimitAdjustable:true,sourceUrl:'https://www.victronenergy.com/media/pg/Orion_XS_12-12-50A_DC-DC_battery_charger/en/technical-data.html',
   details:'Input and output adjustable 1–50 A; 700 W continuous output at up to 40 °C. Source alternator capacity must be assessed separately.'},
  {id:'orion-tr-12-12-30',name:'Orion-Tr Smart 12/12-30',manufacturer:'Victron',kind:'dc2dc',
   inputVoltage:12,outputVoltages:[12],chargeAmps:30,sourceUrl:orion,details:'Non-isolated 12 V to 12 V, nominal 30 A.'},
@@ -57,20 +59,32 @@ export const deviceCatalogue:readonly DeviceModel[]=[
   outputVoltages:[24],chargeAmps:25,inverterVA:1200,sourceUrl:multiplus,details:'230 V AC inverter/charger, 1200 VA inverter, 25 A battery charger.'},
 ];
 export const findModel=(id:string)=>deviceCatalogue.find(m=>m.id===id);
-export type PlannedUnit={id:string;modelId:string};
+export type PlannedUnit={id:string;modelId:string;inputLimitA?:number|null;outputLimitA?:number|null};
+export function newPlannedUnit(modelId:string,id:string):PlannedUnit{
+ const m=findModel(modelId);
+ return {id,modelId,inputLimitA:m?.inputLimitAdjustable?30:null,
+   outputLimitA:m?.outputLimitAdjustable?m.chargeAmps:null};
+}
 export type SolarPanelPlan={
-  watts:number|null;quantity:number;connection:'series'|'parallel';
-  voc:number|null;isc:number|null;
+  modelId:string;watts:number|null;quantity:number;connection:'series'|'parallel';
+  voc:number|null;isc:number|null;vmp:number|null;imp:number|null;vocTempCoeffPct:number|null;
 };
+export function chooseSolarPanel(old:SolarPanelPlan,modelId:string):SolarPanelPlan{
+ if(modelId==='custom')return {...customSolarPanel(),quantity:old.quantity,connection:old.connection};
+ const m=panelModel(modelId);if(!m)return old;
+ return {...old,modelId,watts:m.watts,voc:m.voc,isc:m.isc,vmp:m.vmp,imp:m.imp,
+   vocTempCoeffPct:m.vocTempCoeffPct};
+}
 export type ChargingPlan={
   spareAlternatorAmps:number|null;alternatorVoltage:SystemVoltage;
   dc2dc:PlannedUnit[];mppt:PlannedUnit[];
-  panel:SolarPanelPlan;shoreModelId:string|null;
+  panel:SolarPanelPlan;shoreModelId:string|null;shoreSupplyAmps:number|null;
+  shoreChargeLimitA:number|null;
 };
 export const emptyCharging=():ChargingPlan=>({
   spareAlternatorAmps:30,alternatorVoltage:12,dc2dc:[],mppt:[],
-  panel:{watts:null,quantity:1,connection:'parallel',voc:null,isc:null},
-  shoreModelId:null,
+  panel:{...customSolarPanel(),watts:null,voc:null,isc:null,vmp:null,imp:null},
+  shoreModelId:null,shoreSupplyAmps:16,shoreChargeLimitA:null,
 });
 export const plannedInverter=(c:ChargingPlan):DeviceModel|null=>{
   const m=c.shoreModelId?findModel(c.shoreModelId):null;
@@ -88,15 +102,26 @@ export function validCharging(c:unknown):c is ChargingPlan{
     for(const u of arr){
       if(!u||typeof u.id!=='string'||!u.id||ids.has(u.id)||
          typeof u.modelId!=='string'||findModel(u.modelId)?.kind!==kind)return false;
+      const m=findModel(u.modelId)!;
+      if(u.inputLimitA!==undefined&&u.inputLimitA!==null&&
+        (!m.inputLimitAdjustable||!safeNumber(u.inputLimitA)||u.inputLimitA<1||u.inputLimitA>50))return false;
+      if(u.outputLimitA!==undefined&&u.outputLimitA!==null&&
+        (!m.outputLimitAdjustable||!safeNumber(u.outputLimitA)||u.outputLimitA<1||u.outputLimitA>m.chargeAmps))return false;
       ids.add(u.id);
     }
   }
   const p=q.panel;
-  if(!p||!(p.watts===null||safeNumber(p.watts))||
+  if(!p||(p.modelId!=='custom'&&!panelModel(p.modelId))||
+    !(p.watts===null||safeNumber(p.watts))||
     !Number.isInteger(p.quantity)||p.quantity<1||p.quantity>1000||
     !['series','parallel'].includes(p.connection)||
     !(p.voc===null||safeNumber(p.voc))||
-    !(p.isc===null||safeNumber(p.isc)))return false;
+    !(p.isc===null||safeNumber(p.isc))||
+    !(p.vmp===null||safeNumber(p.vmp))||
+    !(p.imp===null||safeNumber(p.imp))||
+    !(p.vocTempCoeffPct===null||(typeof p.vocTempCoeffPct==='number'&&Number.isFinite(p.vocTempCoeffPct)&&p.vocTempCoeffPct<0&&p.vocTempCoeffPct>-2))||
+    !(q.shoreSupplyAmps===null||safeNumber(q.shoreSupplyAmps))||
+    !(q.shoreChargeLimitA===null||safeNumber(q.shoreChargeLimitA)))return false;
   return q.shoreModelId===null||
     (typeof q.shoreModelId==='string'&&['shoreCharger','inverterCharger'].includes(findModel(q.shoreModelId)?.kind??''));
 }
@@ -105,19 +130,27 @@ export const panelArray=(p:SolarPanelPlan)=>({
   watts:p.watts===null?null:p.watts*p.quantity,
   voc:p.voc===null?null:p.voc*(p.connection==='series'?p.quantity:1),
   isc:p.isc===null?null:p.isc*(p.connection==='parallel'?p.quantity:1),
+  vmp:p.vmp===null?null:p.vmp*(p.connection==='series'?p.quantity:1),
+  imp:p.imp===null?null:p.imp*(p.connection==='parallel'?p.quantity:1),
+  coldVoc:p.voc===null||p.vocTempCoeffPct===null?null:
+    p.voc*(p.connection==='series'?p.quantity:1)*(1+p.vocTempCoeffPct/100*(-10-25)),
 });
 export function chargingWarnings(c:ChargingPlan,batteryVoltage:SystemVoltage|null):ChargingWarning[]{
   const out:ChargingWarning[]=[];
   const warn=(area:ChargingWarning['area'],message:string)=>out.push({area,message});
   if(c.dc2dc.length&&c.spareAlternatorAmps===null)
     warn('dc2dc','Enter estimated spare alternator amps before assessing DC–DC capacity.');
-  const outputWatts=c.dc2dc.reduce((sum,u)=>{
-    const m=findModel(u.modelId);
-    return sum+(m?m.chargeAmps*m.outputVoltages[0]:0);
+  const inputDemand=c.dc2dc.reduce((sum,u)=>{
+    const m=findModel(u.modelId);if(!m)return sum;
+    // Only the Orion XS supports independent configured input/output limits in this catalogue.
+    const outputA=u.outputLimitA??m.chargeAmps;
+    const inferredA=outputA*(m.outputVoltages[0]===24?28.8:14.4)/
+      ((m.inputVoltage===24?27.6:13.8)*0.94);
+    return sum+(m.inputLimitAdjustable?(u.inputLimitA??m.chargeAmps):inferredA);
   },0);
-  const inputBudget=c.spareAlternatorAmps===null?null:c.spareAlternatorAmps*c.alternatorVoltage;
-  if(c.dc2dc.length&&inputBudget!==null&&outputWatts>inputBudget)
-    warn('dc2dc','Combined DC–DC rated output exceeds your estimated spare alternator power, even before conversion losses. Charger input limiting and distribution must be designed later.');
+  if(c.dc2dc.length&&c.spareAlternatorAmps!==null&&inputDemand>c.spareAlternatorAmps)
+    warn('dc2dc','Combined planned/inferred DC–DC input demand '+inputDemand.toFixed(1)+
+      ' A exceeds '+c.spareAlternatorAmps+' A spare alternator allowance. Adjust supported input limits or review equipment.');
   for(const u of c.dc2dc){
     const m=findModel(u.modelId);if(!m)continue;
     if(m.inputVoltage!==c.alternatorVoltage)
@@ -135,6 +168,8 @@ export function chargingWarnings(c:ChargingPlan,batteryVoltage:SystemVoltage|nul
     if(batteryVoltage!==null&&!m.outputVoltages.includes(batteryVoltage))
       warn('solar',m.name+' does not support the selected '+batteryVoltage+' V battery.');
     if(c.mppt.length===1){
+      if(array.coldVoc!==null&&m.pvMaxVoc!==undefined&&array.coldVoc>=m.pvMaxVoc)
+        warn('solar',m.name+' cold-condition array Voc estimate '+array.coldVoc.toFixed(1)+' V exceeds '+m.pvMaxVoc+' V.');
       if(array.voc!==null&&m.pvMaxVoc!==undefined&&array.voc>=m.pvMaxVoc)
         warn('solar',m.name+' PV Voc limit is '+m.pvMaxVoc+' V; the entered array Voc is '+array.voc+' V before cold-weather adjustment.');
       if(array.isc!==null&&m.pvMaxIsc!==undefined&&array.isc>m.pvMaxIsc)
@@ -149,5 +184,9 @@ export function chargingWarnings(c:ChargingPlan,batteryVoltage:SystemVoltage|nul
   const shore=c.shoreModelId?findModel(c.shoreModelId):null;
   if(shore&&batteryVoltage!==null&&!shore.outputVoltages.includes(batteryVoltage))
     warn('shore',shore.name+' charges '+shore.outputVoltages.join('/')+' V batteries; the selected battery is '+batteryVoltage+' V.');
+  if(shore&&c.shoreChargeLimitA!==null&&c.shoreChargeLimitA>shore.chargeAmps)
+    warn('shore','Planned shore charge limit exceeds the selected charger’s rated current.');
+  if(shore&&c.shoreSupplyAmps===null)
+    warn('shore','Specify an available shore supply current. AC load and charger prioritisation are deferred.');
   return out;
 }
