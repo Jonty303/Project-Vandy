@@ -109,6 +109,7 @@ export function ChargingPage({plan,batteryVoltage,onChange}:Props){
         Custom 400 W / Voc 40 V / Isc 13 A are illustrative estimates, not verified datasheet ratings.</p>
       <label className="field"><span>Solar panel model</span>
         <select value={plan.panel.modelId} onChange={e=>assign({panel:chooseSolarPanel(plan.panel,e.target.value)})}>
+          <option value="">Select a solar panel…</option>
           <option value="custom">Custom solar panel — 400 W example</option>
           {solarPanels.map(panel=><option key={panel.id} value={panel.id}>
             {panel.manufacturer} · {panel.name}
