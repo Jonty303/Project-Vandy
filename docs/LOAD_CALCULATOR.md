@@ -1,6 +1,6 @@
 # Focused load calculator — typical daily usage
 
-This branch exposes **Home**, **Load Calculator**, **Battery Selection**, **Charging**, and **Off-grid rating** only. Projects start empty; the catalogue is a menu of optional loads, not a pre-populated project.
+This branch exposes **Home**, **Load Calculator**, **Battery Selection**, **Charging**, **Off-grid rating** and **Distribution**. The Distribution-specific implementation contract is `docs/DISTRIBUTION_NEXT.md`. Projects start empty; the catalogue is a menu of optional loads, not a pre-populated project.
 
 ## This iteration
 - The calculator has **Loads** and **Circuits** tabs. Each tab shows a compact, scrollable table on top; selecting a row opens its edit/details panel below the table.
@@ -63,7 +63,7 @@ This branch exposes **Home**, **Load Calculator**, **Battery Selection**, **Char
 - The 2D wiring editor is **not added** in this iteration. Its future validation must consume the same circuit/device voltage issues and flag provisional diagrams; topology, converter and distribution validation are deliberately deferred.
 
 ## Saved data and previous seasonal design
-- Current data schema is v6, stored under `vandy-load-planner-v6`, exported as standalone JSON with battery and charging selections. Browser data under previous v1/v2/v3/v4/v5 keys remains untouched; opening it stages migration for review. A migrated v4 keeps its selected battery and charging defaults to empty. A migrated v5 retains entered charging data, and both versions gain Off-grid rating defaults. Older planners have no battery pre-selected.
+- Current data schema is v7, stored under `vandy-load-planner-v7`, exported as standalone JSON with battery and charging selections. Browser data under previous v1/v2/v3/v4/v5/v6 keys remains untouched; opening it stages migration for review. A migrated v4 keeps its selected battery and charging defaults to empty. A migrated v5 retains entered charging data, and both versions gain Off-grid rating defaults. Older planners have no battery pre-selected.
 - Legacy v1 seasonal planners convert **Summer** usage into a typical day; their full seasonal record is preserved as `legacySeasonal`.
 - Legacy v2 circuits lose their obsolete `control` property on import. If an old circuit was configured as 6-gang remote-controlled, its physical switch is conservatively set **unchecked** so the calculator does not introduce a physical switch that was formerly disabled. Direct circuits keep their tick setting. Users should review migrated switches before saving.
 - The previous seasonal UI, cycle counts, profiles and startup/shutdown fields are not shown or used for calculation. This is deliberate scope control, not a conclusion that these states are technically irrelevant.
