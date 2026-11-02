@@ -6,7 +6,7 @@ export type NodeKind='lynx'|'blue-sea'|'busbar';
 export type DistributionNode={id:string;kind:NodeKind;name:string;voltage:DcVoltage};
 export type DcTarget='node'|'circuit'|'load'|'inverter';
 export type DcAssignment={id:string;sourceId:string;targetType:DcTarget;targetId:string;slot:number|null};
-export type ChargeAssignment={chargerId:string;destinationId:string};
+export type ChargeAssignment={chargerId:string;destinationId:string;slot:number|null};
 export type AcAssignment={targetType:'circuit'|'load';targetId:string};
 export type DistributionPlan={
  nodes:DistributionNode[];dcAssignments:DcAssignment[];
@@ -67,6 +67,44 @@ export const dcTargets=(p:Planner,voltage:DcVoltage)=>[
 export const assignmentFor=(d:DistributionPlan,targetType:DcTarget,targetId:string)=>
  d.dcAssignments.find(a=>a.targetType===targetType&&a.targetId===targetId);
 export const slotsFor=(kind:NodeKind)=>distributionModels[kind].slots;
+/** Lynx fused positions are shared by outgoing branches and incoming charger outputs. */
+export function occupiedSlots(d:DistributionPlan,nodeId:string):Set<number>{
+ const numbers=[
+  ...d.dcAssignments.filter(a=>a.sourceId===nodeId).map(a=>a.slot),
+  ...d.chargerAssignments.filter(a=>a.destinationId===nodeId).map(a=>a.slot),
+ ];
+ return new Set(numbers.filter((n):n is number=>n!==null));
+}
+export function firstFreeSlot(d:DistributionPlan,nodeId:string):number|null{
+ const node=d.nodes.find(n=>n.id===nodeId);
+ const max=node?slotsFor(node.kind):0;
+ const used=occupiedSlots(d,nodeId);
+ for(let slot=1;slot<=max;slot++)if(!used.has(slot))return slot;
+ return null;
+}
+/** Upgrade historical v7 charger-to-Lynx links without losing their destination.
+ * Preserve DC branch positions and fill the remaining positions in original
+ * charger order. Overbooked legacy links remain unallocated for review.
+ */
+export function backfillChargeSlots(d:DistributionPlan):DistributionPlan{
+ const claimed=new Set(d.dcAssignments.filter(a=>a.slot!==null).map(a=>a.sourceId+':'+a.slot));
+ const chargerAssignments=d.chargerAssignments.map(a=>{
+  const node=d.nodes.find(n=>n.id===a.destinationId);
+  if(!node||node.kind!=='lynx')return {...a,slot:null};
+  const max=slotsFor(node.kind);
+  const desired=typeof a.slot==='number'&&Number.isInteger(a.slot)&&a.slot>=1&&a.slot<=max&&
+   !claimed.has(a.destinationId+':'+a.slot)?a.slot:null;
+  let slot=desired;
+  if(slot===null){
+   for(let n=1;n<=max;n++){
+    if(!claimed.has(a.destinationId+':'+n)){slot=n;break;}
+   }
+  }
+  if(slot!==null)claimed.add(a.destinationId+':'+slot);
+  return {...a,slot};
+ });
+ return {...d,chargerAssignments};
+}
 export function busbarRequirements(p:Planner,id:string){
  const node=p.distribution.nodes.find(n=>n.id===id);
  if(!node||node.kind!=='busbar')return null;
@@ -121,9 +159,19 @@ export function validDistribution(input:unknown,p:{circuits:Planner['circuits'];
    seen.add(current);current=upstream.get(current)!;
   }
  }
- if(!unique(d.chargerAssignments.map(a=>a?.chargerId))||
-  !d.chargerAssignments.every(a=>a&&allChargers.includes(a.chargerId)&&
-   (a.destinationId==='battery'||nodeMap.has(a.destinationId))))return false;
+ if(!unique(d.chargerAssignments.map(a=>a?.chargerId)))return false;
+ for(const a of d.chargerAssignments){
+  if(!a||!allChargers.includes(a.chargerId)||
+    (a.destinationId!=='battery'&&!nodeMap.has(a.destinationId)))return false;
+  const node=nodeMap.get(a.destinationId);
+  if(node?.kind==='blue-sea')return false;
+  if(node?.kind==='lynx'){
+    if(a.slot===null)continue; // Retain overbooked v7 plans as reviewable, not silently lost.
+    if(!Number.isInteger(a.slot)||a.slot<1||a.slot>slotsFor(node.kind))return false;
+    positionKeys.push(a.destinationId+':'+a.slot);
+  }else if(a.slot!==null)return false;
+ }
+ if(!unique(positionKeys))return false;
  if(!unique(d.acAssignments.map(a=>a?.targetType+':'+a?.targetId)))return false;
  if(!d.acAssignments.every(a=>a&&(
   a.targetType==='circuit'&&p.circuits.some(c=>c.id===a.targetId&&c.voltage===230)||
@@ -166,6 +214,8 @@ export function distributionIssues(p:Planner):DistributionIssue[]{
   if(m&&targetV!==undefined&&!m.outputVoltages.includes(targetV))
    add('error',m.name+' output is not compatible with the '+targetV+' V charging destination.',a.chargerId);
   if(targetV===undefined)add('review','Charging destination has no established DC supply voltage.',a.chargerId);
+  if(nodeMap.get(a.destinationId)?.kind==='lynx'&&a.slot===null)
+   add('review',(m?.name||'Charger')+' is assigned to the Lynx but has no free fuse position. Review or free a fused branch.',a.chargerId);
  }
  for(const c of p.circuits.filter(c=>c.voltage!==230)){
   if(!assignmentFor(d,'circuit',c.id))
