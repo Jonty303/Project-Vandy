@@ -44,3 +44,7 @@ On `feature/load-calculator`, `docs/LOAD_CALCULATOR.md` and `docs/DISTRIBUTION_N
 - Bluetooth batteries default to vendor-app-only. Manufacturer-documented protocol support is necessary before suggesting GX management, and documented CAN bus does not imply DVCC support.
 - Treat communication ports as capacity-constrained single slots and SmartShunt AUX as one selectable use. Propose documented cables where suitable, but no unverified connection is marked installed.
 - Distinguish DC/AC power topology, communications topology and cosmetic 2D layout. No direct device control or invented wire runs.
+
+
+## Distribution v8 shared-fuse-position rule
+Lynx has exactly **four shared positive fused branch positions**, regardless of power flow direction. Its consumers/distribution feeder links (\`dcAssignments\`) and charging output links (\`chargerAssignments\`) compete for those same four numbered positions. Every newly selected charger-to-Lynx link receives one free slot; duplicate positions are structural invalidity. Saved v7 charging destinations without slot identities must migrate by preserving existing assigned positions and filling the remainder in original order; any legacy overbook remains visible with \`slot:null\` and a review warning, never silently dropped. The fuse values, negative return connections and actual wiring remain unmodelled. Keep all versions of browser storage for backwards compatibility.
