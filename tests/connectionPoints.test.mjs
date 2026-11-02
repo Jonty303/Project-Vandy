@@ -48,3 +48,15 @@ test('v8 saved configuration migrates to v9 retaining battery, loads, chargers',
  assert.equal(newer.version,9);assert.equal(newer.batteryId,'mini-280');
  assert.equal(newer.loads[0].id,l.id);assert.deepEqual(newer.connections.sockets,[]);
 });
+
+test('two phones under one load consume two USB port positions, not one',()=>{
+ const p=blankPlanner(),c=circuit(p,12);
+ const phones=appliance(p,12,'Phones');phones.quantity=2;
+ const before=plannerTotal(p).wh;
+ p.connections.sockets=[newSocket('usb',c.id,1,'one')];
+ p.connections.loadSocketLinks=[{loadId:phones.id,socketId:'one'}];
+ assert.ok(connectionIssues(p).some(i=>i.id==='one'&&i.message.includes('2 individual')));
+ p.connections.sockets[0].positions=2;
+ assert.equal(connectionIssues(p).some(i=>i.id==='one'&&i.message.includes('2 individual')),false);
+ assert.equal(plannerTotal(p).wh,before);
+});
