@@ -84,3 +84,9 @@ Wiring terminals, actual DC positive/negative conductors, fuse values and holder
 - Incomplete source, voltage mismatch and no inverter paths generate warnings. Duplicate slot occupancies, cycles and dangling references are structurally invalid. Changing load/circuit membership or charging device selections automatically reconciles obsolete logical links while preserving the original load/charger records.
 - Standalone inverter selection is limited to the verified Victron Phoenix VE.Direct 12/500 and 24/500 models; the first iteration allows one active inverter output grouping only.
 - The app remains a **planning tool**, not a physical wire-and-protection design. No engineer's safety approval is inferred.
+
+
+## v8 hotfix — fused Lynx charger-output positions (2026-11-02)
+The four Lynx fused slots are a single occupancy inventory shared by **outgoing consumer/distributor feeder associations** and **incoming charge outputs** (MPPT and DC–DC). Selecting a Lynx in a charger-output dropdown automatically reserves the next free fused position. Both the Lynx device cards and Charging outputs table display the chosen position, and users may move/unassign it without double-booking any slot. A fifth connection is rejected until one of the four is freed; no additional Lynx distributor is implied.
+
+Existing v7 exports or browser records with charging outputs previously associated to the Lynx, but without slot identities, migrate to v8. Existing distributor/inverter slots take priority and spare slots are assigned to chargers in their saved order. An excess charger keeps its destination but gets an explicit **unallocated fuse position** warning, rather than being lost or silently assumed protected. This is a planning association only: fuse ratings, terminal lug fit, conductor protection and actual DC+/DC− connections remain deferred.
