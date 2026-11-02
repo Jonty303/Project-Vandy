@@ -41,3 +41,18 @@ The **Lynx Distributor's four fused positions are shared** by inverter or downst
 
 
 **Battery-side DC equipment**: Distribution now lists the selected combined inverter/charger or standalone inverter alongside DC–DC, MPPT and standalone shore charger outputs. Every item can be logically associated with battery, Lynx or suitable busbar. A MultiPlus has exactly one bidirectional DC association and one Lynx position, not a second charger-output entry; the same 230 V inverter choice remains selected. A shore-only Blue Smart IP22 has a DC charging-output entry, but no inverter output. Changes use the existing v8 JSON schema.
+
+## Socket and shore-inlet amendment (separate branch)
+
+On `feature/socket-distribution`, the Load Calculator's named circuits can contain **USB charging sockets** (one/two USB ports for 12/24 V) or **UK 3-pin sockets** (single/double on 230 V). Sockets are **connection points**, not extra consumption; associate actual phone/tablet/laptop/Starlink loads to their outlets without double counting Wh. USB socket records include optional manufacturer **total and per-port maximum output W**, **maximum per-port output A**, **12/24 V-side maximum input A or W**, and supported USB output voltage/PD modes. Missing ratings remain unknown; inferred input A using a 90%-efficiency assumption is explicitly an estimate, **not yet suitable for fuse/cable sizing**.
+
+Distribution → 230 V now derives separate **shore-input** and **inverter-output consumer-unit roles** where applicable, and allows a named **external shore-power inlet** connection point. Inverter-backed outlet circuits need an actual inverter selection before they can be considered powered. Physical AC protection and source changeover are deferred. The new v9 storage format imports v1–v8 projects.
+
+See [socket/shore amendment details](docs/SOCKET_DISTRIBUTION.md).
+
+To test in Codespaces:
+```sh
+git switch feature/socket-distribution
+git pull --ff-only
+npm run dev
+```
