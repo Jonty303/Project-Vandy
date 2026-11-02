@@ -1,9 +1,9 @@
 import {useState} from 'react';
 import {MapPin,RefreshCw,AlertTriangle} from 'lucide-react';
-import {selectedBattery,plannerTotal,type Planner} from '../domain/loadPlanner.ts';
-import {panelArray,plannedInverter} from '../domain/charging.ts';
+import {selectedBattery,plannerTotal,voltageIssues,type Planner} from '../domain/loadPlanner.ts';
+import {panelArray,plannedInverter,chargingWarnings} from '../domain/charging.ts';
 import {
-  MONTHS,REGIONS,solarKey,matchingSolar,monthRating,allMonthRatings,projectedBattery,
+  MONTHS,REGIONS,solarKey,matchingSolar,monthRating,allMonthRatings,projectedBattery,batteryChargeReview,
   type OffGridPlan,type SolarDataset,
 } from '../domain/offGrid.ts';
 import './offGrid.css';
@@ -12,7 +12,7 @@ type Props={planner:Planner;onChange:(next:OffGridPlan)=>void};
 const fmt=(n:number|null,precision=0)=>n===null?'Unavailable':n.toLocaleString('en-GB',{maximumFractionDigits:precision});
 const displayDays=(n:number|null,balanced:boolean)=>balanced?'Balanced*':n===null?'—':n>365?'365+':fmt(n,1)+' days';
 const num=(s:string)=>Number(s);
-function BudgetGraph({planner}:{planner:Planner}){
+function BudgetGraph({planner,onSelect}:{planner:Planner;onSelect:(month:number)=>void}){
  const results=allMonthRatings(planner);
  const selected=planner.offGrid.month;
  const valid=results.filter((r):r is NonNullable<typeof r>=>r!==null&&r.solarWh!==null);
@@ -28,7 +28,9 @@ function BudgetGraph({planner}:{planner:Planner}){
    </g>)}
    {cells.map(({i,r})=>{
      const cx=67+i*70;
-     return <g key={i} onClick={()=>{}} aria-label={MONTHS[i]}>
+     return <g key={i} onClick={()=>onSelect(i)} role="button" tabIndex={0}
+       onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(i);}}}
+       aria-label={'Select '+MONTHS[i]}>
        {i===selected&&<rect x={cx-10} y="34" width="68" height="220" rx="8" fill="#21454b"/>}
        {r?.solarWh!==null&&r?.solarWh!==undefined&&<>
          <rect x={cx+19} y={y((r.solarWh??0)+r.drivingWh)} width="20" height={218-y((r.solarWh??0)+r.drivingWh)}
@@ -185,10 +187,14 @@ export function OffGridPage({planner,onChange}:Props){
    </section>
    {!battery&&<p className="validation-warning"><AlertTriangle size={17}/>Select a planned battery before calculating off-grid autonomy.</p>}
    {loadIssues>0&&<p className="validation-warning"><AlertTriangle size={17}/>{loadIssues} loads lack complete figures; autonomy is withheld until daily energy demand is known.</p>}
+   {(voltageIssues(planner).length>0||chargingWarnings(planner.charging,battery?.systemVoltage??null).length>0||
+      batteryChargeReview(planner).length>0)&&<p className="validation-warning"><AlertTriangle size={17}/>
+      Planning warnings remain for some load/circuit/charger voltages or charging currents.
+      Off-grid estimates are provisional until those choices have been reviewed.</p>}
    {ready&&<section className="panel planner-detail-panel">
      <div className="panel-head"><h2>Monthly off-grid comparison</h2>
        <span>{battery?.name} · {p.driveHours} h/day driving</span></div>
-     <BudgetGraph planner={planner}/>
+     <BudgetGraph planner={planner} onSelect={month=>patch({month})}/>
      <div className="og-months" role="group" aria-label="Select month">
        {MONTHS.map((m,i)=><button key={m} type="button"
          className={i===p.month?'active':''} aria-pressed={i===p.month}
