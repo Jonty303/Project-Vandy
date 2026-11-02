@@ -34,15 +34,8 @@ export const catalogue:Template[] = [
    basis:'40 W is published electrical rating for XMZ-F-D1 family, used provisionally as average. Startup/shutdown peaks are omitted from daily estimate, not from eventual wiring/protection design. Measure real average and do not disconnect electrical power while shutting down.',sourceUrl:'https://www.gov.uk/product-safety-alerts-reports-recalls/product-safety-report-vevor-diesel-heater-2511-0312'},
   {name:'Gas water heater (12 V input)',category:'standard',voltage:12,watts:60,hours:0.2,
    basis:'Owner-reported 12 V / 5 A nominal maximum, provisionally treated as average while active. 12 minutes/day is estimated. Gas heating energy excluded.'},
-  {name:'Floor LED strip',category:'led',voltage:12,watts:5,length:2,hours:5,
-   basis:'Estimate: 5 W/m at typical brightness, 2 m, 5 hours/day. Use the actual strip specification and typical dimming.'},
-  {name:'Kitchen LED strip',category:'led',voltage:12,watts:5,length:1.5,hours:3,
-   basis:'Estimate: 5 W/m at typical brightness, 1.5 m, 3 hours/day.'},
-  {name:'Toilet LED strip',category:'led',voltage:12,watts:5,length:1,hours:0.2,
-   basis:'Estimate: 5 W/m, 1 m, 12 minutes/day. Distinct from the floor light.'},
-  {name:'Main lights',category:'standard',voltage:12,watts:8,hours:4,basis:'Working estimate for lights used simultaneously; inspect LEDs.'},
-  {name:'Outside light',category:'standard',voltage:12,watts:5,hours:1,basis:'Working estimate of typical daily draw.'},
-  {name:'Garage light',category:'standard',voltage:12,watts:5,hours:0.25,basis:'Working estimate; 15 minutes/day.'},
+  {name:'LED lights',category:'led',voltage:12,watts:5,length:1,hours:3,
+   basis:'Generic LED strip estimate: 5 W per metre at typical brightness, 1 m length, 3 hours/day. Change the name, length, power per metre and daily hours for each installation. Confirm actual LED strip draw and dimming.'},
   {name:'Maxxair roof vent',category:'standard',voltage:12,watts:8.4,hours:4,
    basis:'Illustrative 50% fan speed of MaxxFan Deluxe: 0.70 A at 12 V, giving 8.4 W. Exact fitted model and usual setting unverified.',sourceUrl:'https://files.ekmcdn.com/grasshopper/resources/other/maxxfan-deluxe-amp-draw.pdf'},
   {name:'Water pump',category:'standard',voltage:12,watts:48,hours:0.2,basis:'Estimate: 4 A water pump, running 12 minutes/day. Confirm the actual motor model.'},
@@ -75,6 +68,19 @@ export function newLoad(template:Template,circuitId=''):PlannerLoad {
 }
 const valid = (v:unknown,max=Number.MAX_VALUE):v is number =>
   typeof v==='number' && Number.isFinite(v) && v>=0 && v<=max;
+/** Reassign one load to a named circuit or '' (the permanent Ungrouped container).
+ * A destination circuit imposes its voltage; ungrouping retains the current voltage.
+ * Invalid identifiers never create dangling circuit references or mutate the planner.
+ */
+export function moveLoadToCircuit(p:Planner,loadId:string,circuitId:string):Planner {
+  const load=p.loads.find(l=>l.id===loadId);
+  if(!load)return p;
+  const destination=circuitId?p.circuits.find(c=>c.id===circuitId):null;
+  if(circuitId&&!destination)return p;
+  const voltage=destination?destination.voltage:load.voltage;
+  if(load.circuitId===circuitId&&load.voltage===voltage)return p;
+  return {...p,loads:p.loads.map(l=>l.id===loadId?{...l,circuitId,voltage}:l)};
+}
 export function loadEnergy(l:PlannerLoad) {
   const issues:string[]=[];
   let watts:number|null=valid(l.rating)?(l.ratingUnit==='A'?l.rating*l.voltage:l.rating):null;
