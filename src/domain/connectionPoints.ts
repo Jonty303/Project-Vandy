@@ -89,7 +89,6 @@ export function connectionIssues(p:Planner):ConnectionIssue[]{
  for(const socket of p.connections.sockets){
   const circuit=p.circuits.find(c=>c.id===socket.circuitId);
   if(!circuit)continue;
-  const expected=socket.kind==='uk-3pin'?230:12;
   if(socket.kind==='uk-3pin'&&circuit.voltage!==230)
    issues.push({kind:'mismatch',id:socket.id,message:socket.name+' belongs to a '+circuit.voltage+
      ' V circuit. A 3-pin outlet requires a 230 V AC circuit.'});
