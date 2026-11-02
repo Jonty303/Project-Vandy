@@ -10,13 +10,14 @@ export type SocketKind='usb'|'uk-3pin';
  */
 export type UsbElectricalRatings={
  maxCombinedOutputWatts:number|null;
+ maxOutputWattsPerPort:number|null;
  maxOutputAmpsPerPort:number|null;
  maxInputAmps:number|null;
  maxInputWatts:number|null;
  ratedOutputVoltages:string;
 };
 export const blankUsbRatings=():UsbElectricalRatings=>({
- maxCombinedOutputWatts:null,maxOutputAmpsPerPort:null,
+ maxCombinedOutputWatts:null,maxOutputWattsPerPort:null,maxOutputAmpsPerPort:null,
  maxInputAmps:null,maxInputWatts:null,ratedOutputVoltages:'',
 });
 export type CircuitSocket={
@@ -78,7 +79,7 @@ export function validConnections(data:unknown,context:ConnectionContext):data is
      typeof socket.usbRatings!=='object')return false;
    const r=socket.usbRatings;
    if(![
-      r.maxCombinedOutputWatts,r.maxOutputAmpsPerPort,r.maxInputAmps,r.maxInputWatts
+      r.maxCombinedOutputWatts,r.maxOutputWattsPerPort,r.maxOutputAmpsPerPort,r.maxInputAmps,r.maxInputWatts
      ].every(v=>v===null||typeof v==='number'&&Number.isFinite(v)&&v>=0)||
      typeof r.ratedOutputVoltages!=='string'||r.ratedOutputVoltages.length>120)return false;
   }
