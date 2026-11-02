@@ -103,7 +103,7 @@ test('legacy version 1 project converts Summer usage without dropping other seas
   assert.equal('control' in migrated.circuits[0],false);
 });
 test('reject malformed external imports',()=>{
-  assert.equal(importPlanner({version:4,batteryId:null,circuits:[],loads:[{id:'broken'}]}),null);
+  assert.equal(importPlanner({version:5,batteryId:null,charging:blankPlanner().charging,circuits:[],loads:[{id:'broken'}]}),null);
   assert.equal(importPlanner({version:1,circuits:null,loads:[]}),null);
 });
 
@@ -112,7 +112,7 @@ test('v2 circuit with old remote setting migrates without inferring a physical s
     physicalSwitch:true,control:'remote6'}],loads:[]};
   const next=importPlanner(old);
   assert.ok(next&&isPlanner(next));
-  assert.equal(next.version,4);
+  assert.equal(next.version,5);
   assert.equal(next.circuits[0].physicalSwitch,false);
   assert.equal('control' in next.circuits[0],false);
   assert.equal(old.circuits[0].physicalSwitch,true,'source data remains untouched');
@@ -237,14 +237,14 @@ test('no loads yields undefined endurance; incomplete loads generate provisional
   assert.equal(batteryRuntime(p).missing,0);
   assert.ok(batteryRuntime(p).days>0);
 });
-test('legacy v3 imports as v4 preserving voltage mismatches and not forcing a battery selection',()=>{
+test('legacy v3 imports as v5 preserving voltage mismatches and not forcing a battery selection',()=>{
   const p=blankPlanner();
   const c=newCircuit();c.voltage=24;p.circuits.push(c);
   const l=sample();l.circuitId=c.id;p.loads.push(l);
   const legacy={version:3,circuits:p.circuits,loads:p.loads};
   const upgraded=importPlanner(legacy);
   assert.ok(upgraded&&isPlanner(upgraded));
-  assert.equal(upgraded.version,4);
+  assert.equal(upgraded.version,5);
   assert.equal(upgraded.batteryId,null);
   assert.equal(upgraded.loads[0].voltage,12);
   assert.equal(voltageIssues(upgraded).length,1);
@@ -256,4 +256,20 @@ test('invalid battery selection IDs are rejected, voltage mismatches are not',()
   assert.equal(isPlanner(p),false);
   p.batteryId=null;
   assert.ok(isPlanner(p));
+});
+
+test('legacy v4 preserves the battery selection and loads while adding empty planned charging',()=>{
+  const original=blankPlanner();
+  original.batteryId='ultra-314-24';
+  original.loads.push(sample());
+  const v4={version:4,batteryId:original.batteryId,circuits:original.circuits,loads:original.loads};
+  const updated=importPlanner(v4);
+  assert.ok(updated&&isPlanner(updated));
+  assert.equal(updated.version,5);
+  assert.equal(updated.batteryId,'ultra-314-24');
+  assert.deepEqual(updated.charging.dc2dc,[]);
+  assert.deepEqual(updated.charging.mppt,[]);
+  assert.equal(updated.charging.shoreModelId,null);
+  assert.equal(updated.loads.length,1);
+  assert.equal(v4.version,4,'old plan not rewritten');
 });
