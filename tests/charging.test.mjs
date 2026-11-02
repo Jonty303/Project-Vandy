@@ -10,7 +10,7 @@ test('charging starts as planning-only, with no devices and an editable 30A alte
   assert.equal(validCharging(plan),true);
   assert.equal(plan.spareAlternatorAmps,30);
   assert.equal(plan.alternatorVoltage,12);
-  assert.equal(plan.panel.watts,400);
+  assert.equal(plan.panel.watts,null);
   assert.equal(plan.panel.quantity,1);
   assert.equal(plan.panel.connection,'parallel');
   assert.equal(plan.panel.voc,null);
