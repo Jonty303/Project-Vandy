@@ -222,7 +222,7 @@ export function DistributionPage({planner:p,onChange}:Props){
         const a=d.dcAssignments.find(a=>a.sourceId===chosen.id&&a.slot===slot);
         const charger=chosen.kind==='lynx'?
           d.chargerAssignments.find(c=>c.destinationId===chosen.id&&c.slot===slot):undefined;
-        const modelUnit=charger?[...p.charging.dc2dc,...p.charging.mppt].find(u=>u.id===charger.chargerId):undefined;
+        const modelUnit=charger?chargeOutputUnits(p).find(u=>u.id===charger.chargerId):undefined;
         const model=modelUnit?findModel(modelUnit.modelId):undefined;
         const used=occupiedSlots({...d,
           dcAssignments:d.dcAssignments.filter(x=>x.id!==a?.id),
