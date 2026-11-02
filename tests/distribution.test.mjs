@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {blankPlanner,importPlanner,isPlanner,newLoad,moveLoadToCircuit,newCircuit} from '../src/domain/loadPlanner.ts';
 import {newPlannedUnit} from '../src/domain/charging.ts';
 import {
- distributionModels,standaloneInverters,activeInverter,assignmentFor,
+ distributionModels,standaloneInverters,activeInverter,assignmentFor,occupiedSlots,firstFreeSlot,backfillChargeSlots,
  busbarRequirements,validDistribution,distributionIssues,normaliseDistribution,dcTargets,
 } from '../src/domain/distribution.ts';
 const node=(id,kind='blue-sea',voltage=12)=>({id,name:id,kind,voltage});
@@ -18,7 +18,7 @@ const setup=()=>{
 };
 test('empty projects do not imply distribution or inverter wiring',()=>{
  const p=blankPlanner();
- assert.equal(p.version,7);assert.ok(isPlanner(p));
+ assert.equal(p.version,8);assert.ok(isPlanner(p));
  assert.deepEqual(p.distribution.nodes,[]);
  assert.equal(p.distribution.standaloneInverterId,null);
  assert.equal(activeInverter(p),null);
@@ -68,7 +68,7 @@ test('busbar recommendation accounts for upstream, outbound and charging attachm
   attach('c','bus','node','lynx'),
  ];
  p.charging.mppt=[newPlannedUnit('smartsolar-100-50','mppt-a')];
- p.distribution.chargerAssignments=[{chargerId:'mppt-a',destinationId:'bus'}];
+ p.distribution.chargerAssignments=[{chargerId:'mppt-a',destinationId:'bus',slot:null}];
  const r=busbarRequirements(p,'bus');
  assert.equal(r.positive,4);assert.equal(r.negative,4);
  assert.equal(r.downstream,2);assert.equal(r.chargers,1);
@@ -78,7 +78,7 @@ test('busbar recommendation accounts for upstream, outbound and charging attachm
 test('charger inputs connect as sources, not as consumers; stale charger IDs fail validation',()=>{
  const p=setup();
  p.charging.dc2dc=[newPlannedUnit('orion-xs-12-12-50','dc-a')];
- p.distribution.chargerAssignments=[{chargerId:'dc-a',destinationId:'lynx'}];
+ p.distribution.chargerAssignments=[{chargerId:'dc-a',destinationId:'lynx',slot:1}];
  assert.ok(validDistribution(p.distribution,p));
  assert.equal(p.distribution.dcAssignments.length,0);
  p.charging.dc2dc=[];
@@ -104,7 +104,7 @@ test('deleting node clears dependent child references and chargers, preserving s
  p.charging.mppt=[newPlannedUnit('smartsolar-100-30','mppt')];
  p.distribution.dcAssignments=[attach('a','lynx','node','fuse',1),
   attach('b','fuse','load',l.id,1)];
- p.distribution.chargerAssignments=[{chargerId:'mppt',destinationId:'fuse'}];
+ p.distribution.chargerAssignments=[{chargerId:'mppt',destinationId:'fuse',slot:null}];
  p.distribution.nodes=p.distribution.nodes.filter(n=>n.id!=='fuse');
  const next=normaliseDistribution(p);
  assert.equal(next.distribution.dcAssignments.length,0);
@@ -144,8 +144,97 @@ test('v6 project imports unchanged equipment and receives empty distribution',()
   circuits:p.circuits,loads:p.loads};
  const next=importPlanner(prior);
  assert.ok(next&&isPlanner(next));
- assert.equal(next.version,7);
+ assert.equal(next.version,8);
  assert.equal(next.batteryId,p.batteryId);
  assert.equal(next.loads[0].name,'Lamp');
  assert.deepEqual(next.distribution.nodes,[]);
+});
+
+test('MPPT and Orion share Lynx four positions with outgoing Blue Sea and MultiPlus',()=>{
+ const p=setup();
+ const mppt=newPlannedUnit('smartsolar-100-50','mppt1');
+ const orion=newPlannedUnit('orion-xs-12-12-50','orion1');
+ p.charging.mppt=[mppt];p.charging.dc2dc=[orion];
+ p.charging.shoreModelId='multiplus-12-800-35';
+ p.distribution.dcAssignments=[
+  attach('feed','lynx','node','fuse',1),
+  attach('inv','lynx','inverter','inverter',2),
+ ];
+ assert.equal(firstFreeSlot(p.distribution,'lynx'),3);
+ p.distribution.chargerAssignments=[
+  {chargerId:mppt.id,destinationId:'lynx',slot:3},
+  {chargerId:orion.id,destinationId:'lynx',slot:4},
+ ];
+ assert.deepEqual([...occupiedSlots(p.distribution,'lynx')].sort(),[1,2,3,4]);
+ assert.equal(firstFreeSlot(p.distribution,'lynx'),null);
+ assert.ok(validDistribution(p.distribution,p));
+ assert.ok(isPlanner(p));
+});
+test('charger and DC branch may not occupy same Lynx position',()=>{
+ const p=setup();
+ p.charging.dc2dc=[newPlannedUnit('orion-xs-12-12-50','dc')];
+ p.distribution.dcAssignments=[attach('branch','lynx','node','fuse',1)];
+ p.distribution.chargerAssignments=[{chargerId:'dc',destinationId:'lynx',slot:1}];
+ assert.equal(validDistribution(p.distribution,p),false);
+ p.distribution.chargerAssignments[0].slot=2;
+ assert.ok(validDistribution(p.distribution,p));
+ p.distribution.chargerAssignments[0].slot=5;
+ assert.equal(validDistribution(p.distribution,p),false);
+});
+test('v7 charger destination migration fills spare Lynx slots and preserves the model',()=>{
+ const p=setup();
+ p.charging.mppt=[newPlannedUnit('smartsolar-100-50','mppt1')];
+ p.charging.dc2dc=[newPlannedUnit('orion-xs-12-12-50','orion1')];
+ p.charging.shoreModelId='multiplus-12-800-35';
+ p.distribution.dcAssignments=[
+  attach('blue','lynx','node','fuse',1),
+  attach('multi','lynx','inverter','inverter',2),
+ ];
+ // Historical v7 project does not contain a charger slot field.
+ p.distribution.chargerAssignments=[
+  {chargerId:'mppt1',destinationId:'lynx'},
+  {chargerId:'orion1',destinationId:'lynx'},
+ ];
+ const prior={...p,version:7};
+ const next=importPlanner(prior);
+ assert.ok(next&&isPlanner(next));
+ assert.equal(next.version,8);
+ assert.deepEqual(next.distribution.chargerAssignments.map(x=>x.slot),[3,4]);
+ assert.equal(next.distribution.dcAssignments[0].slot,1);
+ assert.equal(next.distribution.dcAssignments[1].slot,2);
+ assert.equal(next.charging.mppt[0].id,'mppt1');
+ assert.equal(next.charging.dc2dc[0].id,'orion1');
+ assert.equal(prior.distribution.chargerAssignments[0].slot,undefined);
+});
+test('overbooked v7 project preserves unallocated charging links and asks for review',()=>{
+ const p=setup();
+ p.distribution.dcAssignments=[1,2,3,4].map(slot=>attach('branch'+slot,'lynx','load','load'+slot,slot));
+ p.loads=[1,2,3,4].map(i=>({...load('Load '+i),id:'load'+i}));
+ p.charging.mppt=[newPlannedUnit('smartsolar-100-50','mppt1')];
+ p.distribution.chargerAssignments=[{chargerId:'mppt1',destinationId:'lynx'}];
+ const upgraded=importPlanner({...p,version:7});
+ assert.ok(upgraded&&isPlanner(upgraded));
+ assert.equal(upgraded.distribution.chargerAssignments[0].slot,null);
+ assert.ok(distributionIssues(upgraded).some(w=>w.message.includes('no free fuse position')));
+});
+test('moving a charger to unfused busbar frees Lynx slot',()=>{
+ const p=setup();
+ p.charging.mppt=[newPlannedUnit('smartsolar-100-30','mppt')];
+ p.distribution.chargerAssignments=[{chargerId:'mppt',destinationId:'lynx',slot:2}];
+ assert.ok(occupiedSlots(p.distribution,'lynx').has(2));
+ p.distribution.chargerAssignments=[{chargerId:'mppt',destinationId:'bus',slot:null}];
+ assert.equal(occupiedSlots(p.distribution,'lynx').size,0);
+ assert.equal(firstFreeSlot(p.distribution,'lynx'),1);
+ assert.ok(validDistribution(p.distribution,p));
+});
+test('backfill chooses existing free slots and avoids duplicates even if slots supplied',()=>{
+ const p=setup();
+ p.distribution.dcAssignments=[attach('branch','lynx','node','fuse',1)];
+ p.distribution.chargerAssignments=[
+  {chargerId:'a',destinationId:'lynx',slot:2},
+  {chargerId:'b',destinationId:'lynx',slot:2},
+  {chargerId:'c',destinationId:'bus',slot:null},
+ ];
+ const fixed=backfillChargeSlots(p.distribution);
+ assert.deepEqual(fixed.chargerAssignments.map(a=>a.slot),[2,3,null]);
 });
