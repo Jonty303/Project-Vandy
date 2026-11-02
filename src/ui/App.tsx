@@ -237,7 +237,11 @@ export function App(){
                       <td><span className="planner-row-label"><span className="load-drag-handle" aria-hidden="true">⋮⋮</span>{l.name||'Unnamed load'}</span></td>
                       <td>{l.voltage} V</td><td>{fmt(r.watts)}</td><td>{fmt(l.hours)}</td><td>{fmt(r.wh)}</td>
                     </tr>;
-                  }):<tr className="planner-empty-row"><td colSpan={5}>Empty — drop loads here</td></tr>}
+                  }):<tr className="planner-empty-row planner-select-row" tabIndex={0}
+                    onClick={()=>editCircuit(group.id)}
+                    onKeyDown={e=>selectOnKey(e,()=>editCircuit(group.id))}>
+                    <td colSpan={5}>Empty — drop loads here</td>
+                  </tr>}
                 </tbody>)}
               </table>:<table className="planner-table">
                 <thead><tr><th>Circuit</th><th>Voltage</th><th>Loads</th><th>Switch</th><th>Wh/day</th></tr></thead>
