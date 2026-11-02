@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {blankPlanner,importPlanner,isPlanner,newLoad,moveLoadToCircuit,newCircuit} from '../src/domain/loadPlanner.ts';
 import {newPlannedUnit} from '../src/domain/charging.ts';
 import {
- distributionModels,standaloneInverters,activeInverter,assignmentFor,occupiedSlots,firstFreeSlot,backfillChargeSlots,
+ distributionModels,standaloneInverters,activeInverter,assignmentFor,occupiedSlots,firstFreeSlot,backfillChargeSlots,chargeOutputUnits,SHORE_CHARGER_ID,
  busbarRequirements,validDistribution,distributionIssues,normaliseDistribution,dcTargets,
 } from '../src/domain/distribution.ts';
 const node=(id,kind='blue-sea',voltage=12)=>({id,name:id,kind,voltage});
@@ -237,4 +237,68 @@ test('backfill chooses existing free slots and avoids duplicates even if slots s
  ];
  const fixed=backfillChargeSlots(p.distribution);
  assert.deepEqual(fixed.chargerAssignments.map(a=>a.slot),[2,3,null]);
+});
+
+
+test('shore-only charger is available as one battery-side charging output with stable identity',()=>{
+ const p=setup();
+ p.charging.shoreModelId='ip22-12-30';
+ const available=chargeOutputUnits(p);
+ assert.ok(available.some(u=>u.id===SHORE_CHARGER_ID&&u.modelId==='ip22-12-30'));
+ assert.equal(activeInverter(p),null,'standalone shore-only charger is not an AC inverter');
+ p.distribution.chargerAssignments=[{chargerId:SHORE_CHARGER_ID,destinationId:'lynx',slot:2}];
+ assert.equal(occupiedSlots(p.distribution,'lynx').has(2),true);
+ assert.ok(validDistribution(p.distribution,p));
+ assert.ok(isPlanner(p));
+ const warnings=distributionIssues(p);
+ assert.equal(warnings.some(w=>w.message.includes('shore')&&w.message.includes('no planned DC output')),false);
+});
+test('shore-only charger can connect to battery or busbar, and contributes to busbar terminal count',()=>{
+ const p=setup();
+ p.charging.shoreModelId='ip22-12-30';
+ p.distribution.dcAssignments=[attach('bat','battery','node','bus')];
+ p.distribution.chargerAssignments=[{chargerId:SHORE_CHARGER_ID,destinationId:'bus',slot:null}];
+ assert.equal(busbarRequirements(p,'bus').chargers,1);
+ assert.equal(busbarRequirements(p,'bus').minimumPerBar,2);
+ assert.equal(validDistribution(p.distribution,p),true);
+ p.distribution.chargerAssignments=[{chargerId:SHORE_CHARGER_ID,destinationId:'battery',slot:null}];
+ assert.equal(validDistribution(p.distribution,p),true);
+});
+test('one combined inverter/charger occupies one DC slot shared with MPPT and Orion',()=>{
+ const p=setup();
+ p.charging.shoreModelId='multiplus-12-500-20';
+ p.charging.mppt=[newPlannedUnit('smartsolar-100-50','mppt')];
+ p.charging.dc2dc=[newPlannedUnit('orion-xs-12-12-50','orion')];
+ assert.equal(chargeOutputUnits(p).length,2,'MultiPlus is not duplicated as a charge-output unit');
+ assert.equal(activeInverter(p).combined,true);
+ p.distribution.dcAssignments=[attach('inv','lynx','inverter','inverter',1)];
+ p.distribution.chargerAssignments=[
+  {chargerId:'mppt',destinationId:'lynx',slot:2},
+  {chargerId:'orion',destinationId:'lynx',slot:3},
+ ];
+ assert.deepEqual([...occupiedSlots(p.distribution,'lynx')].sort(),[1,2,3]);
+ assert.equal(firstFreeSlot(p.distribution,'lynx'),4);
+ assert.ok(validDistribution(p.distribution,p));
+ assert.equal(distributionIssues(p).some(w=>w.message.includes('Inverter battery-side DC feed remains unassigned')),false);
+});
+test('one standalone inverter DC link can be assigned to battery, busbar, or Lynx without duplication',()=>{
+ const p=setup();
+ p.distribution.standaloneInverterId='phoenix-12-500';
+ for(const [source,slot] of [['battery',null],['bus',null],['lynx',2]]){
+  p.distribution.dcAssignments=[attach('inv',source,'inverter','inverter',slot)];
+  assert.ok(validDistribution(p.distribution,p));
+  assert.equal(p.distribution.dcAssignments.filter(a=>a.targetType==='inverter').length,1);
+ }
+ assert.equal(occupiedSlots(p.distribution,'lynx').size,1);
+});
+test('shore charger link is removed when changing from IP22 to MultiPlus, without losing inverter output',()=>{
+ const p=setup();
+ p.charging.shoreModelId='ip22-12-30';
+ p.distribution.chargerAssignments=[{chargerId:SHORE_CHARGER_ID,destinationId:'lynx',slot:1}];
+ p.charging.shoreModelId='multiplus-12-500-20';
+ const corrected=normaliseDistribution(p);
+ assert.deepEqual(corrected.distribution.chargerAssignments,[]);
+ assert.equal(activeInverter(corrected).combined,true);
+ assert.equal(firstFreeSlot(corrected.distribution,'lynx'),1);
+ assert.equal(validDistribution(corrected.distribution,corrected),true);
 });
