@@ -268,6 +268,14 @@ export function App(){
                 <AlertTriangle size={15}/>{i.loadName}: {i.loadVoltage} V load on {i.circuitVoltage} V circuit ({i.circuitName})
               </button>)}
             </div>}
+            {chargeAlerts.length>0&&<div className="battery-validation-list">
+              <h3>Charging configuration warnings</h3>
+              <p className="planner-note">{chargeAlerts.length} charging item(s) need review against the selected battery and charging assumptions.</p>
+              {chargeAlerts.map((w,i)=><button className="battery-validation-link" key={i}
+                onClick={()=>setPage('charging')}>
+                <AlertTriangle size={15}/>{w.area}: {w.message}
+              </button>)}
+            </div>}
             {endurance.bankVoltageLoads.length>0&&<div className="battery-validation-list">
               <h3>DC load and battery voltage differences</h3>
               {endurance.bankVoltageLoads.map(l=><button className="battery-validation-link" key={l.id}
