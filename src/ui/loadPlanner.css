@@ -13,3 +13,58 @@
 .planner-spec-details .field{margin:12px 0}
 .planner-home-total{display:block;font:700 31px Outfit,system-ui;margin-top:13px;color:#84e1d1}
 @media(max-width:650px){.circuit-switch-settings{display:grid;grid-template-columns:1fr}.circuit-switch-settings .field{max-width:none}}
+
+
+/* Focused calculator: compact selected-row table over one full-width detail editor. */
+.planner-tabs{display:flex;gap:5px;margin-top:22px;border-bottom:1px solid #335064}
+.planner-tabs button{appearance:none;border:0;border-bottom:3px solid transparent;background:transparent;
+  color:#9bb6c3;padding:12px 20px;font-weight:700;display:inline-flex;align-items:center;gap:9px}
+.planner-tabs button.active{color:#8ce5d5;border-bottom-color:#51d2be;background:#173241}
+.planner-tabs button span{color:#a3c1cb;font-size:11px;background:#243b4d;border-radius:12px;padding:2px 7px}
+.planner-tabs button:focus-visible,.planner-row-button:focus-visible{outline:2px solid #8ce5d5;outline-offset:2px}
+.planner-tabs+.planner-toolbar{margin:14px 0}
+.planner-list-panel{padding:18px 20px;margin:0 0 16px}
+.planner-list-panel .panel-head{margin-bottom:13px}
+.planner-list-scroll{max-height:300px;overflow:auto;border:1px solid #2c4659;border-radius:8px}
+.planner-table{width:100%;border-spacing:0;border-collapse:collapse;font-size:12px;text-align:left}
+.planner-table thead th{background:#152d3d;color:#a7c7d0;white-space:nowrap;position:sticky;top:0;z-index:2;
+  font-size:10px;letter-spacing:.4px;font-weight:700}
+.planner-table th,.planner-table td{padding:9px 13px;border-bottom:1px solid #294253;vertical-align:middle}
+.planner-table th:not(:first-child),.planner-table td:not(:first-child){text-align:right}
+.planner-table tbody tr.selected{background:#19464b}
+.planner-table tbody tr:not(.planner-group-row):hover{background:#1d3a49}
+.planner-table .planner-group-row th{position:sticky;top:33px;z-index:1;background:#1b3443;
+  color:#c5e7e7;text-align:left;font-size:11px;padding:7px 13px}
+.planner-group-row span{color:#89a9ba;font-weight:400}
+.planner-table .planner-empty-row td{color:#809eaf;text-align:left;font-style:italic;padding:9px 13px}
+.planner-row-button{border:0;background:transparent;color:#e2f0f2;text-align:left;cursor:pointer;
+  font-weight:650;padding:0;display:inline-flex;flex-direction:column;align-items:start;gap:3px}
+.planner-row-button small{color:#90afbd;font-size:10px;font-weight:400}
+.planner-detail-panel{padding:23px 24px;margin-bottom:12px;min-height:200px}
+.planner-detail-panel .form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.planner-detail-panel .field{min-width:0}
+.planner-detail-panel .circuit-check{align-self:end;padding-bottom:9px}
+.planner-detail-panel .panel-head{margin-bottom:15px}
+.planner-circuit-summary{display:flex;gap:12px;margin:16px 0}
+.planner-circuit-summary>div{display:flex;flex-direction:column;gap:6px;background:#102c3c;
+  border:1px solid #315262;border-radius:8px;padding:14px 18px;min-width:160px}
+.planner-circuit-summary span{font-size:11px;color:#9bbccc}
+.planner-circuit-summary strong{font:700 22px Outfit,system-ui}
+.planner-circuit-summary small{font-size:11px;color:#a8c5cb}
+.planner-associated-loads h3{font-size:14px;margin:17px 0 9px}
+.associated-load-row{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:11px 0;border-bottom:1px solid #2c4959;font-size:12px}
+.associated-load-row small{display:block;color:#8baabc;margin-top:4px}
+.planner-detail-panel .planner-result{margin-top:14px}
+@media(max-width:850px){.planner-detail-panel .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){
+  .planner-list-panel{padding:13px 10px}
+  .planner-list-scroll{max-height:290px}
+  .planner-table{min-width:520px;font-size:11px}
+  .planner-table th,.planner-table td{padding:8px}
+  .planner-detail-panel{padding:16px 14px}
+  .planner-detail-panel .form-grid{grid-template-columns:1fr}
+  .planner-circuit-summary{flex-wrap:wrap}
+  .planner-circuit-summary>div{flex:1;min-width:130px}
+  .planner-tabs button{flex:1;justify-content:center}
+}
