@@ -257,7 +257,7 @@ export function App(){
             <strong>{fmt(total.wh)} <small>Wh/day</small></strong>
             <p>{total.missing?'Partial total · '+total.missing+' load(s) incomplete':'Estimated typical-day appliance energy'}</p>
             {issues.length>0&&<p className="validation-warning"><AlertTriangle size={15}/>
-              {issues.length} voltage mismatch(es). Totals are provisional.</p>
+              {issues.length} voltage mismatch(es). Totals are provisional.</p>}
           </div><div>{total.byVoltage.filter(v=>p.loads.some(l=>l.voltage===v.voltage)).map(v=>
             <p key={v.voltage}><b>{v.voltage} V:</b> {fmt(v.ah)} Ah/day</p>)}
             <small>Ah values are per voltage, not combined.</small>
