@@ -8,7 +8,7 @@ import {
 import {chargingWarnings,plannedInverter} from '../domain/charging.ts';
 import {ChargingPage} from './ChargingPage.tsx';
 import {OffGridPage} from './OffGridPage.tsx';
-import {monthRating,MONTHS} from '../domain/offGrid.ts';
+import {monthRating,MONTHS,batteryChargeReview} from '../domain/offGrid.ts';
 import './loadPlanner.css';
 
 const KEY='vandy-load-planner-v6';
@@ -70,6 +70,7 @@ export function App(){
   const battery=selectedBattery(p);
   const endurance=batteryRuntime(p,battery);
   const chargeAlerts=chargingWarnings(p.charging,battery?.systemVoltage??null);
+  const batteryChargeAlerts=batteryChargeReview(p);
   const futureInverter=plannedInverter(p.charging);
   const currentMonthRating=monthRating(p,p.offGrid.month);
   const batteryMatches=batteries.filter(b=>
@@ -188,6 +189,8 @@ export function App(){
             {battery&&<p><b>Battery:</b> {battery.name} · {endurance.days===null?'Add loads to calculate runtime':fmt(endurance.days)+' days of estimated use'+(endurance.provisional?' (provisional)':'')}</p>}
             {endurance.bankVoltageLoads.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
               {endurance.bankVoltageLoads.length} DC load(s) have a different voltage from the selected battery.</p>}
+            {batteryChargeAlerts.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
+              {batteryChargeAlerts.length} battery charging-current review(s) needed.</p>}
             {chargeAlerts.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
               {chargeAlerts.length} planned charging item(s) need review. Open Charging to see details.</p>}
             {futureInverter&&<p className="planner-note">Planned inverter/charger for later 230 V configuration: {futureInverter.name}.</p>}
@@ -259,6 +262,7 @@ export function App(){
               Assumes a fully charged, healthy battery, no charging and the same loads each day. It excludes inverter and DC conversion
               losses, self-consumption, battery ageing and temperature effects. Treat this as an indicative upper-bound calculation,
               not a verified real-world runtime.</p>
+            {batteryChargeAlerts.map((warning,i)=><p className="validation-warning" key={i}><AlertTriangle size={17}/>{warning}</p>)}
             <div className="battery-specs">
               <span><b>Chemistry:</b> LiFePO₄</span>
               <span><b>Nominal voltage:</b> {battery.nominalVoltage} V</span>
@@ -267,6 +271,10 @@ export function App(){
               <span><b>Weight:</b> {battery.weightKg} kg</span>
               <span><b>Dimensions:</b> {battery.dimensionsMm} mm</span>
               <span><b>Bluetooth:</b> Yes</span>
+              <span><b>Maximum charge current:</b> {battery.chargeMaximumA===null?'Unverified':battery.chargeMaximumA+' A'}</span>
+              <span><b>Standard/recommended charge:</b> {battery.chargeRecommendedA===null?'Unverified':battery.chargeRecommendedA+' A'}</span>
+              <span><b>Charging voltage:</b> {battery.chargeVoltage===null?'Review manufacturer guidance':battery.chargeVoltage+' V'}</span>
+              <span><b>Minimum charge temperature:</b> {battery.minChargeTempC===null?'Unverified':battery.minChargeTempC+'°C'}</span>
             </div>
             <p className="planner-note">{battery.notes}</p>
             <a href={battery.sourceUrl} target="_blank" rel="noreferrer">WattCycle Europe specifications</a>
@@ -300,6 +308,7 @@ export function App(){
           onChange={offGrid=>setP(old=>({...old,offGrid}))}
         />:page==='charging'?<ChargingPage
           plan={p.charging} batteryVoltage={battery?.systemVoltage??null}
+          batteryWarnings={batteryChargeAlerts}
           onChange={charging=>setP(old=>({...old,charging}))}
         />:<>
           <div className="section-heading heading-top"><div>
