@@ -134,3 +134,55 @@
   .battery-options,.battery-metrics,.battery-specs{grid-template-columns:1fr}
   .battery-option{min-height:145px}
 }
+
+
+/* Charging planner and scalable battery selector. */
+.battery-pick-action{display:flex;align-items:center;flex-wrap:wrap;gap:15px;margin:20px 0}
+.battery-pick-action span{color:#b8d5d9;font-size:13px}
+.battery-chooser{padding:20px;margin:0 0 22px}
+.battery-filter-row{display:grid;grid-template-columns:minmax(230px,2fr) minmax(120px,1fr);gap:15px;margin:14px 0}
+.battery-catalogue-list{max-height:320px;overflow:auto;border:1px solid #365366;border-radius:8px}
+.battery-catalogue-row{appearance:none;background:#142c3b;color:#dfecef;border:0;border-bottom:1px solid #304b5e;
+  display:flex;align-items:center;justify-content:space-between;text-align:left;gap:18px;width:100%;padding:13px 16px;cursor:pointer}
+.battery-catalogue-row:hover,.battery-catalogue-row.selected{background:#21444a}
+.battery-catalogue-row:focus-visible{outline:2px solid #7ee9d2;outline-offset:-3px}
+.battery-catalogue-row span{display:flex;flex-direction:column;gap:6px}
+.battery-catalogue-row small{color:#9cbbc4}
+.battery-catalogue-row>strong{white-space:nowrap;color:#8be7d2}
+.charging-page .planner-tabs{margin-bottom:18px}
+.charging-page .planner-detail-panel{margin-bottom:14px}
+.charging-page h2{font-size:20px;margin:0 0 10px}
+.charging-page h3{font-size:15px;margin:22px 0 12px}
+.charging-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0 23px}
+.charging-form-grid .field{min-width:0}
+.charging-add{display:flex;gap:12px;align-items:end;margin:18px 0}
+.charging-add .field{flex:1;min-width:0}
+.charging-add>.button{min-height:40px;white-space:nowrap}
+.charging-empty{color:#9ab5c0;background:#142b3b;border:1px dashed #3b5869;border-radius:8px;padding:18px;font-size:13px}
+.charging-device-list{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.charging-device-row{display:flex;justify-content:space-between;align-items:start;gap:16px;border:1px solid #355369;
+  background:#102b3d;border-radius:9px;padding:17px;margin-bottom:10px;color:#dcecf0}
+.charging-device-row>div{display:flex;flex-direction:column;gap:7px;min-width:0}
+.charging-device-row strong{font-size:14px}
+.charging-device-row small{font-size:11px;color:#b5d0d4}
+.charging-device-row p{font-size:12px;color:#a1bdc6;line-height:1.5}
+.charging-device-row a{display:inline-flex;gap:5px;align-items:center;font-size:11px;color:#8be2d2}
+.charging-device-row .icon-button{flex-shrink:0}
+.charging-array-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.charging-array-summary>div{display:flex;flex-direction:column;gap:9px;background:#122d3c;border:1px solid #345268;border-radius:8px;padding:13px}
+.charging-array-summary span{font-size:11px;color:#a5bfca}
+.charging-array-summary strong{font-size:20px;color:#8ee1d1}
+.charging-future-inverter{padding:15px 18px;background:#173d40;border:1px solid #4b897e;border-radius:8px;margin:16px 0}
+.charging-future-inverter strong{color:#a7efe1}
+.charging-future-inverter p{font-size:12px;color:#b6d9d5;line-height:1.5;margin-top:8px}
+.charging-issue-list{margin-top:17px}
+@media(max-width:850px){
+  .charging-form-grid{grid-template-columns:1fr}
+}
+@media(max-width:650px){
+  .battery-filter-row,.charging-array-summary{grid-template-columns:1fr}
+  .charging-add{flex-direction:column;align-items:stretch}
+  .charging-add>.button{width:100%;justify-content:center}
+  .battery-catalogue-row{flex-wrap:wrap}
+  .charging-page .planner-tabs button{font-size:12px;padding:12px 9px}
+}
