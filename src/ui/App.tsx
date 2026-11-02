@@ -1,14 +1,16 @@
 import {useEffect,useRef,useState,type ReactNode,type DragEvent as ReactDragEvent,type KeyboardEvent as ReactKeyboardEvent} from 'react';
-import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw,AlertTriangle,BatteryCharging} from 'lucide-react';
+import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw,AlertTriangle,BatteryCharging,PlugZap} from 'lucide-react';
 import {
   blankPlanner,catalogue,importPlanner,isPlanner,loadEnergy,newCircuit,newLoad,plannerTotal,moveLoadToCircuit,
   batteries,selectedBattery,batteryRuntime,voltageIssues,circuitVoltageIssues,loadVoltageIssues,
   type Planner,type PlannerLoad,type PlannerCircuit,type Voltage,
 } from '../domain/loadPlanner.ts';
+import {chargingWarnings,plannedInverter} from '../domain/charging.ts';
+import {ChargingPage} from './ChargingPage.tsx';
 import './loadPlanner.css';
 
-const KEY='vandy-load-planner-v4';
-const PRIOR_KEYS=['vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
+const KEY='vandy-load-planner-v5';
+const PRIOR_KEYS=['vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
 const UNGROUPED='ungrouped';
 type CalculatorTab='loads'|'circuits';
 const fmt=(n:number|null):string=>n===null?'Unknown':n.toLocaleString('en-GB',{maximumFractionDigits:2});
@@ -47,11 +49,14 @@ export function App(){
   const [start]=useState(initial);
   const [saved,setSaved]=useState<Planner>(start.saved);
   const [p,setP]=useState<Planner>(start.p);
-  const [page,setPage]=useState<'home'|'calculator'|'battery'>('home');
+  const [page,setPage]=useState<'home'|'calculator'|'battery'|'charging'>('home');
   const [tab,setTab]=useState<CalculatorTab>('loads');
   const [selectedLoad,setSelectedLoad]=useState('');
   const [selectedCircuit,setSelectedCircuit]=useState(UNGROUPED);
   const [picker,setPicker]=useState(false);
+  const [batteryPickerOpen,setBatteryPickerOpen]=useState(false);
+  const [batterySearch,setBatterySearch]=useState('');
+  const [batteryVoltageFilter,setBatteryVoltageFilter]=useState<'all'|'12'|'24'>('all');
   const [draggedLoadId,setDraggedLoadId]=useState<string|null>(null);
   const [dropTarget,setDropTarget]=useState('');
   const [message,setMessage]=useState(start.message);
@@ -62,6 +67,11 @@ export function App(){
   const issues=voltageIssues(p);
   const battery=selectedBattery(p);
   const endurance=batteryRuntime(p,battery);
+  const chargeAlerts=chargingWarnings(p.charging,battery?.systemVoltage??null);
+  const futureInverter=plannedInverter(p.charging);
+  const batteryMatches=batteries.filter(b=>
+    (batteryVoltageFilter==='all'||b.systemVoltage===Number(batteryVoltageFilter))&&
+    b.name.toLowerCase().includes(batterySearch.toLowerCase().trim()));
   const load=p.loads.find(l=>l.id===selectedLoad);
   const circuit=p.circuits.find(c=>c.id===selectedCircuit);
   const ungrouped=p.loads.filter(l=>!l.circuitId);
@@ -146,11 +156,12 @@ export function App(){
         <button className={'nav-item '+(page==='home'?'active':'')} onClick={()=>setPage('home')}><Home size={19}/>Home</button>
         <button className={'nav-item '+(page==='calculator'?'active':'')} onClick={()=>setPage('calculator')}><Calculator size={19}/>Load Calculator</button>
         <button className={'nav-item '+(page==='battery'?'active':'')} onClick={()=>setPage('battery')}><BatteryCharging size={19}/>Battery Selection</button>
+        <button className={'nav-item '+(page==='charging'?'active':'')} onClick={()=>setPage('charging')}><PlugZap size={19}/>Charging</button>
       </nav>
       <div className="sidebar-bottom">Start with a typical day.<p>Load calculation · focused edition</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':page==='battery'?'BATTERY SELECTION':'LOAD CALCULATOR'}</b></div>
+      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':page==='battery'?'BATTERY SELECTION':page==='charging'?'CHARGING':'LOAD CALCULATOR'}</b></div>
         <span className="tag">{dirty?'Unsaved changes':'Local project'}</span></header>
       <div className="content">
         {page==='home'?<>
@@ -162,7 +173,7 @@ export function App(){
           </section>
           <section className="panel planner-intro"><h2>A clean starting point</h2>
             <p>Your project begins with an empty Ungrouped loads container. Add appliances with editable starting values, then create circuits when you need them.</p>
-            <p>Start with typical-day loads, then select a battery for simple endurance estimates. Control assignments, charging and wiring follow later.</p>
+            <p>Start with typical-day loads, then select a battery for simple endurance estimates. Controller configuration, charge yields and wiring follow later.</p>
           </section>
           <section className="panel planner-intro"><div className="overline">TYPICAL DAILY LOAD-SIDE ENERGY</div>
             <strong className="planner-home-total">{fmt(total.wh)} Wh/day</strong>
@@ -172,7 +183,10 @@ export function App(){
             </p>}
             {battery&&<p><b>Battery:</b> {battery.name} · {endurance.days===null?'Add loads to calculate runtime':fmt(endurance.days)+' days of estimated use'+(endurance.provisional?' (provisional)':'')}</p>}
             {endurance.bankVoltageLoads.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
-              {endurance.bankVoltageLoads.length} DC load(s) have a different voltage from your selected battery.</p>}
+              {endurance.bankVoltageLoads.length} DC load(s) have a different voltage from the selected battery.</p>}
+            {chargeAlerts.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
+              {chargeAlerts.length} planned charging item(s) need review. Open Charging to see details.</p>}
+            {futureInverter&&<p className="planner-note">Planned inverter/charger for later 230 V configuration: {futureInverter.name}.</p>}
           </section>
         </>:page==='battery'?<>
           <div className="section-heading heading-top"><div>
@@ -180,20 +194,38 @@ export function App(){
             <h1>Battery Selection</h1>
             <p>Choose one WattCycle LiFePO₄ battery for a simple runtime estimate based on your daily loads.</p>
           </div></div>
-          <section className="battery-options" aria-label="Available battery models">
-            {batteries.map(b=><button key={b.id} type="button"
-              className={'panel battery-option '+(p.batteryId===b.id?'selected':'')}
-              aria-pressed={p.batteryId===b.id}
-              onClick={()=>setP(old=>({...old,batteryId:b.id}))}>
-              <span className="battery-name">{b.name}</span>
+          <div className="battery-pick-action">
+            <button className="button primary" onClick={()=>setBatteryPickerOpen(old=>!old)}>
+              {battery?'Change battery':'Select a battery'}
+            </button>
+            {battery&&<span>{battery.name} · {fmt(battery.energyWh)} Wh nominal</span>}
+          </div>
+          {batteryPickerOpen&&<section className="panel battery-chooser">
+            <div className="panel-head"><h2>Select planned battery</h2>
+              <button className="button small" onClick={()=>setBatteryPickerOpen(false)}>Close</button>
+            </div>
+            <div className="battery-filter-row">
+              <label className="field"><span>Search model</span>
+                <input type="search" placeholder="Search batteries…" value={batterySearch}
+                  onChange={e=>setBatterySearch(e.target.value)}/></label>
+              <label className="field"><span>System voltage</span>
+                <select value={batteryVoltageFilter}
+                  onChange={e=>setBatteryVoltageFilter(e.target.value as 'all'|'12'|'24')}>
+                  <option value="all">All voltages</option><option value="12">12 V</option><option value="24">24 V</option>
+                </select></label>
+            </div>
+            <div className="battery-catalogue-list">{batteryMatches.map(b=><button key={b.id}
+              className={'battery-catalogue-row '+(p.batteryId===b.id?'selected':'')}
+              onClick={()=>{setP(old=>({...old,batteryId:b.id}));setBatteryPickerOpen(false);}}>
+              <span><strong>{b.name}</strong><small>{b.systemVoltage} V system · {b.capacityAh} Ah · {b.bmsAmps} A BMS</small></span>
               <strong>{fmt(b.energyWh)} Wh</strong>
-              <span>{b.nominalVoltage} V nominal · {b.capacityAh} Ah · {b.bmsAmps} A BMS</span>
-              <small>{b.id==='mini-280'?'Your current 280Ah Mini':b.id==='ultra-628-12'?'Larger 12V upgrade':'24V battery · equivalent energy to 628Ah at 12V'}</small>
             </button>)}
-          </section>
+              {batteryMatches.length===0&&<p className="planner-note">No matching batteries. Adjust your search or voltage filter.</p>}
+            </div>
+          </section>}
           {battery?<section className="panel planner-detail-panel battery-detail">
             <div className="panel-head"><h2>{battery.name}</h2>
-              <button className="button small" onClick={()=>setP(old=>({...old,batteryId:null}))}>Clear selection</button>
+              <button className="button small" onClick={()=>{setP(old=>({...old,batteryId:null}));setBatteryPickerOpen(false);}}>Clear selection</button>
             </div>
             <div className="battery-metrics">
               <div><span>Rated battery energy</span><strong>{fmt(battery.energyWh)} Wh</strong></div>
@@ -244,10 +276,13 @@ export function App(){
               </button>)}
             </div>}
           </section>:<section className="panel planner-empty">
-            <BatteryCharging size={32}/><h2>Select a battery</h2>
-            <p>Pick one of the three WattCycle models to calculate a simple no-charge runtime from the Load Calculator.</p>
+            <BatteryCharging size={32}/><h2>No battery selected</h2>
+            <p>Use Select a battery above to open the searchable planning catalogue and calculate no-charge runtime.</p>
           </section>}
-        </>:<>
+        </>:page==='charging'?<ChargingPage
+          plan={p.charging} batteryVoltage={battery?.systemVoltage??null}
+          onChange={charging=>setP(old=>({...old,charging}))}
+        />:<>
           <div className="section-heading heading-top"><div>
             <div className="eyebrow">YOUR DAILY ENERGY DEMAND</div>
             <h1>Load Calculator</h1><p>Typical power and hours used per day.</p>
