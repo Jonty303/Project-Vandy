@@ -1,10 +1,9 @@
 /** Focused load-side daily planner. No battery, inverter, or wiring assumptions. */
 export type Voltage = 12 | 24 | 230;
 export type Category = 'standard' | 'led' | 'fridge' | 'diesel';
-export type Control = 'direct' | 'remote6';
 export type PlannerCircuit = {
   id: string; name: string; voltage: Voltage;
-  physicalSwitch: boolean; control: Control;
+  physicalSwitch: boolean;
 };
 export type PlannerLoad = {
   id: string; name: string; circuitId: string; voltage: Voltage; category: Category;
@@ -14,21 +13,16 @@ export type PlannerLoad = {
   /** Retained only for a possible future seasonal feature; not used in totals. */
   legacySeasonal?: unknown;
 };
-export type Planner = { version: 2; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
+export type Planner = { version: 3; circuits: PlannerCircuit[]; loads: PlannerLoad[] };
 export type Template = {
   name: string; category: Category; voltage: Voltage; watts: number; hours: number;
   length?: number; quantity?: number; basis: string; sourceUrl?: string;
 };
-export const blankPlanner = (): Planner => ({version:2,circuits:[],loads:[]});
+export const blankPlanner = (): Planner => ({version:3,circuits:[],loads:[]});
 export const uid = () => crypto.randomUUID();
 export const newCircuit = (): PlannerCircuit => ({
-  id:uid(),name:'',voltage:12,physicalSwitch:false,control:'direct',
+  id:uid(),name:'',voltage:12,physicalSwitch:false,
 });
-/** Remote control replaces, rather than adds to, physical on/off switch topology.
- * The raw switch preference is retained if a circuit changes back to direct.
- */
-export const effectivePhysicalSwitch = (c:PlannerCircuit):boolean =>
-  c.control==='direct' && c.physicalSwitch;
 
 /** Watt figures are average daily-planning inputs, not peak cable/fuse design loads.
  * Each entry identifies where it is manufacturer-confirmed vs a working estimate.
@@ -104,13 +98,12 @@ export function plannerTotal(p:Planner) {
 export function isPlanner(x:unknown):x is Planner {
   if(!x||typeof x!=='object')return false;
   const p=x as Planner;
-  if(p.version!==2||!Array.isArray(p.loads)||!Array.isArray(p.circuits))return false;
+  if(p.version!==3||!Array.isArray(p.loads)||!Array.isArray(p.circuits))return false;
   const ids=new Set<string>();
   const numberOrNull=(n:unknown,max=Number.MAX_VALUE)=>n===null||valid(n,max);
   for(const c of p.circuits) {
     if(!c||typeof c.id!=='string'||!c.id||ids.has(c.id)||typeof c.name!=='string'
-       ||![12,24,230].includes(c.voltage)||typeof c.physicalSwitch!=='boolean'
-       ||!['direct','remote6'].includes(c.control))return false;
+       ||![12,24,230].includes(c.voltage)||typeof c.physicalSwitch!=='boolean')return false;
     ids.add(c.id);
   }
   for(const l of p.loads) {
@@ -135,11 +128,25 @@ export function importPlanner(x:unknown):Planner|null {
   if(isPlanner(x))return x;
   if(!x||typeof x!=='object')return null;
   const old=x as {version?:unknown;loads?:unknown;circuits?:unknown};
+  // Prior saved v2 planner data is accepted without requiring a remote-control decision.
+  // A remote-assigned circuit in v2 did not activate its physical-switch checkbox;
+  // migrate it conservatively as unchecked instead of inventing a physical switch.
+  if(old.version===2 && Array.isArray(old.loads) && Array.isArray(old.circuits)) {
+    try {
+      const circuits:PlannerCircuit[]=old.circuits.map((raw:unknown)=>{
+        const c=raw as {id:string;name:string;voltage:Voltage;physicalSwitch:boolean;control?:string};
+        return {id:c.id,name:c.name,voltage:c.voltage,
+          physicalSwitch:c.control==='remote6'?false:c.physicalSwitch};
+      });
+      const p:Planner={version:3,circuits,loads:old.loads as PlannerLoad[]};
+      return isPlanner(p)?p:null;
+    } catch {return null;}
+  }
   if(old.version!==1||!Array.isArray(old.loads)||!Array.isArray(old.circuits))return null;
   try {
     const circuits:PlannerCircuit[]=old.circuits.map((raw:unknown)=>{
       const c=raw as {id:string;name:string;voltage:Voltage};
-      return {id:c.id,name:c.name,voltage:c.voltage,physicalSwitch:false,control:'direct'};
+      return {id:c.id,name:c.name,voltage:c.voltage,physicalSwitch:false};
     });
     const loads:PlannerLoad[]=old.loads.map((raw:unknown)=>{
       const l=raw as {id:string;name:string;circuitId:string;voltage:Voltage;category:Category;
@@ -165,7 +172,7 @@ export function importPlanner(x:unknown):Planner|null {
         notes:l.notes,basis:'Migrated average from legacy Summer usage. Review power, duty, startup and daily hours.',
         sourceUrl:'',legacySeasonal:l};
     });
-    const p:Planner={version:2,circuits,loads};
+    const p:Planner={version:3,circuits,loads};
     return isPlanner(p)?p:null;
   } catch {return null;}
 }
