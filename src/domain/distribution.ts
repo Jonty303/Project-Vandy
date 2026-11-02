@@ -6,6 +6,10 @@ export type NodeKind='lynx'|'blue-sea'|'busbar';
 export type DistributionNode={id:string;kind:NodeKind;name:string;voltage:DcVoltage};
 export type DcTarget='node'|'circuit'|'load'|'inverter';
 export type DcAssignment={id:string;sourceId:string;targetType:DcTarget;targetId:string;slot:number|null};
+/** A shore-only AC battery charger has one stable battery-side charging output.
+ * Combined inverter/chargers instead use the existing single 'inverter' DC link.
+ */
+export const SHORE_CHARGER_ID='shore-battery-charger';
 export type ChargeAssignment={chargerId:string;destinationId:string;slot:number|null};
 export type AcAssignment={targetType:'circuit'|'load';targetId:string};
 export type DistributionPlan={
@@ -32,6 +36,16 @@ export const standaloneInverters=[
   sourceUrl:'https://www.victronenergy.com/upload/documents/Certificate-Safety-IEC-60335-1-AS-NZS-4736-Phoenix-Inverter-VE.Direct-250-375-500VA.pdf'},
 ] as const;
 export type InverterChoice={id:string;name:string;voltage:DcVoltage;va:number;sourceUrl:string;combined:boolean};
+/** All selected charger-output devices, including a shore-only charger.
+ * A MultiPlus is intentionally NOT returned here: its one DC connection is
+ * modelled as the existing inverter association (bidirectional when charging).
+ */
+export const chargeOutputUnits=(p:Pick<Planner,'charging'>)=>{
+ const units=[...p.charging.mppt,...p.charging.dc2dc];
+ const shore=p.charging.shoreModelId?findModel(p.charging.shoreModelId):null;
+ return shore?.kind==='shoreCharger'
+   ?[...units,{id:SHORE_CHARGER_ID,modelId:shore.id}]:units;
+};
 export const activeInverter=(p:Planner):InverterChoice|null=>{
  const combined=plannedInverter(p.charging);
  if(combined)return {id:'combined:'+combined.id,name:combined.name,voltage:combined.outputVoltages[0],
@@ -127,7 +141,7 @@ export function validDistribution(input:unknown,p:{circuits:Planner['circuits'];
  if(!d.nodes.every(n=>['lynx','blue-sea','busbar'].includes(n.kind)&&
   (n.voltage===12||n.voltage===24)&&typeof n.name==='string'))return false;
  if(d.standaloneInverterId!==null&&!standaloneInverters.some(i=>i.id===d.standaloneInverterId))return false;
- const allChargers=[...p.charging.dc2dc,...p.charging.mppt].map(u=>u.id);
+ const allChargers=chargeOutputUnits(p).map(u=>u.id);
  const targetKeys:string[]=[];const positionKeys:string[]=[];const assignmentIds:string[]=[];
  const nodeMap=new Map(d.nodes.map(n=>[n.id,n]));
  for(const a of d.dcAssignments){
@@ -208,7 +222,7 @@ export function distributionIssues(p:Planner):DistributionIssue[]{
    add('review','Generic busbar outputs are unfused; branch protection is not specified.',a.targetId);
  }
  for(const a of d.chargerAssignments){
-  const u=[...p.charging.dc2dc,...p.charging.mppt].find(x=>x.id===a.chargerId);
+  const u=chargeOutputUnits(p).find(x=>x.id===a.chargerId);
   const m=u?findModel(u.modelId):null;
   const targetV=a.destinationId==='battery'?batteryV:nodeMap.get(a.destinationId)?.voltage;
   if(m&&targetV!==undefined&&!m.outputVoltages.includes(targetV))
@@ -225,7 +239,7 @@ export function distributionIssues(p:Planner):DistributionIssue[]{
   if(!assignmentFor(d,'load',l.id))
    add('review',(l.name||'Unnamed load')+' remains unassigned to a distribution branch.',l.id);
  }
- for(const u of [...p.charging.dc2dc,...p.charging.mppt]){
+ for(const u of chargeOutputUnits(p)){
   if(!d.chargerAssignments.some(a=>a.chargerId===u.id))
    add('review',(findModel(u.modelId)?.name||'Charger')+' has no planned DC output destination.',u.id);
  }
@@ -250,7 +264,7 @@ export function distributionIssues(p:Planner):DistributionIssue[]{
 export const normaliseDistribution=(p:Planner):Planner=>{
  const d=p.distribution;
  const nodes=new Set(d.nodes.map(n=>n.id));
- const chargers=new Set([...p.charging.dc2dc,...p.charging.mppt].map(u=>u.id));
+ const chargers=new Set(chargeOutputUnits(p).map(u=>u.id));
  const inverter=activeInverter(p);
  return {...p,distribution:{...d,
   dcAssignments:d.dcAssignments.filter(a=>
