@@ -1,6 +1,6 @@
-# Project Vandy — Load Calculator, Batteries & Charging
+# Project Vandy — Electrical Planning & Off-grid Rating
 
-A focused **typical-day** load calculator and battery endurance comparison. The menu now includes **Home**, **Load Calculator**, **Battery Selection**, and **Charging**.
+A focused **typical-day** load calculator and battery endurance comparison. The menu now includes **Home**, **Load Calculator**, **Battery Selection**, **Charging** and **Off-grid rating**.
 
 Start with an empty project and the built-in **Ungrouped loads** container. Add named circuits and loads from the reference catalogue (or a custom load). The **Add load** panel offers just one generic **LED lights** preset, instead of multiple named lighting presets. Add it repeatedly and name/length/assign each instance as needed. Every new appliance starts ungrouped and gets an editable power and daily usage estimate, including LED strip length where relevant. Manufacturer-confirmed ratings and rough assumptions are differentiated in the Technical basis section.
 
@@ -9,6 +9,10 @@ Under **Load Calculator**, use the **Loads** and **Circuits** tabs. Each has a c
 Battery Selection opens a searchable, voltage-filtered catalogue only after **Select a battery** or **Change battery** is pressed. It offers three EU WattCycle LiFePO₄ planning options: 12V 280Ah Mini, 12V 628Ah Ultra, and 24V 314Ah Ultra. It calculates simple no-charge runtime as 90% of nominal battery Wh divided by daily load Wh. A 12V battery flags 24V DC loads, and vice versa; connection modelling is deferred. Inverter losses and other electrical inefficiencies are excluded; the result is indicative only.
 
 **Charging** has three tabs: DC–DC (select multiple Victron Orion/Renogy units and estimate spare alternator amps, default 30 A); Solar (one generic panel specification with editable W, quantity, series/parallel, Voc and Isc, plus one or more Victron/Renogy MPPTs); Shore power (single Victron IP22 charger or MultiPlus inverter/charger in 12/24V). Selecting a MultiPlus records a future inverter prefill but doesn't wire or assign any AC loads. Manufacturer specifications and nonblocking voltage/array warnings are included. Charging is **configuration-only**: battery runtime does not yet add solar, driving or shore charging.
+
+The **Solar** charging tab now offers a searchable selection of model-specific Renogy 100/200/320/400 W panels, or a Custom panel prefilled with estimated 400 W, Voc 40 V and Isc 13 A. Orion XS lets you plan distinct input and output current limits, and Shore Power records an editable shore supply limit.
+
+**Off-grid rating** compares monthly stationary versus daily-driving battery autonomy using PVGIS 5.3 historical long-term solar production for a UK five-site reference average, searchable UK regions or user-approved browser geolocation. Click months to inspect the demand, solar/day, drive charging/day, net battery depletion and a 14-day SoC projection. Conversion assumptions (230 V inverter, 12/24 V DC) are shown and applied. A balanced month does **not** mean guaranteed unlimited autonomy. PVGIS results depend on the **Vite development-only server** at `/api/pvgis/monthly`; a static production hosting target requires a separate API backend.
 
 Seasonal profiles are intentionally hidden for this iteration. Previous v1 seasonal data is migrated to one typical day using its Summer profile; the original is preserved for a possible later reintroduction.
 
@@ -21,6 +25,6 @@ npm run check
 npm run dev -- --host 0.0.0.0
 ```
 
-Open the forwarded Vite port (normally 5173). Use **Update** to save to browser storage and **Export JSON** for a backup. Battery Selection reads the load-side Wh/day estimate; runtime excludes electrical conversion losses and charging.
+Open the forwarded Vite port (normally 5173). Use **Update** to save to browser storage and **Export JSON** for a backup. Battery Selection retains a no-charge load-side runtime, while Off-grid rating models conversion losses and estimated solar/driving contributions. Shore is excluded.
 
 For formulas, safety assumptions, default sources and migration details see [the focused calculator contract](docs/LOAD_CALCULATOR.md).
