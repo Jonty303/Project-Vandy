@@ -70,6 +70,7 @@ export type SolarPanelPlan={
   voc:number|null;isc:number|null;vmp:number|null;imp:number|null;vocTempCoeffPct:number|null;
 };
 export function chooseSolarPanel(old:SolarPanelPlan,modelId:string):SolarPanelPlan{
+ if(modelId==='')return {...customSolarPanel(),modelId:'',watts:null,voc:null,isc:null,vmp:null,imp:null};
  if(modelId==='custom')return {...customSolarPanel(),quantity:old.quantity,connection:old.connection};
  const m=panelModel(modelId);if(!m)return old;
  return {...old,modelId,watts:m.watts,voc:m.voc,isc:m.isc,vmp:m.vmp,imp:m.imp,
@@ -83,7 +84,7 @@ export type ChargingPlan={
 };
 export const emptyCharging=():ChargingPlan=>({
   spareAlternatorAmps:30,alternatorVoltage:12,dc2dc:[],mppt:[],
-  panel:{...customSolarPanel(),watts:null,voc:null,isc:null,vmp:null,imp:null},
+  panel:{...customSolarPanel(),modelId:'',watts:null,voc:null,isc:null,vmp:null,imp:null},
   shoreModelId:null,shoreSupplyAmps:16,shoreChargeLimitA:null,
 });
 export const plannedInverter=(c:ChargingPlan):DeviceModel|null=>{
@@ -111,7 +112,7 @@ export function validCharging(c:unknown):c is ChargingPlan{
     }
   }
   const p=q.panel;
-  if(!p||(p.modelId!=='custom'&&!panelModel(p.modelId))||
+  if(!p||(p.modelId!==''&&p.modelId!=='custom'&&!panelModel(p.modelId))||
     !(p.watts===null||safeNumber(p.watts))||
     !Number.isInteger(p.quantity)||p.quantity<1||p.quantity>1000||
     !['series','parallel'].includes(p.connection)||
