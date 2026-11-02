@@ -179,7 +179,7 @@ export function App(){
             <div className="eyebrow">STORAGE CAPACITY & ENDURANCE</div>
             <h1>Battery Selection</h1>
             <p>Choose one WattCycle LiFePO₄ battery for a simple runtime estimate based on your daily loads.</p>
-          </div>
+          </div></div>
           <section className="battery-options" aria-label="Available battery models">
             {batteries.map(b=><button key={b.id} type="button"
               className={'panel battery-option '+(p.batteryId===b.id?'selected':'')}
