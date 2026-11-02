@@ -49,9 +49,9 @@ test('DC–DC output voltage mismatch is warned, rather than changing planned ba
 test('solar generic watts, quantity and series/parallel affect PV calculations',()=>{
   const c=emptyCharging();
   c.panel={watts:200,quantity:3,connection:'series',voc:41,isc:7};
-  assert.deepEqual(panelArray(c.panel),{watts:600,voc:123,isc:7});
+  assert.deepEqual(panelArray(c.panel),{watts:600,voc:123,isc:7,vmp:null,imp:null,coldVoc:null});
   c.panel.connection='parallel';
-  assert.deepEqual(panelArray(c.panel),{watts:600,voc:41,isc:21});
+  assert.deepEqual(panelArray(c.panel),{watts:600,voc:41,isc:21,vmp:null,imp:null,coldVoc:null});
 });
 test('MPPT validation checks nominated panel Voc and Isc and nominal PV power',()=>{
   const c=emptyCharging();
