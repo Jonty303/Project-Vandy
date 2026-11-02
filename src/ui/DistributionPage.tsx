@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {AlertTriangle,Plus,Trash2,ExternalLink} from 'lucide-react';
 import {selectedBattery,voltageIssues,type Planner} from '../domain/loadPlanner.ts';
 import {findModel} from '../domain/charging.ts';
+import {plannedConsumerUnits,connectionIssues,type ConnectionPlan} from '../domain/connectionPoints.ts';
 import {
   activeInverter,assignmentFor,busbarRequirements,dcSources,dcTargets,distributionIssues,
   distributionModels,slotsFor,standaloneInverters,occupiedSlots,firstFreeSlot,chargeOutputUnits,type DistributionPlan,
@@ -9,12 +10,12 @@ import {
 } from '../domain/distribution.ts';
 import './distribution.css';
 
-type Props={planner:Planner;onChange:(next:DistributionPlan)=>void};
+type Props={planner:Planner;onChange:(next:DistributionPlan)=>void;onConnectionsChange:(next:ConnectionPlan)=>void};
 type Tab=12|24|230;
 const typeLabel=(t:DcTarget)=>t==='node'?'Distributor':t==='circuit'?'Circuit':t==='load'?'Ungrouped load':'Inverter DC input';
 const safeName=(n:string,kind:NodeKind)=>n.trim()||distributionModels[kind].name;
 const nextId=()=>crypto.randomUUID();
-export function DistributionPage({planner:p,onChange}:Props){
+export function DistributionPage({planner:p,onChange,onConnectionsChange}:Props){
  const [tab,setTab]=useState<Tab>(12);
  const [addKind,setAddKind]=useState<NodeKind>('lynx');
  const [selectedId,setSelectedId]=useState('');
@@ -29,6 +30,9 @@ export function DistributionPage({planner:p,onChange}:Props){
  const chosen=d.nodes.find(n=>n.id===selectedId&&n.voltage===tab);
  const targets=isDc?dcTargets(p,tab):[];
  const issues=distributionIssues(p);
+ const units=plannedConsumerUnits(p);
+ const socketIssues=connectionIssues(p);
+ const inlet=p.connections.shoreInlet;
  const change=(update:Partial<DistributionPlan>)=>{onChange({...d,...update});setLocalMessage('');};
  const addNode=()=>{
   if(tab===230||blocked24)return;
@@ -331,6 +335,36 @@ export function DistributionPage({planner:p,onChange}:Props){
    </section>
   </div>:<div className="dist-sections">
    <section className="panel planner-detail-panel">
+    <h2>230 V consumer units and shore inlet</h2>
+    <p className="planner-note">Consumer-unit roles appear automatically from selected shore charging equipment and 230 V loads or outlets. These are planning placeholders, not specified RCDs, breakers, changeover switches, wiring or earth/neutral arrangements.</p>
+    <div className="cp-unit-list">
+     {units.length?units.map(unit=><div key={unit.id} className="cp-unit">
+      <strong>{unit.name}</strong>
+      <small>{unit.side==='input'?'Shore AC input side':'Inverter-backed AC output side'}</small>
+      <p>{unit.reason}</p>
+      {unit.id==='shore-input'?<p>Inlet: {inlet?.name||'Not added'}
+        {p.charging.shoreModelId?' · Charger/inverter-charger selected':' · Charger not selected'}</p>:
+        <p>Source: {inverter?.name||'Inverter required'}
+          {' · '}{p.connections.sockets.filter(socket=>socket.kind==='uk-3pin').length} 3-pin connection point(s)</p>}
+     </div>):<p className="charging-empty">No AC consumer unit roles are needed yet. Selecting shore charging or adding 230 V equipment will create the appropriate planning entry.</p>}
+    </div>
+    <div className="cp-section">
+     <h3>External shore-power inlet</h3>
+     <p className="planner-note">A separate external 230 V AC inlet, not a domestic 3-pin outlet and not a battery-backed power source.</p>
+     {inlet?<div className="cp-socket-head">
+      <label className="field"><span>Shore inlet name</span>
+       <input value={inlet.name} onChange={e=>onConnectionsChange({...p.connections,
+         shoreInlet:{...inlet,name:e.target.value}})}/>
+      </label>
+      <button type="button" className="button small" onClick={()=>onConnectionsChange({...p.connections,shoreInlet:null})}>Remove inlet</button>
+     </div>:<button className="button primary" type="button"
+       onClick={()=>onConnectionsChange({...p.connections,
+         shoreInlet:{id:crypto.randomUUID(),name:'External 230 V shore-power inlet'}})}>
+       <Plus size={15}/>Add shore-power inlet
+     </button>}
+    </div>
+   </section>
+   <section className="panel planner-detail-panel">
     <h2>230 V inverter source</h2>
     {p.charging.shoreModelId&&findModel(p.charging.shoreModelId)?.kind==='shoreCharger'&&
      <p className="planner-note">Selected shore charger: {findModel(p.charging.shoreModelId)?.name}. This consumes AC to charge the battery; it does not provide an AC inverter output.</p>}
@@ -354,18 +388,24 @@ export function DistributionPage({planner:p,onChange}:Props){
     </>}
     {inverter&&batteryV!==inverter.voltage&&<p className="validation-warning">
      <AlertTriangle size={17}/>The selected inverter DC input is {inverter.voltage} V; the planned battery {batteryV===undefined?'is missing':'is '+batteryV+' V'}.</p>}
-    <p className="planner-note">Inverter DC input is listed under the matching DC voltage tab for assignment. AC transfer switching, shore topology, consumer units, breakers and PE/N are deferred.</p>
+    <p className="planner-note">Inverter DC input is listed under the matching DC voltage tab for assignment. Consumer-unit identities are shown above; their wiring, transfer switching, breakers and PE/N are deferred.</p>
    </section>
    <section className="panel planner-list-panel">
     <div className="panel-head"><h2>230 V circuits and ungrouped loads</h2>
-     <small>One logical inverter output grouping, not physical AC wiring</small></div>
+     <small>Logical inverter-fed consumer-unit grouping, not physical AC wiring</small></div>
     {acTargets.length?<div className="planner-list-scroll">
      <table className="planner-table">
       <thead><tr><th>Target</th><th>Type</th><th>Member loads</th><th>Inverter output</th></tr></thead>
       <tbody>{acTargets.map(t=>{
        const checked=d.acAssignments.some(a=>a.targetType===t.type&&a.targetId===t.id);
        return <tr key={t.type+':'+t.id}>
-        <td>{t.name}</td><td>{t.type==='circuit'?'Named circuit':'Ungrouped load'}</td><td>{t.count}</td>
+        <td>{t.name}
+          {t.type==='circuit'&&p.connections.sockets.some(s=>s.circuitId===t.id&&s.kind==='uk-3pin')&&
+            <small className="dist-small">
+              {p.connections.sockets.filter(s=>s.circuitId===t.id&&s.kind==='uk-3pin')
+                .reduce((sum,s)=>sum+s.positions,0)} 3-pin outlet(s)
+            </small>}
+        </td><td>{t.type==='circuit'?'Named circuit':'Ungrouped load'}</td><td>{t.count}</td>
         <td><select value={checked?'inverter':''} disabled={!inverter}
          aria-label={'230 V source for '+t.name}
          onChange={e=>assignAc(t.type,t.id,e.target.value==='inverter')}>
@@ -378,7 +418,12 @@ export function DistributionPage({planner:p,onChange}:Props){
     </div>:<p className="charging-empty">No 230 V circuits or ungrouped loads. Add them in Load Calculator.</p>}
    </section>
   </div>}
-  {issues.length>0&&<section className="panel planner-detail-panel">
+  {socketIssues.length>0&&<section className="panel planner-detail-panel">
+    <div className="panel-head"><h2>Socket and shore-power review</h2><small>{socketIssues.length} finding(s)</small></div>
+    {socketIssues.map((issue,i)=><p className={issue.kind==='mismatch'?'validation-warning':'dist-review'} key={i}>
+      <AlertTriangle size={15}/>{issue.message}</p>)}
+   </section>}
+   {issues.length>0&&<section className="panel planner-detail-panel">
    <div className="panel-head"><h2>Distribution review</h2><small>{issues.length} finding(s), including incomplete assignments</small></div>
    <div className="dist-issues">{issues.map((issue,i)=><div key={i}
     className={issue.level==='error'?'validation-warning':'dist-review'}>
