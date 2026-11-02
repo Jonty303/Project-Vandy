@@ -38,3 +38,6 @@ For formulas, safety assumptions, default sources and migration details see [the
 
 ### Lynx charge-output slots
 The **Lynx Distributor's four fused positions are shared** by inverter or downstream distributor feeds, MPPT outputs and DC–DC charger outputs. Selecting Lynx as the destination automatically assigns the next available position; a full Lynx cannot receive another new charger link until a position is freed. Change or remove a charger position from the device list or Charging outputs table. Saved v7 setups migrate existing charger-to-Lynx links into unused slots without deleting the equipment; oversubscribed links remain visible and marked for review.
+
+
+**Battery-side DC equipment**: Distribution now lists the selected combined inverter/charger or standalone inverter alongside DC–DC, MPPT and standalone shore charger outputs. Every item can be logically associated with battery, Lynx or suitable busbar. A MultiPlus has exactly one bidirectional DC association and one Lynx position, not a second charger-output entry; the same 230 V inverter choice remains selected. A shore-only Blue Smart IP22 has a DC charging-output entry, but no inverter output. Changes use the existing v8 JSON schema.
