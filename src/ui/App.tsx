@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState,type ReactNode,type DragEvent as ReactDragEvent,type KeyboardEvent as ReactKeyboardEvent} from 'react';
-import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw,AlertTriangle,BatteryCharging,PlugZap,Gauge} from 'lucide-react';
+import {Home,Calculator,Zap,Plus,Trash2,Download,Upload,Save,RotateCcw,AlertTriangle,BatteryCharging,PlugZap,Gauge,Network} from 'lucide-react';
 import {
   blankPlanner,catalogue,importPlanner,isPlanner,loadEnergy,newCircuit,newLoad,plannerTotal,moveLoadToCircuit,
   batteries,selectedBattery,batteryRuntime,voltageIssues,circuitVoltageIssues,loadVoltageIssues,
@@ -8,11 +8,13 @@ import {
 import {chargingWarnings,plannedInverter} from '../domain/charging.ts';
 import {ChargingPage} from './ChargingPage.tsx';
 import {OffGridPage} from './OffGridPage.tsx';
+import {DistributionPage} from './DistributionPage.tsx';
+import {normaliseDistribution,distributionIssues} from '../domain/distribution.ts';
 import {monthRating,MONTHS,batteryChargeReview} from '../domain/offGrid.ts';
 import './loadPlanner.css';
 
-const KEY='vandy-load-planner-v6';
-const PRIOR_KEYS=['vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
+const KEY='vandy-load-planner-v7';
+const PRIOR_KEYS=['vandy-load-planner-v6','vandy-load-planner-v5','vandy-load-planner-v4','vandy-load-planner-v3','vandy-load-planner-v2','vandy-load-planner-v1'] as const;
 const UNGROUPED='ungrouped';
 type CalculatorTab='loads'|'circuits';
 const fmt=(n:number|null):string=>n===null?'Unknown':n.toLocaleString('en-GB',{maximumFractionDigits:2});
@@ -51,7 +53,7 @@ export function App(){
   const [start]=useState(initial);
   const [saved,setSaved]=useState<Planner>(start.saved);
   const [p,setP]=useState<Planner>(start.p);
-  const [page,setPage]=useState<'home'|'calculator'|'battery'|'charging'|'offgrid'>('home');
+  const [page,setPage]=useState<'home'|'calculator'|'battery'|'charging'|'offgrid'|'distribution'>('home');
   const [tab,setTab]=useState<CalculatorTab>('loads');
   const [selectedLoad,setSelectedLoad]=useState('');
   const [selectedCircuit,setSelectedCircuit]=useState(UNGROUPED);
@@ -73,6 +75,7 @@ export function App(){
   const batteryChargeAlerts=batteryChargeReview(p);
   const futureInverter=plannedInverter(p.charging);
   const currentMonthRating=monthRating(p,p.offGrid.month);
+  const distributionAlerts=distributionIssues(p);
   const batteryMatches=batteries.filter(b=>
     (batteryVoltageFilter==='all'||b.systemVoltage===Number(batteryVoltageFilter))&&
     b.name.toLowerCase().includes(batterySearch.toLowerCase().trim()));
@@ -92,12 +95,12 @@ export function App(){
   },[dirty]);
 
   const patchLoad=(change:Partial<PlannerLoad>)=>
-    setP(old=>({...old,loads:old.loads.map(l=>l.id===selectedLoad?{...l,...change}:l)}));
+    setP(old=>normaliseDistribution({...old,loads:old.loads.map(l=>l.id===selectedLoad?{...l,...change}:l)}));
   const patchCircuit=(id:string,change:Partial<PlannerCircuit>)=>
-    setP(old=>({...old,circuits:old.circuits.map(c=>c.id===id?{...c,...change}:c)}));
+    setP(old=>normaliseDistribution({...old,circuits:old.circuits.map(c=>c.id===id?{...c,...change}:c)}));
   // Device voltage is user-entered and never silently rewritten by circuit edits.
   const changeCircuitVoltage=(id:string,voltage:Voltage)=>
-    setP(old=>({...old,circuits:old.circuits.map(c=>c.id===id?{...c,voltage}:c)}));
+    setP(old=>normaliseDistribution({...old,circuits:old.circuits.map(c=>c.id===id?{...c,voltage}:c)}));
 
   const save=()=>{
     if(!structural){setMessage('Correct invalid values before updating; voltage mismatches are allowed.');return;}
@@ -107,7 +110,7 @@ export function App(){
   const exportData=()=>{
     if(!structural){setMessage('Correct invalid values before exporting; voltage mismatches are allowed.');return;}
     const url=URL.createObjectURL(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}));
-    const a=document.createElement('a');a.href=url;a.download='vandy-daily-load-planner.json';a.click();
+    const a=document.createElement('a');a.href=url;a.download='vandy-electrical-plan.json';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
   const addLoad=(t:typeof catalogue[number])=>{
@@ -121,7 +124,7 @@ export function App(){
     setSelectedCircuit(c.id);setTab('circuits');
   };
   const deleteCircuit=(id:string)=>{
-    setP(old=>({...old,circuits:old.circuits.filter(c=>c.id!==id),
+    setP(old=>normaliseDistribution({...old,circuits:old.circuits.filter(c=>c.id!==id),
       loads:old.loads.map(l=>l.circuitId===id?{...l,circuitId:''}:l)}));
     setSelectedCircuit(UNGROUPED);
   };
@@ -144,7 +147,7 @@ export function App(){
   const dropLoadInGroup=(e:ReactDragEvent<HTMLTableSectionElement>,groupId:string)=>{
     e.preventDefault();
     if(draggedLoadId){
-      setP(old=>moveLoadToCircuit(old,draggedLoadId,groupId===UNGROUPED?'':groupId));
+      setP(old=>normaliseDistribution(moveLoadToCircuit(old,draggedLoadId,groupId===UNGROUPED?'':groupId)));
       setSelectedLoad(draggedLoadId);
     }
     setDraggedLoadId(null);setDropTarget('');
@@ -162,11 +165,12 @@ export function App(){
         <button className={'nav-item '+(page==='battery'?'active':'')} onClick={()=>setPage('battery')}><BatteryCharging size={19}/>Battery Selection</button>
         <button className={'nav-item '+(page==='charging'?'active':'')} onClick={()=>setPage('charging')}><PlugZap size={19}/>Charging</button>
         <button className={'nav-item '+(page==='offgrid'?'active':'')} onClick={()=>setPage('offgrid')}><Gauge size={19}/>Off-grid rating</button>
+        <button className={'nav-item '+(page==='distribution'?'active':'')} onClick={()=>setPage('distribution')}><Network size={19}/>Distribution</button>
       </nav>
       <div className="sidebar-bottom">Start with a typical day.<p>Load calculation · focused edition</p></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':page==='battery'?'BATTERY SELECTION':page==='charging'?'CHARGING':page==='offgrid'?'OFF-GRID RATING':'LOAD CALCULATOR'}</b></div>
+      <header className="topbar"><div className="breadcrumb">VANDY / <b>{page==='home'?'HOME':page==='battery'?'BATTERY SELECTION':page==='charging'?'CHARGING':page==='offgrid'?'OFF-GRID RATING':page==='distribution'?'DISTRIBUTION':'LOAD CALCULATOR'}</b></div>
         <span className="tag">{dirty?'Unsaved changes':'Local project'}</span></header>
       <div className="content">
         {page==='home'?<>
@@ -193,7 +197,9 @@ export function App(){
               {batteryChargeAlerts.length} battery charging-current review(s) needed.</p>}
             {chargeAlerts.length>0&&<p className="validation-warning"><AlertTriangle size={16}/>
               {chargeAlerts.length} planned charging item(s) need review. Open Charging to see details.</p>}
-            {futureInverter&&<p className="planner-note">Planned inverter/charger for later 230 V configuration: {futureInverter.name}.</p>}
+            {futureInverter&&<p className="planner-note">Planned inverter/charger for 230 V distribution: {futureInverter.name}.</p>}
+            {distributionAlerts.length>0&&<p className="planner-note">
+              {distributionAlerts.length} distribution association(s) awaiting review. Open Distribution for details.</p>}
             {currentMonthRating&&<p className="planner-note">
               {MONTHS[p.offGrid.month]} off-grid estimate: {currentMonthRating.drivingBalanced?'average energy balanced':
                 currentMonthRating.drivingDays!==null?fmt(currentMonthRating.drivingDays)+' days with driving':
@@ -304,12 +310,14 @@ export function App(){
             <BatteryCharging size={32}/><h2>No battery selected</h2>
             <p>Use Select a battery above to open the searchable planning catalogue and calculate no-charge runtime.</p>
           </section>}
-        </>:page==='offgrid'?<OffGridPage planner={p}
+        </>:page==='distribution'?<DistributionPage planner={p}
+          onChange={distribution=>setP(old=>({...old,distribution}))}
+        />:page==='offgrid'?<OffGridPage planner={p}
           onChange={offGrid=>setP(old=>({...old,offGrid}))}
         />:page==='charging'?<ChargingPage
           plan={p.charging} batteryVoltage={battery?.systemVoltage??null}
           batteryWarnings={batteryChargeAlerts}
-          onChange={charging=>setP(old=>({...old,charging}))}
+          onChange={charging=>setP(old=>normaliseDistribution({...old,charging}))}
         />:<>
           <div className="section-heading heading-top"><div>
             <div className="eyebrow">YOUR DAILY ENERGY DEMAND</div>
@@ -426,7 +434,7 @@ export function App(){
           {tab==='loads'?(load?<section className="panel planner-detail-panel planner-editor" key={load.id}>
             <div className="panel-head"><h2>{load.name||'Custom load'}</h2>
               <button className="icon-button danger" aria-label="Delete load"
-                onClick={()=>{setP(old=>({...old,loads:old.loads.filter(l=>l.id!==load.id)}));setSelectedLoad('');}}>
+                onClick={()=>{setP(old=>normaliseDistribution({...old,loads:old.loads.filter(l=>l.id!==load.id)}));setSelectedLoad('');}}>
                 <Trash2 size={18}/></button>
             </div>
             <div className="form-grid">
@@ -550,7 +558,7 @@ export function App(){
         </div>
         {message&&<div role="status" className="planner-message">{message}
           <button className="button small" onClick={()=>setMessage('')}>Dismiss</button></div>}
-        <footer className="app-footer">VANDY · DAILY LOAD PLANNING · ESTIMATES FOR YOUR ENTERED USAGE</footer>
+        <footer className="app-footer">VANDY · ELECTRICAL PLANNING · PROPOSED ASSOCIATIONS, NOT INSTALLATION INSTRUCTIONS</footer>
       </div>
     </main>
   </div>;
