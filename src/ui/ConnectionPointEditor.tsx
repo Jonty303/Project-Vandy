@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {Plus,Trash2,AlertTriangle} from 'lucide-react';
 import type {Planner} from '../domain/loadPlanner.ts';
 import {
-  newSocket,socketName,connectedSocket,connectionIssues,type ConnectionPlan,type SocketKind,
+  newSocket,socketName,connectedSocket,connectionIssues,type ConnectionPlan,
 } from '../domain/connectionPoints.ts';
 import './connectionPoints.css';
 
@@ -11,7 +11,6 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
  const circuit=planner.circuits.find(c=>c.id===circuitId);
  const sockets=planner.connections.sockets.filter(s=>s.circuitId===circuitId);
  const [count,setCount]=useState<1|2>(2);
- const [kind,setKind]=useState<SocketKind>('usb');
  if(!circuit)return null;
  const suggestedKind=circuit.voltage===230?'uk-3pin':'usb';
  const add=()=>{
@@ -27,7 +26,7 @@ export function CircuitSocketEditor({planner,onChange,circuitId}:Props&{circuitI
   <div className="cp-controls">
    <label className="field"><span>Type for {circuit.voltage} V circuit</span>
     <select value={circuit.voltage===230?'uk-3pin':'usb'} disabled
-      onChange={e=>setKind(e.target.value as SocketKind)}>
+      >
      <option value="usb">USB charging socket (DC circuit)</option>
      <option value="uk-3pin">UK 3-pin socket (230 V circuit)</option>
     </select>
