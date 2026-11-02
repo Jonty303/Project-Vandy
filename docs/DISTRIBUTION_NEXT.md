@@ -1,6 +1,6 @@
-# Next iteration design contract — Distribution (design only)
+# Distribution iteration contract — logical planning associations
 
-Status: **prepared, NOT IMPLEMENTED**. Branch: `feature/load-calculator`.
+Status: **IMPLEMENTED (v7 planning model; physical connectivity deferred)**. Branch: `feature/load-calculator`.
 Scope: planning-level **logical distribution associations** only. The user's existing loads, circuits, battery, selected chargers and off-grid model remain authoritative. This contract does not authorize terminals, conductor wiring, fuse rating calculations, compliance claims or 2D editing.
 
 ## Goal
@@ -17,7 +17,7 @@ Add **Distribution** as the next menu item after **Off-grid rating**, with exact
 1. **Victron Lynx Distributor**: DC positive/negative distribution with **four MEGA-fused branch positions**, manufacturer-supported 12/24 V; each instance has a stable ID and optional friendly name. Each branch position can hold one logical branch association for this pass. The upstream feed association does not auto-occupy a particular fuse slot. Manufacturer: https://www.victronenergy.com/media/pg/Lynx_Distributor/en/system-design.html
 2. **Blue Sea Systems ST Blade model 5026** (not "Sky Blue"): one positive supply input, a separate negative bus and **twelve numbered ATC/ATO branch-fuse positions**. Manufacturer maxima: **32 V DC, 100 A block, 30 A each branch**. Supports 12 V or 24 V only when its actual operating voltages are compatible. **An upstream source is mandatory** as a planned association (battery, Lynx Distributor, or suitable DC busbar). Direct battery feed is a possible plan, **not evidence that feed protection is adequate**. Manufacturer: https://www.bluesea.com/products/5026/ST_Blade_Fuse_Block_-_12_Circuits_with_Cover
 3. **Generic DC busbar**: configurable label and nominal system voltage; model positive and negative electrical domains **separately**, even if the interface offers a visually paired busbar assembly. This is NOT a fused device and does NOT inherently establish a chassis-earth or protective-earth bond. The UI must not equate DC negative with earth or AC protective earth.
-4. **230 V standalone inverter selection**, only as needed if no suitable selected inverter/charger exists. Use a limited model-specific selection (including documented 12 V and 24 V DC inputs) with AC power rating, battery voltage and manufacturer specification source. **Do not invent compatibility** or replace the prior selected shore-only charger. Defer multiple simultaneous AC sources, transfer arrangement and 230 V protection topology.
+4. **230 V standalone inverter selection**, only as needed if no suitable selected inverter/charger exists. Initially Victron Phoenix VE.Direct 12/500 and 24/500, using documented 12 V and 24 V DC input, 500 VA AC output and manufacturer specification source. **Do not invent compatibility** or replace the prior selected shore-only charger. Defer multiple simultaneous AC sources, transfer arrangement and 230 V protection topology.
 5. The **6-way remote** is explicitly omitted, as requested. No switches, breakers, AC consumer unit hardware or additional fuse products are automatically introduced in this first distribution pass.
 
 ## Source and destination semantics
@@ -76,3 +76,11 @@ Wiring terminals, actual DC positive/negative conductors, fuse values and holder
 ## Engineering sources checked
 - Victron Lynx Distributor manual (DC current ratings; four fused MEGA branches): https://www.victronenergy.com/media/pg/Lynx_Distributor/en/system-design.html
 - Blue Sea ST Blade 5026 (12 branch positions; 32 V DC, 100 A total, 30 A per branch; negative bus): https://www.bluesea.com/products/5026/ST_Blade_Fuse_Block_-_12_Circuits_with_Cover
+
+## Implementation note (v7)
+- Source code: `src/domain/distribution.ts`, `src/ui/DistributionPage.tsx`, `src/ui/distribution.css`; regression tests in `tests/distribution.test.mjs`.
+- Tab and assignment UI uses dropdowns; drag/drop assignment and a rendered topology diagram remain deferred.
+- Busbar connection counts are **minimum indicative connections per polarity**: reserve 1 upstream feed position, add directly associated downstream branches and incoming charge devices. These are sizing hints, not a verified number of actual DC negative return conductors, cable lugs, or approved stacking on posts.
+- Incomplete source, voltage mismatch and no inverter paths generate warnings. Duplicate slot occupancies, cycles and dangling references are structurally invalid. Changing load/circuit membership or charging device selections automatically reconciles obsolete logical links while preserving the original load/charger records.
+- Standalone inverter selection is limited to the verified Victron Phoenix VE.Direct 12/500 and 24/500 models; the first iteration allows one active inverter output grouping only.
+- The app remains a **planning tool**, not a physical wire-and-protection design. No engineer's safety approval is inferred.
