@@ -1,5 +1,9 @@
 # Project Vandy — Engineering Agent Instructions
 
+
+## Active feature branch — load calculator only (2026-11-02)
+On `feature/load-calculator`, `docs/LOAD_CALCULATOR.md` is the active implementation contract and supersedes earlier iteration scopes for UI work. Only Home and Load Calculator belong in navigation. Use **one typical-day average** for each appliance with editable power, hours, quantity and LED length, and disclose the source or estimate behind defaults. Leave seasonal profiles, separate startup/shutdown power, battery/solar sizing, terminal and wiring screens out of this UI. Store **Physical on/off switch** on a *circuit* with an independent direct/6-gang remote control assignment; only direct circuits may emit a future physical-switch output. Treat 6-gang control as abstract (no inferred channel mapping). Preserve v1 seasonal planner data during v2 migration. Stay on this feature branch until explicitly directed otherwise; do not merge.
+
 ## Scope and authority
 - `DESIGN.md` is the long-term product/architecture source of truth.
 - `docs/ITERATION_03.md` is the **authoritative contract for Iteration 03**. Preserve the Iteration 01 and 02 design and validated calculations. Do not expand into physical wiring or compliance checking.
