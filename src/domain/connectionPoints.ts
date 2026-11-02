@@ -104,6 +104,12 @@ export function connectionIssues(p:Planner):ConnectionIssue[]{
   if(socket.kind==='usb'&&!assignmentFor(p.distribution,'circuit',circuit.id))
    issues.push({kind:'review',id:socket.id,message:socket.name+
      ' is not yet associated with a DC distribution branch via its circuit.'});
+  const requiredPositions=connectedTo(socket.id).reduce((sum,link)=>
+    sum+(p.loads.find(l=>l.id===link.loadId)?.quantity??1),0);
+  if(requiredPositions>socket.positions)
+   issues.push({kind:'review',id:socket.id,message:(socket.name||'Socket')+
+     ' has '+requiredPositions+' individual device connection(s) planned, but only '+
+     socket.positions+' outlet/port position(s). Reduce quantity or reassign devices.'});
   for(const link of connectedTo(socket.id)){
    const load=p.loads.find(l=>l.id===link.loadId);
    if(!load)continue;
