@@ -5,7 +5,7 @@ import {findModel} from '../domain/charging.ts';
 import {
   activeInverter,assignmentFor,busbarRequirements,dcSources,dcTargets,distributionIssues,
   distributionModels,slotsFor,standaloneInverters,type DistributionPlan,
-  type DistributionNode,type NodeKind,type DcVoltage,type DcTarget,type DcAssignment,
+  type DistributionNode,type NodeKind,type DcTarget,type DcAssignment,
 } from '../domain/distribution.ts';
 import './distribution.css';
 
